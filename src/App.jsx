@@ -97,11 +97,7 @@ export default function App() {
         {/* The redundant "Ritual" page was completely removed here! */}
         
         <Suspense fallback={
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg }}>
-            <p className="pulse" style={{ color: T.muted, fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontStyle: "italic" }}>
-              {lang === "Hindi" ? "सांस लें..." : "Breathe..."}
-            </p>
-          </div>
+          <div style={{ height: "100%", width: "100%", background: T.bg }}></div>
         }>
           {tab === "home" && <Home setTab={setTab} T={T} lang={lang} />}
           {tab === "focus" && <Focus setTab={setTab} T={T} lang={lang} />}
