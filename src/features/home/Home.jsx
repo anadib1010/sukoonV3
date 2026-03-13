@@ -16,7 +16,7 @@ export function Home({ setTab, T, lang }) {
     backdropFilter: "blur(25px)",
     WebkitBackdropFilter: "blur(25px)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "40px",
+    borderRadius: "32px", // Slightly tighter rounding for a modern feel
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -24,7 +24,7 @@ export function Home({ setTab, T, lang }) {
     aspectRatio: "1 / 1",
     cursor: "pointer",
     transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-    padding: "20px",
+    padding: "16px", // Reduced padding so text doesn't hit edges on small phones
     boxShadow: "0 15px 45px rgba(0,0,0,0.2)",
     textAlign: "center",
     boxSizing: "border-box",
@@ -33,21 +33,21 @@ export function Home({ setTab, T, lang }) {
 
   const titleStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(17px, 4.2vw, 22px)",
+    fontSize: "clamp(16px, 4vw, 20px)",
     fontWeight: 500,
     marginBottom: "4px",
-    letterSpacing: "0.4px",
+    letterSpacing: "0.5px",
     lineHeight: 1.2,
   };
 
   const subTextStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(13px, 3.2vw, 15px)",
-    opacity: 0.72,
-    lineHeight: 1.4,
+    fontSize: "clamp(12px, 3vw, 14px)",
+    opacity: 0.7,
+    lineHeight: 1.3,
     letterSpacing: "0.5px",
     fontWeight: 400,
-    marginTop: "5px",
+    marginTop: "2px",
     fontStyle: "italic",
   };
 
@@ -56,53 +56,61 @@ export function Home({ setTab, T, lang }) {
       height: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center",       // ← centres every child horizontally
+      alignItems: "center",
       background: T.bg,
-      overflowX: "hidden",
+      overflow: "hidden", // Completely disables the overall scrollbar
       boxSizing: "border-box",
+      padding: "0 24px", // Universal side padding ensures nothing touches the edge
     }}>
 
       {/* ─── BRANDING & GREETING ─── */}
-      <div style={{ padding: "70px 0 36px", textAlign: "center", width: "100%" }}>
+      <div style={{ 
+        paddingTop: "max(10vh, 40px)", // Dynamic padding based on screen size
+        textAlign: "center", 
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center"
+      }}>
 
-        {/* JSukoon — beautiful italic serif */}
+        {/* JSukoon — sleek, non-italic, elegant */}
         <h1 style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(44px, 12vw, 64px)",
+          fontSize: "clamp(40px, 10vw, 56px)", // Slightly scaled down for small screens
           color: T.text,
-          fontWeight: 300,
-          fontStyle: "italic",
+          fontWeight: 400, // Slightly bolder than before for presence
+          fontStyle: "normal", // Removed italic
           margin: "0 0 4px",
-          letterSpacing: "4px",
+          letterSpacing: "2px",
           lineHeight: 1,
         }}>
           JSukoon
         </h1>
 
-        {/* Urdu — the meaning, small and soft */}
+        {/* Urdu */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(13px, 3.5vw, 16px)",
+          fontSize: "clamp(14px, 3.5vw, 16px)",
           color: T.textSoft,
-          margin: "6px 0 0",
-          opacity: 0.5,
+          margin: "4px 0 0",
+          opacity: 0.6,
           letterSpacing: "1px",
           fontStyle: "italic",
         }}>
           سکون
         </p>
 
-        <div style={{ width: "28px", height: "1px", background: T.accent, margin: "14px auto", opacity: 0.4 }} />
+        <div style={{ width: "30px", height: "1px", background: T.accent, margin: "20px 0", opacity: 0.5 }} />
 
         {/* Greeting */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(16px, 4vw, 20px)",
+          fontSize: "clamp(15px, 4vw, 18px)",
           color: T.textSoft,
           letterSpacing: "2px",
           textTransform: "uppercase",
           margin: 0,
-          opacity: 0.85,
+          opacity: 0.8,
           fontWeight: 300,
         }}>
           {greeting}
@@ -110,31 +118,25 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── 2×2 GRID ─── */}
-      {/* The trick: fixed width in px on mobile, percentage on desktop.
-          align-items:center on the parent centres this block. No margin:auto needed. */}
       <div style={{
         flex: 1,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        paddingBottom: "60px",
-        boxSizing: "border-box",
+        maxWidth: "400px", // Locks the grid width so it centers perfectly
+        margin: "0 auto", // Forces horizontal centering
       }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: "16px",
           width: "100%",
-          maxWidth: "420px",
-          paddingLeft: "24px",
-          paddingRight: "24px",
-          boxSizing: "border-box",
         }}>
 
           {/* 1. RACING THOUGHTS */}
           <button onClick={() => { sessionStorage.setItem("jsukoon_context","racing"); setTab("practice"); }} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>🌀</span>
+            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>🌀</span>
             <span style={{ ...titleStyle, color: "#a090d0" }}>
               {hi ? "दौड़ते विचार" : "Racing Thoughts"}
             </span>
@@ -145,7 +147,7 @@ export function Home({ setTab, T, lang }) {
 
           {/* 2. SANCTUARY */}
           <button onClick={() => setTab("bench")} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>🌿</span>
+            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>🌿</span>
             <span style={{ ...titleStyle, color: T.text }}>
               {hi ? "अभयारण्य" : "Sanctuary"}
             </span>
@@ -156,7 +158,7 @@ export function Home({ setTab, T, lang }) {
 
           {/* 3. SEND WARMTH */}
           <button onClick={() => setTab("warmth")} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>❤️</span>
+            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>❤️</span>
             <span style={{ ...titleStyle, color: "#C88A8E" }}>
               {hi ? "गर्माहट भेजें" : "Send Warmth"}
             </span>
@@ -167,7 +169,7 @@ export function Home({ setTab, T, lang }) {
 
           {/* 4. EXPLORE MORE */}
           <button onClick={() => setTab("more")} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>✨</span>
+            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>✨</span>
             <span style={{ ...titleStyle, color: T.accent }}>
               {hi ? "और खोजें" : "Explore More"}
             </span>
@@ -180,7 +182,7 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── FOOTER ─── */}
-      <div style={{ paddingBottom: "30px", textAlign: "center" }}>
+      <div style={{ paddingBottom: "max(3vh, 20px)", textAlign: "center", width: "100%" }}>
         <button onClick={() => setTab("legal")} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.3 }}>
           <span style={{ color: T.muted, fontSize: 10, letterSpacing: "2px", textTransform: "uppercase" }}>
             {hi ? "अस्वीकरण" : "Disclaimer"}
