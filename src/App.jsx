@@ -136,7 +136,7 @@ export default function App() {
             {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
             {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
 
-            {/* ─── NEW: DYNAMIC MOOD ROUTING ─── */}
+            {/* ─── NEW: DYNAMIC MOOD ROUTING (FIXED CLOSING TAGS) ─── */}
             {tab && tab.startsWith("moodAction_") && (
               <Suspense fallback={
                 <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontStyle: "italic" }}>
@@ -149,6 +149,9 @@ export default function App() {
                   T={T} 
                   lang={lang} 
                 />
+              </Suspense>
+            )}
+            {/* ☝️ These two closing tags were missing! */}
             
             {tab === "settings" && (
               <Settings 
@@ -157,7 +160,7 @@ export default function App() {
                 lang={lang} 
                 setLang={setLang} 
                 setThemeKey={setThemeKey} 
-                setThemeSource={setThemeSource} // This will now work!
+                setThemeSource={setThemeSource} 
                 themeSource={themeSource} 
                 themeKey={themeKey} 
               />
