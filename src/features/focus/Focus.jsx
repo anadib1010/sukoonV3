@@ -43,7 +43,8 @@ export function Focus({ setTab, T, lang }) {
       height: "100%",
       display: "flex",
       flexDirection: "column",
-      background: T.background
+      background: T.background,
+      overflowX: "hidden" // Prevents horizontal scrolling
     }}>
 
       {/* Nav */}
@@ -57,7 +58,7 @@ export function Focus({ setTab, T, lang }) {
         <span style={{ fontWeight: 500, color: T.text }}>{isHindi ? "सुकून" : "Sukoon"}</span>
       </div>
 
-      {/* Outer shell — flex column, children centered horizontally */}
+      {/* Outer shell */}
       <div className="fade-up" style={{
         flex: 1,
         display: "flex",
@@ -72,7 +73,7 @@ export function Focus({ setTab, T, lang }) {
             {renderTool()}
           </div>
         ) : (
-          <div style={{ width: "100%", maxWidth: 560 }}>
+          <div style={{ width: "100%", maxWidth: 600 }}>
 
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: T.text, fontWeight: 400, marginBottom: 8 }}>
@@ -85,29 +86,33 @@ export function Focus({ setTab, T, lang }) {
 
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
+              /* ─── THE MAGIC FIX: Auto-stacking grid ─── */
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
               gap: 16,
+              width: "100%",
+              boxSizing: "border-box"
             }}>
               
-              {/* ─── THE DESCENT (PREMIUM FULL-SCREEN SLEEP EXPERIENCE) ─── */}
+              {/* THE DESCENT (PREMIUM SLEEP EXPERIENCE) */}
               <div
-                onClick={() => setTab("descent")} // Triggers the full-screen page takeover!
+                onClick={() => setTab("descent")} 
                 style={{
-                  gridColumn: "1 / -1", // Makes it span all columns
-                  background: "linear-gradient(135deg, #111118 0%, #050508 100%)", // Deep void colors
+                  gridColumn: "1 / -1", // Always spans the full width
+                  background: "linear-gradient(135deg, #111118 0%, #050508 100%)", 
                   border: "1px solid rgba(255, 120, 50, 0.15)",
                   borderRadius: 24,
-                  padding: "24px 20px",
+                  padding: "20px",
                   cursor: "pointer",
                   display: "flex",
-                  gap: 20,
+                  gap: 16,
                   alignItems: "center",
                   boxShadow: "0 8px 30px rgba(255, 120, 50, 0.08)",
                   transition: "transform 0.2s ease",
+                  boxSizing: "border-box"
                 }}
               >
                 <div style={{
-                  width: 56, height: 56, borderRadius: "50%",
+                  width: 50, height: 50, borderRadius: "50%",
                   background: "radial-gradient(circle, rgba(255,180,100,0.8) 0%, rgba(255,100,50,0.2) 70%, transparent 100%)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   boxShadow: "0 0 15px rgba(255, 120, 50, 0.3)",
@@ -120,12 +125,12 @@ export function Focus({ setTab, T, lang }) {
                     {isHindi ? "गहराई (नींद के लिए)" : "The Descent (For Sleep)"}
                   </h4>
                   <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4, fontStyle: "italic" }}>
-                    {isHindi ? "एक शारीरिक एंकर। तब तक पकड़ें जब तक नींद न आ जाए।" : "A physical anchor for the racing mind. Hold until you sleep."}
+                    {isHindi ? "एक शारीरिक एंकर। तब तक पकड़ें जब तक नींद न आ जाए।" : "A physical anchor. Hold until you sleep."}
                   </p>
                 </div>
               </div>
 
-              {/* ─── NORMAL GAMES LIST ─── */}
+              {/* NORMAL GAMES LIST */}
               {TOOLS.map(tool => (
                 <div
                   key={tool.id}
@@ -134,20 +139,21 @@ export function Focus({ setTab, T, lang }) {
                     background: T.surface,
                     border: `1px solid ${T.borderWarm}`,
                     borderRadius: 20,
-                    padding: 20,
+                    padding: 16,
                     cursor: "pointer",
                     display: "flex",
                     gap: 16,
                     alignItems: "center",
                     transition: "all 0.2s ease",
                     boxShadow: `0 4px 12px ${T.accent}05`,
+                    boxSizing: "border-box"
                   }}
                 >
                   <div style={{
-                    width: 52, height: 52, borderRadius: 16,
+                    width: 48, height: 48, borderRadius: 16,
                     background: `${T.accent}12`,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 26, flexShrink: 0
+                    fontSize: 24, flexShrink: 0
                   }}>
                     {tool.icon}
                   </div>
