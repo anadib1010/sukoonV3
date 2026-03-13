@@ -12,7 +12,7 @@ function lerpHex(a, b, t) {
   return `rgb(${Math.round(lerpN(r1,r2,t))},${Math.round(lerpN(g1,g2,t))},${Math.round(lerpN(b1,b2,t))})`;
 }
 
-// Sky scenes — cycle every ~4 seconds (240 frames)
+// Sky scenes — cycles infinitely
 const SCENES = [
   { id:'night',    top:'#01020a', bot:'#030d08', stars:1.0, moon:1.0, aurora:0,   glow:0,   gR:0,   gG:0,   gB:0   },
   { id:'deep',     top:'#010612', bot:'#020a18', stars:0.9, moon:0.9, aurora:0,   glow:0,   gR:0,   gG:0,   gB:0   },
@@ -24,11 +24,9 @@ const SCENES = [
   { id:'morning',  top:'#080402', bot:'#3a1a08', stars:0,   moon:0,   aurora:0,   glow:0.7, gR:255, gG:140, gB:40  },
   { id:'nebula',   top:'#040114', bot:'#080222', stars:0.95, moon:0.5, aurora:0,   glow:0,   gR:0,   gG:0,   gB:0,   nebula:true },
 ];
-const SCENE_DUR = 240; // frames per scene (~4s at 60fps)
-const BLEND_DUR = 60;  // frames to crossfade
+const SCENE_DUR = 240; 
+const BLEND_DUR = 60;  
 
-
-// Constellations — Big Dipper and Orion only, simple and clean
 const CONSTELLATIONS = [
   { name:'Big Dipper', bx:0.55, by:0.03, bw:0.28, bh:0.20,
     stars:[{x:0.00,y:0.60,r:1.4},{x:0.18,y:0.72,r:1.2},{x:0.36,y:0.58,r:1.1},{x:0.32,y:0.38,r:1.1},{x:0.52,y:0.20,r:1.3},{x:0.72,y:0.10,r:1.2},{x:1.00,y:0.00,r:1.1}],
@@ -54,8 +52,8 @@ export function Bench({ T, lang, setTab, goBack }) {
       setTimeout(() => {
         setQuoteIdx(p => { let n; do { n = Math.floor(Math.random()*PARK_BENCH_QUOTES.length); } while(n===p); return n; });
         setQuoteVisible(true);
-      }, 800);
-    }, 12000);
+      }, 1000); 
+    }, 14000); 
     return () => clearInterval(t);
   }, []);
 
@@ -80,7 +78,7 @@ export function Bench({ T, lang, setTab, goBack }) {
 
   useEffect(() => { return () => { killAudio(); cancelAnimationFrame(animRef.current); }; }, []);
 
-  // ── CANVAS ──────────────────────────────────────────────────────────
+  // ── CANVAS ENGINE ──────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -90,7 +88,6 @@ export function Bench({ T, lang, setTab, goBack }) {
     const W = () => canvas.width;
     const H = () => canvas.height;
 
-    // ── Scene state ───────────────────────────────────────────────────
     let scIdx   = 0;
     let scTime  = 0;
     let nextIdx = -1;
@@ -107,7 +104,6 @@ export function Bench({ T, lang, setTab, goBack }) {
         : { top: sc[keyTop], bot: sc[keyBot] };
     };
 
-    // ── Stars ─────────────────────────────────────────────────────────
     const stars = Array.from({length:160}, () => ({
       x: Math.random(), y: Math.random()*0.65,
       r: 0.4+Math.random()*1.3,
@@ -116,20 +112,23 @@ export function Bench({ T, lang, setTab, goBack }) {
       op:    0.4+Math.random()*0.6,
     }));
 
-    // ── Constellation opacity (one per constellation, lerps in/out) ──────
+    // ✨ Cinematic Fireflies
+    const fireflies = Array.from({length: 35}, () => ({
+      x: Math.random(), y: 0.75 + Math.random()*0.25, 
+      offset: Math.random() * 100, speed: 0.0004 + Math.random()*0.0006,
+      size: 0.8 + Math.random()*1.8
+    }));
+
     const conOp = CONSTELLATIONS.map(() => 0);
 
-    // ── Nebula clouds — three elliptical colour washes, ellipse only ──────
     const NEBULA_CLOUDS = [
       { x:0.28, y:0.16, rx:0.19, ry:0.11, hue:280 },
       { x:0.62, y:0.09, rx:0.16, ry:0.08, hue:200 },
       { x:0.48, y:0.28, rx:0.23, ry:0.10, hue:320 },
     ];
 
-    // ── Moon ──────────────────────────────────────────────────────────
-    let moonX = 0.82; // drifts right→left
+    let moonX = 0.82; 
 
-    // ── Aurora bands ──────────────────────────────────────────────────
     const auroraBands = Array.from({length:5}, (_,i) => ({
       off:  i*(Math.PI*2/5),
       spd:  0.0003+i*0.00015,
@@ -139,11 +138,9 @@ export function Bench({ T, lang, setTab, goBack }) {
       w:    0.55+i*0.08,
     }));
 
-    // ── Shooting star ─────────────────────────────────────────────────
     let ss = { active:false, x:0, y:0, vx:0, vy:0, life:0, tail:[] };
     let wishAlpha = 0;
 
-    // ── Trees ─────────────────────────────────────────────────────────
     const trees = [
       { x:0.06, baseH:0.52, trunkW:13, layers:4, swayOffset:0,   swaySpeed:0.0008, swayAmt:0.022, col:'#2d4a2d' },
       { x:0.16, baseH:0.42, trunkW:9,  layers:3, swayOffset:1.2, swaySpeed:0.001,  swayAmt:0.018, col:'#3a5a3a' },
@@ -152,7 +149,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       { x:0.94, baseH:0.36, trunkW:7,  layers:3, swayOffset:0.8, swaySpeed:0.0012, swayAmt:0.015, col:'#4a6a4a' },
     ];
 
-    // ── Animals ───────────────────────────────────────────────────────
     const TYPES = ['dog','cat','horse','cow'];
     const SIZES = { dog:1.0, cat:0.82, horse:1.75, cow:1.5 };
     const animals = [];
@@ -165,7 +161,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       animals.push({ type, dir, x: dir>0 ? -0.12 : 1.12, y: 0.0, spd: 0.00014+Math.random()*0.00012, wp: 0, sz: SIZES[type]||1, alive:true });
     };
 
-    // ── Draw: Sky ─────────────────────────────────────────────────────
     const drawSky = (ctx) => {
       const { top, bot } = getCol('top','bot');
       const g = ctx.createLinearGradient(0, 0, 0, H()*0.88);
@@ -174,7 +169,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W(), H()*0.88);
 
-      // Horizon glow (sunrise/dawn)
       const glowAmt = getVal('glow');
       if (glowAmt > 0.02) {
         const sc = SCENES[scIdx], nx = nextIdx>=0 ? SCENES[nextIdx] : null;
@@ -191,43 +185,76 @@ export function Bench({ T, lang, setTab, goBack }) {
       }
     };
 
-    // ── Draw: Stars ───────────────────────────────────────────────────
     const drawStars = (ctx, time) => {
       const vis = getVal('stars');
       if (vis < 0.02) return;
+      ctx.save();
       stars.forEach(s => {
         const tw = 0.55+0.45*Math.sin(time*s.twSpd+s.twOff);
         ctx.beginPath();
         ctx.arc(s.x*W(), s.y*H()*0.85, s.r, 0, Math.PI*2);
         ctx.fillStyle = `rgba(255,255,245,${s.op*tw*vis})`;
+        if (s.r > 1.2) {
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = `rgba(255,255,255,${vis})`;
+        }
         ctx.fill();
+        ctx.shadowBlur = 0; 
       });
+      ctx.restore();
     };
 
-    // ── Draw: Moon ────────────────────────────────────────────────────
     const drawMoon = (ctx) => {
       const op = getVal('moon');
       if (op < 0.02) return;
       const mx = moonX * W();
-      const my = H() * (0.08 + (1-moonX)*0.08);
-      const r  = clamp(W()*0.018, 10, 22);
-      // glow
-      const mg = ctx.createRadialGradient(mx, my, r*0.4, mx, my, r*4.5);
-      mg.addColorStop(0, `rgba(255,252,220,${op*0.25})`);
+      const my = H() * (0.12 + (1-moonX)*0.08); 
+      const r  = clamp(W()*0.02, 12, 26);
+      
+      ctx.save();
+      const mg = ctx.createRadialGradient(mx, my, r*0.4, mx, my, r*5);
+      mg.addColorStop(0, `rgba(255,252,220,${op*0.35})`);
+      mg.addColorStop(0.4, `rgba(255,252,220,${op*0.1})`);
       mg.addColorStop(1, 'rgba(255,252,220,0)');
-      ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, r*4.5, 0, Math.PI*2); ctx.fill();
-      // disk
+      ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, r*5, 0, Math.PI*2); ctx.fill();
+      
       ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(255,252,232,${op})`; ctx.fill();
-      // crescent shadow
+      ctx.fillStyle = `rgba(255,252,232,${op})`; 
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = `rgba(255,252,232,${op*0.5})`;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
       ctx.beginPath(); ctx.arc(mx+r*0.3, my-r*0.1, r*0.82, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(2,4,14,${op*0.88})`; ctx.fill();
+      ctx.fillStyle = `rgba(2,4,14,${op*0.95})`; ctx.fill();
+      ctx.restore();
     };
 
-    // ── Draw: Aurora ──────────────────────────────────────────────────
+    const drawFireflies = (ctx, time) => {
+      const vis = getVal('stars'); 
+      if (vis < 0.1) return;
+      ctx.save();
+      fireflies.forEach(f => {
+        const px = f.x*W() + Math.sin(time*f.speed + f.offset)*(W()*0.02);
+        const py = f.y*H() + Math.cos(time*f.speed*0.8 + f.offset)*(H()*0.02);
+        const op = (0.5 + 0.5*Math.sin(time*0.002 + f.offset)) * vis;
+        
+        if(op > 0.05) {
+          ctx.beginPath(); ctx.arc(px, py, f.size, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(200, 255, 150, ${op})`;
+          ctx.shadowColor = `rgba(180, 255, 100, ${op})`;
+          ctx.shadowBlur = 10;
+          ctx.fill();
+        }
+      });
+      ctx.restore();
+    };
+
     const drawAurora = (ctx, time) => {
       const vis = getVal('aurora');
       if (vis < 0.02) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen'; 
       auroraBands.forEach(b => {
         const phase = time*b.spd + b.off;
         const cy  = b.y * H()*0.85;
@@ -254,9 +281,9 @@ export function Bench({ T, lang, setTab, goBack }) {
         }
         ctx.closePath(); ctx.fillStyle=g; ctx.fill();
       });
+      ctx.restore();
     };
 
-    // ── Draw: Nebula ─────────────────────────────────────────────────
     const drawNebula = (ctx, time) => {
       const sc = SCENES[scIdx], nx = nextIdx >= 0 ? SCENES[nextIdx] : null;
       const isN = sc.nebula || false, isNx = nx?.nebula || false;
@@ -280,7 +307,6 @@ export function Bench({ T, lang, setTab, goBack }) {
           ctx.fillStyle = ng; ctx.fill();
         }
       });
-      // coloured dust specks — fixed seeded positions
       const hues = [280, 200, 320];
       for (let i = 0; i < 55; i++) {
         const fx = (i * 137.508) % 1, fy = (i * 97.31) % 0.42;
@@ -291,7 +317,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       }
     };
 
-    // ── Draw: Constellations ──────────────────────────────────────────
     const drawConstellations = (ctx, time) => {
       const vis = getVal('stars');
       if (vis < 0.4) {
@@ -299,7 +324,6 @@ export function Bench({ T, lang, setTab, goBack }) {
         return;
       }
       CONSTELLATIONS.forEach((con, ci) => {
-        // stagger: each constellation visible on alternate ~90s windows
         const cycle = 300, off = ci * 140;
         const t = (Math.floor(time / 1000 + off) % cycle);
         const target = (t > 20 && t < 250) ? vis * 0.7 : 0;
@@ -309,7 +333,6 @@ export function Bench({ T, lang, setTab, goBack }) {
         const bx = con.bx * W(), by = con.by * H() * 0.85;
         const bw = con.bw * W(), bh = con.bh * H();
         ctx.save();
-        // connecting lines
         ctx.strokeStyle = `rgba(180,210,255,${op * 0.32})`;
         ctx.lineWidth = 0.8;
         con.lines.forEach(([a, b]) => {
@@ -319,7 +342,6 @@ export function Bench({ T, lang, setTab, goBack }) {
           ctx.lineTo(bx + sb.x * bw, by + sb.y * bh);
           ctx.stroke();
         });
-        // star dots with small glow
         con.stars.forEach(s => {
           const sx = bx + s.x * bw, sy = by + s.y * bh;
           const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.r * 4);
@@ -330,7 +352,6 @@ export function Bench({ T, lang, setTab, goBack }) {
           ctx.fillStyle = `rgba(230,242,255,${op * 0.92})`;
           ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI * 2); ctx.fill();
         });
-        // name — very faint
         if (op > 0.3) {
           const fs = clamp(W() * 0.017, 9, 13);
           ctx.font = `${fs}px Georgia,serif`;
@@ -342,7 +363,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       });
     };
 
-    // ── Draw: Shooting star ───────────────────────────────────────────
     const drawShootingStar = (ctx) => {
       if (!ss.active && Math.random() < 0.00035) {
         ss = { active:true, x:0.05+Math.random()*0.5, y:0.03+Math.random()*0.18,
@@ -350,7 +370,6 @@ export function Bench({ T, lang, setTab, goBack }) {
                life:1, tail:[] };
         wishAlpha = 0;
       }
-      // "make a wish" text on canvas
       if (ss.active || wishAlpha > 0) {
         wishAlpha = ss.active ? Math.min(wishAlpha+0.045, 1) : Math.max(wishAlpha-0.02, 0);
         if (wishAlpha > 0.01) {
@@ -379,22 +398,19 @@ export function Bench({ T, lang, setTab, goBack }) {
       }
     };
 
-    // ── Draw: Ground — slim strip ─────────────────────────────────────
     const drawGround = (ctx) => {
-      // Ground is only 12% of screen height — just enough for animals to walk on
       const gY = H()*0.88;
-      ctx.fillStyle = '#060d06';
+      ctx.fillStyle = '#040804';
       ctx.fillRect(0, gY, W(), H()*0.12);
       const gg = ctx.createLinearGradient(0, gY, 0, H());
-      gg.addColorStop(0, 'rgba(12,22,12,0.7)');
-      gg.addColorStop(1, 'rgba(0,0,0,0.9)');
+      gg.addColorStop(0, 'rgba(8,16,8,0.8)');
+      gg.addColorStop(1, 'rgba(0,0,0,1)');
       ctx.fillStyle = gg; ctx.fillRect(0, gY, W(), H()*0.12);
     };
 
-    // ── Draw: Tree ────────────────────────────────────────────────────
     const drawTree = (ctx, t, time) => {
       const x       = t.x * W();
-      const groundY = H() * 0.88; // matches new ground level
+      const groundY = H() * 0.88;
       const treeH   = t.baseH * H();
       const sway    = Math.sin(time*t.swaySpeed+t.swayOffset)*t.swayAmt;
       ctx.save(); ctx.translate(x, groundY);
@@ -422,7 +438,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       ctx.restore();
     };
 
-    // ── Draw: Animals — silhouettes only, no glow ─────────────────────
     const drawDog = (ctx, s, leg) => {
       ctx.beginPath(); ctx.ellipse(0,0,s*14,s*6.5,0,0,Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(s*15,s*-3,s*7.5,s*6.5,0.2,0,Math.PI*2); ctx.fill();
@@ -485,7 +500,7 @@ export function Bench({ T, lang, setTab, goBack }) {
       a.wp += 0.055;
       const groundY = H() * 0.88;
       const ax = a.x * W();
-      const ay = groundY + a.y; // y is offset from ground line
+      const ay = groundY + a.y; 
       const bob = Math.sin(a.wp)*1.4*a.sz;
       const leg = Math.sin(a.wp)*0.25;
       ctx.save();
@@ -503,14 +518,11 @@ export function Bench({ T, lang, setTab, goBack }) {
       if (a.x > 1.2 || a.x < -0.2) a.alive = false;
     };
 
-    // ── Draw: Snow mountains ─────────────────────────────────────────
     const drawSnowMountain = (ctx) => {
-      // Only visible in night / deep / aurora scenes (stars > 0.5), fades with dawn
       const vis = clamp(getVal('stars')*1.4 - 0.2, 0, 1);
       if (vis < 0.02) return;
       const gY = H() * 0.88;
       ctx.save(); ctx.globalAlpha = vis * 0.92;
-      // Mountain silhouette
       ctx.beginPath();
       ctx.moveTo(0, gY);
       ctx.lineTo(W()*0.10, gY);
@@ -523,7 +535,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       ctx.lineTo(W()*0.76, gY);
       ctx.lineTo(W(), gY);
       ctx.fillStyle = '#0b1610'; ctx.fill();
-      // Snow caps — radial gradient blobs at each peak
       [[W()*0.24, gY*0.56, W()*0.052],
        [W()*0.40, gY*0.44, W()*0.062],
        [W()*0.57, gY*0.49, W()*0.050]].forEach(([px, py, pr]) => {
@@ -537,7 +548,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       ctx.restore();
     };
 
-    // ── Draw: Bench ───────────────────────────────────────────────────
     const drawBench = (ctx) => {
       const gY = H() * 0.88;
       const cx = W() * 0.5;
@@ -545,18 +555,25 @@ export function Bench({ T, lang, setTab, goBack }) {
       const bh = bw * 0.42;
       const sY = gY - bh * 0.28;
       const lgH = bh * 0.88;
+      
       ctx.save();
+      // ✨ Ground Shadow for realism
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.ellipse(cx, gY + lgH*0.1, bw*0.6, bh*0.15, 0, 0, Math.PI*2);
+      ctx.filter = 'blur(6px)';
+      ctx.fill();
+      ctx.filter = 'none';
+
       ctx.lineCap = 'round';
-      // legs — warm teak brown
       ctx.lineWidth = clamp(bw*0.044, 3, 7);
       ctx.strokeStyle = 'rgba(110,62,28,0.95)';
       [[-0.42,-0.18],[0.18,0.42]].forEach(([a,b]) => {
         ctx.beginPath(); ctx.moveTo(cx+a*bw, sY); ctx.lineTo(cx+a*bw, sY+lgH); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cx+b*bw, sY); ctx.lineTo(cx+b*bw, sY+lgH); ctx.stroke();
       });
-      // crossbar
       ctx.beginPath(); ctx.moveTo(cx-bw*0.42, sY+lgH*0.55); ctx.lineTo(cx+bw*0.42, sY+lgH*0.55); ctx.stroke();
-      // seat planks — lighter wood on top, darker underneath
+      
       const ph = clamp(bh*0.13, 5, 10);
       const plankCols = ['rgba(145,88,42,0.95)','rgba(132,78,36,0.92)','rgba(118,68,30,0.88)'];
       for (let i=0; i<3; i++) {
@@ -564,14 +581,12 @@ export function Bench({ T, lang, setTab, goBack }) {
         ctx.strokeStyle = plankCols[i];
         ctx.beginPath(); ctx.moveTo(cx-bw*0.48, sY-i*ph*0.35); ctx.lineTo(cx+bw*0.48, sY-i*ph*0.35); ctx.stroke();
       }
-      // backrest planks
       const bkY = sY - bh*0.52;
       ctx.lineWidth = clamp(ph*0.75, 3, 8);
       for (let i=0; i<2; i++) {
         ctx.strokeStyle = `rgba(138,82,38,${0.92-i*0.08})`;
         ctx.beginPath(); ctx.moveTo(cx-bw*0.44, bkY-i*ph*0.42); ctx.lineTo(cx+bw*0.44, bkY-i*ph*0.42); ctx.stroke();
       }
-      // back posts
       ctx.lineWidth = clamp(bw*0.036, 2.5, 6);
       ctx.strokeStyle = 'rgba(110,62,28,0.92)';
       [-0.38, 0.38].forEach(bx => {
@@ -580,7 +595,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       ctx.restore();
     };
 
-    // ── Rain ──────────────────────────────────────────────────────────
     const drops = Array.from({length:220}, () => ({
       x:    Math.random(),
       y:    Math.random(),
@@ -629,13 +643,11 @@ export function Bench({ T, lang, setTab, goBack }) {
       }
     };
 
-    // ── RENDER LOOP ───────────────────────────────────────────────────
     const render = (time) => {
       timeRef.current = time;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, W(), H());
 
-      // Scene advance
       scTime++;
       if (nextIdx < 0 && scTime >= SCENE_DUR - BLEND_DUR) {
         nextIdx = (scIdx + 1) % SCENES.length;
@@ -646,18 +658,15 @@ export function Bench({ T, lang, setTab, goBack }) {
         if (blend >= 1) { scIdx = nextIdx; nextIdx = -1; blend = 0; scTime = 0; }
       }
 
-      // Moon drifts right → left
       moonX -= 0.000012;
       if (moonX < -0.04) moonX = 1.04;
 
-      // Animal spawn
       animalTimer++;
       if (animalTimer > ANIMAL_GAP && animals.filter(a=>a.alive).length < 2) {
         spawnAnimal(); animalTimer = 0;
       }
       for (let i=animals.length-1; i>=0; i--) if (!animals[i].alive) animals.splice(i,1);
 
-      // Draw order
       drawSky(ctx);
       drawStars(ctx, time);
       drawNebula(ctx, time);
@@ -667,6 +676,10 @@ export function Bench({ T, lang, setTab, goBack }) {
       drawShootingStar(ctx);
       drawSnowMountain(ctx);
       drawGround(ctx);
+      
+      // ✨ Fireflies render right above the grass
+      drawFireflies(ctx, time); 
+      
       trees.forEach(t => drawTree(ctx, t, time));
       animals.forEach(a => drawAnimal(ctx, a));
       drawBench(ctx);
@@ -683,39 +696,78 @@ export function Bench({ T, lang, setTab, goBack }) {
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:50, background:'#000', overflow:'hidden' }}>
+      
       <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', display:'block' }} />
 
-      {/* Back */}
-      <button onClick={() => { killAudio(); if(goBack) goBack(); else setTab('home'); }}
-        style={{ position:'absolute', top:16, left:16, zIndex:10, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:99, color:'#fff', padding:'8px 16px', fontSize:13, cursor:'pointer' }}>
-        ← {hi?'वापस':'Back'}
-      </button>
+      {/* ✨ Cinematic Vignette Overlay */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(circle at center, transparent 40%, rgba(0,0,4,0.7) 120%)',
+        pointerEvents: 'none',
+        zIndex: 5
+      }}/>
 
-      {/* Home */}
-      <button onClick={() => { killAudio(); setTab('home'); }}
-        style={{ position:'absolute', top:16, right:16, zIndex:10, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:99, padding:'8px 14px', fontSize:16, cursor:'pointer' }}>
-        🏠
-      </button>
+      {/* Top Nav */}
+      <div style={{ position:'absolute', top:20, left:20, right:20, zIndex:10, display:'flex', justifyContent:'space-between' }}>
+        <button onClick={() => { killAudio(); if(goBack) goBack(); else setTab('home'); }}
+          style={{ background:'rgba(255,255,255,0.08)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:99, color:'#fff', padding:'10px 20px', fontSize:14, cursor:'pointer', transition: 'all 0.3s' }}>
+          ← {hi?'वापस':'Back'}
+        </button>
 
-      {/* Quote */}
-      <div style={{ position:'absolute', top:'28%', left:0, right:0, textAlign:'center', padding:'0 24px', zIndex:10, pointerEvents:'none' }}>
-        <div style={{ opacity:quoteVisible?1:0, transition:'opacity 0.8s ease', maxWidth:400, margin:'0 auto' }}>
+        <button onClick={() => { killAudio(); setTab('home'); }}
+          style={{ background:'rgba(255,255,255,0.08)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:99, padding:'10px 18px', fontSize:16, cursor:'pointer', color:'#fff', transition: 'all 0.3s' }}>
+          ⌂
+        </button>
+      </div>
+
+      {/* Quote Container */}
+      <div style={{ position:'absolute', top:'28%', left:0, right:0, textAlign:'center', padding:'0 30px', zIndex:10, pointerEvents:'none' }}>
+        <div style={{ 
+          opacity: quoteVisible ? 1 : 0, 
+          transform: quoteVisible ? 'translateY(0px)' : 'translateY(15px)', 
+          transition: 'all 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)', 
+          maxWidth: 450, 
+          margin: '0 auto' 
+        }}>
           {PARK_BENCH_QUOTES?.[quoteIdx] && (
-            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'clamp(16px,4.5vw,26px)', color:'rgba(255,252,238,0.92)', fontStyle:'italic', lineHeight:1.7, textShadow:'0 2px 12px rgba(0,0,0,0.95)', margin:'0 0 18px' }}>
+            <p style={{ 
+              fontFamily:"'Cormorant Garamond', serif", 
+              fontSize:'clamp(22px, 5.5vw, 32px)', 
+              color:'rgba(255, 252, 245, 0.95)', 
+              fontStyle:'italic', 
+              fontWeight: 300,
+              lineHeight: 1.5, 
+              textShadow:'0 4px 24px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6)', 
+              margin:'0 0 24px' 
+            }}>
               "{PARK_BENCH_QUOTES[quoteIdx]}"
             </p>
           )}
           <button onClick={() => {
             setQuoteVisible(false);
-            setTimeout(() => { setQuoteIdx(p=>(p+1)%PARK_BENCH_QUOTES.length); setQuoteVisible(true); }, 600);
-          }} style={{ background:'rgba(255,255,255,0.09)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:99, color:'rgba(255,255,255,0.82)', padding:'7px 22px', fontSize:11, cursor:'pointer', pointerEvents:'auto', letterSpacing:'0.04em' }}>
-            {hi?'थोड़ा और बैठें':'sit a little longer'}
+            setTimeout(() => { setQuoteIdx(p=>(p+1)%PARK_BENCH_QUOTES.length); setQuoteVisible(true); }, 800);
+          }} style={{ 
+            background:'rgba(255,255,255,0.05)', 
+            backdropFilter:'blur(8px)',
+            border:'1px solid rgba(255,255,255,0.15)', 
+            borderRadius:99, 
+            color:'rgba(255,255,255,0.7)', 
+            padding:'10px 26px', 
+            fontSize: 12, 
+            cursor:'pointer', 
+            pointerEvents:'auto', 
+            letterSpacing:'1.5px',
+            textTransform: 'uppercase', 
+            transition: 'background 0.3s'
+          }}>
+            {hi ? 'थोड़ा और बैठें' : 'Sit a little longer'}
           </button>
         </div>
       </div>
 
-      {/* Sound buttons — bottom, thumb-friendly */}
-      <div style={{ position:'absolute', bottom:24, left:0, right:0, zIndex:10, display:'flex', justifyContent:'center', flexWrap:'wrap', gap:8, padding:'0 12px' }}>
+      {/* Sound Buttons */}
+      <div style={{ position:'absolute', bottom:40, left:0, right:0, zIndex:10, display:'flex', justifyContent:'center', flexWrap:'wrap', gap:12, padding:'0 20px' }}>
         {[
           { key:'birds.mp3',  icon:'🐦', en:'Birds',  hi:'पक्षी'    },
           { key:'wind.mp3',   icon:'💨', en:'Wind',   hi:'हवा'      },
@@ -724,15 +776,19 @@ export function Bench({ T, lang, setTab, goBack }) {
           { key:'waves.mp3',  icon:'🌊', en:'Waves',  hi:'लहरें'    },
         ].map(s => (
           <button key={s.key} onClick={() => playBenchSound(s.key)} style={{
-            background: activeSound===s.key ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.72)',
-            border:     `1px solid ${activeSound===s.key ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
-            borderRadius:99, color: activeSound===s.key ? 'rgba(255,255,220,0.95)' : 'rgba(255,255,255,0.55)',
-            padding:'10px 14px',
-            display:'flex', alignItems:'center', gap:6, fontSize:13, cursor:'pointer',
-            transition:'all 0.2s', backdropFilter:'blur(8px)',
+            background: activeSound===s.key ? 'rgba(255,255,255,0.25)' : 'rgba(20,20,25,0.5)',
+            border:     `1px solid ${activeSound===s.key ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.1)'}`,
+            borderRadius: 99, 
+            color: activeSound===s.key ? '#fff' : 'rgba(255,255,255,0.6)',
+            padding: '12px 20px',
+            display: 'flex', alignItems: 'center', gap: 8, 
+            fontSize: 14, cursor: 'pointer',
+            backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', 
+            boxShadow: activeSound===s.key ? '0 0 20px rgba(255,255,255,0.1)' : '0 4px 12px rgba(0,0,0,0.2)',
+            transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           }}>
-            <span>{s.icon}</span>
-            <span>{hi ? s.hi : s.en}</span>
+            <span style={{ fontSize: '16px' }}>{s.icon}</span>
+            <span style={{ fontWeight: activeSound===s.key ? 500 : 300 }}>{hi ? s.hi : s.en}</span>
           </button>
         ))}
       </div>
