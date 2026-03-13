@@ -52,7 +52,7 @@ export function Home({ setTab, T, lang }) {
   };
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, padding: "0 28px" }}>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, padding: "0", overflowX: "hidden" }}>
       
       {/* ─── BRANDING & GREETING ─── */}
       <div style={{ padding: "70px 0 40px", textAlign: "center" }}>
@@ -81,8 +81,8 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── 2x2 LUXURY GRID ─── */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", paddingBottom: "60px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", width: "100%", maxWidth: "420px" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", paddingBottom: "60px", paddingLeft: "24px", paddingRight: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", width: "100%", maxWidth: "420px", margin: "0 auto" }}>
           
           {/* 1. RACING THOUGHTS */}
           <button onClick={() => { sessionStorage.setItem("jsukoon_context","racing"); setTab("practice"); }} style={squareGlass()}>
