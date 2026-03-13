@@ -395,6 +395,82 @@ export function Bench({ T, lang, setTab, goBack }) {
       if (a.x > 1.2 || a.x < -0.2) a.alive = false;
     };
 
+    // ── Draw: Snow mountains ─────────────────────────────────────────
+    const drawSnowMountain = (ctx) => {
+      // Only visible in night / deep / aurora scenes (stars > 0.5), fades with dawn
+      const vis = clamp(getVal('stars')*1.4 - 0.2, 0, 1);
+      if (vis < 0.02) return;
+      const gY = H() * 0.88;
+      ctx.save(); ctx.globalAlpha = vis * 0.92;
+      // Mountain silhouette
+      ctx.beginPath();
+      ctx.moveTo(0, gY);
+      ctx.lineTo(W()*0.10, gY);
+      ctx.lineTo(W()*0.24, gY*0.56);
+      ctx.lineTo(W()*0.32, gY*0.65);
+      ctx.lineTo(W()*0.40, gY*0.44);
+      ctx.lineTo(W()*0.49, gY*0.60);
+      ctx.lineTo(W()*0.57, gY*0.49);
+      ctx.lineTo(W()*0.65, gY*0.63);
+      ctx.lineTo(W()*0.76, gY);
+      ctx.lineTo(W(), gY);
+      ctx.fillStyle = '#0b1610'; ctx.fill();
+      // Snow caps — radial gradient blobs at each peak
+      [[W()*0.24, gY*0.56, W()*0.052],
+       [W()*0.40, gY*0.44, W()*0.062],
+       [W()*0.57, gY*0.49, W()*0.050]].forEach(([px, py, pr]) => {
+        const sg = ctx.createRadialGradient(px, py, 0, px, py, pr);
+        sg.addColorStop(0,   'rgba(220,235,255,0.90)');
+        sg.addColorStop(0.5, 'rgba(195,215,245,0.45)');
+        sg.addColorStop(1,   'rgba(180,200,235,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.restore();
+    };
+
+    // ── Draw: Bench ───────────────────────────────────────────────────
+    const drawBench = (ctx) => {
+      const gY = H() * 0.88;
+      const cx = W() * 0.5;
+      const bw = clamp(W()*0.18, 80, 150);
+      const bh = bw * 0.42;
+      const sY = gY - bh * 0.28;
+      const lgH = bh * 0.88;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(32,20,10,0.92)';
+      ctx.lineCap = 'round';
+      // legs
+      ctx.lineWidth = clamp(bw*0.044, 3, 7);
+      [[-0.42,-0.18],[0.18,0.42]].forEach(([a,b]) => {
+        ctx.beginPath(); ctx.moveTo(cx+a*bw, sY); ctx.lineTo(cx+a*bw, sY+lgH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+b*bw, sY); ctx.lineTo(cx+b*bw, sY+lgH); ctx.stroke();
+      });
+      // crossbar
+      ctx.beginPath(); ctx.moveTo(cx-bw*0.42, sY+lgH*0.55); ctx.lineTo(cx+bw*0.42, sY+lgH*0.55); ctx.stroke();
+      // seat planks
+      const ph = clamp(bh*0.13, 5, 10);
+      for (let i=0; i<3; i++) {
+        ctx.lineWidth = ph;
+        ctx.strokeStyle = `rgba(32,20,10,${0.85-i*0.08})`;
+        ctx.beginPath(); ctx.moveTo(cx-bw*0.48, sY-i*ph*0.35); ctx.lineTo(cx+bw*0.48, sY-i*ph*0.35); ctx.stroke();
+      }
+      // backrest
+      const bkY = sY - bh*0.52;
+      ctx.lineWidth = clamp(ph*0.75, 3, 8);
+      for (let i=0; i<2; i++) {
+        ctx.strokeStyle = `rgba(32,20,10,${0.82-i*0.1})`;
+        ctx.beginPath(); ctx.moveTo(cx-bw*0.44, bkY-i*ph*0.42); ctx.lineTo(cx+bw*0.44, bkY-i*ph*0.42); ctx.stroke();
+      }
+      // back posts
+      ctx.lineWidth = clamp(bw*0.036, 2.5, 6);
+      ctx.strokeStyle = 'rgba(32,20,10,0.88)';
+      [-0.38, 0.38].forEach(bx => {
+        ctx.beginPath(); ctx.moveTo(cx+bx*bw, sY); ctx.lineTo(cx+bx*bw, bkY-ph); ctx.stroke();
+      });
+      ctx.restore();
+    };
+
     // ── RENDER LOOP ───────────────────────────────────────────────────
     const render = (time) => {
       timeRef.current = time;
@@ -429,9 +505,11 @@ export function Bench({ T, lang, setTab, goBack }) {
       drawAurora(ctx, time);
       drawMoon(ctx);
       drawShootingStar(ctx);
+      drawSnowMountain(ctx);
       drawGround(ctx);
       trees.forEach(t => drawTree(ctx, t, time));
       animals.forEach(a => drawAnimal(ctx, a));
+      drawBench(ctx);
 
       animRef.current = requestAnimationFrame(render);
     };
