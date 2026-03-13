@@ -72,7 +72,6 @@ export function Focus({ setTab, T, lang }) {
             {renderTool()}
           </div>
         ) : (
-          /* Single centered container — maxWidth keeps grid from going full-bleed */
           <div style={{ width: "100%", maxWidth: 560 }}>
 
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -89,6 +88,44 @@ export function Focus({ setTab, T, lang }) {
               gridTemplateColumns: "repeat(2, 1fr)",
               gap: 16,
             }}>
+              
+              {/* ─── THE DESCENT (PREMIUM FULL-SCREEN SLEEP EXPERIENCE) ─── */}
+              <div
+                onClick={() => setTab("descent")} // Triggers the full-screen page takeover!
+                style={{
+                  gridColumn: "1 / -1", // Makes it span all columns
+                  background: "linear-gradient(135deg, #111118 0%, #050508 100%)", // Deep void colors
+                  border: "1px solid rgba(255, 120, 50, 0.15)",
+                  borderRadius: 24,
+                  padding: "24px 20px",
+                  cursor: "pointer",
+                  display: "flex",
+                  gap: 20,
+                  alignItems: "center",
+                  boxShadow: "0 8px 30px rgba(255, 120, 50, 0.08)",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                <div style={{
+                  width: 56, height: 56, borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(255,180,100,0.8) 0%, rgba(255,100,50,0.2) 70%, transparent 100%)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 15px rgba(255, 120, 50, 0.3)",
+                  flexShrink: 0
+                }}>
+                  <span style={{ fontSize: 22, opacity: 0.9 }}>👆</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h4 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "rgba(255, 240, 220, 0.95)", margin: "0 0 4px", letterSpacing: "0.5px" }}>
+                    {isHindi ? "गहराई (नींद के लिए)" : "The Descent (For Sleep)"}
+                  </h4>
+                  <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4, fontStyle: "italic" }}>
+                    {isHindi ? "एक शारीरिक एंकर। तब तक पकड़ें जब तक नींद न आ जाए।" : "A physical anchor for the racing mind. Hold until you sleep."}
+                  </p>
+                </div>
+              </div>
+
+              {/* ─── NORMAL GAMES LIST ─── */}
               {TOOLS.map(tool => (
                 <div
                   key={tool.id}

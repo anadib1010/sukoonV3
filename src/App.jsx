@@ -22,6 +22,7 @@ const About = lazy(() => import('./features/about/About').then(m => ({ default: 
 const Privacy = lazy(() => import('./features/privacy/Privacy').then(m => ({ default: m.Privacy })));
 const WishesGallery = lazy(() => import('./features/reflection/WishesGallery').then(m => ({ default: m.WishesGallery })));
 const MoodAction = lazy(() => import('./MoodAction'));
+const TheDescent = lazy(() => import('./features/games/TheDescent').then(m => ({ default: m.TheDescent })));
 
 export default function App() {
   // ─── ONBOARDING STATE ───
@@ -109,6 +110,7 @@ export default function App() {
           {tab === "legal" && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
           {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
           {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
+          {tab === "descent" && <TheDescent setTab={setTab} T={T} lang={lang} />}
 
           {/* ─── DYNAMIC MOOD ROUTING ─── */}
           {tab && tab.startsWith("moodAction_") && (
