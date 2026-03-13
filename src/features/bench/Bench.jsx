@@ -387,36 +387,36 @@ export function Bench({ T, lang, setTab, goBack }) {
       const vis=isNebula?(isNebulaNext?1:clamp(1-blend*1.2,0,1)):(isNebulaNext?clamp(blend*1.2,0,1):0);
       if (vis<0.02) return;
 
+      // Simple elliptical nebula clouds — no ctx.scale, use ellipse directly
       nebulaClouds.forEach((nc,i)=>{
         const breath=0.7+0.3*Math.sin(time*0.00012+i*1.4);
-        const opacity=vis*breath*0.18;
-        const cx=nc.x*W(), cy=nc.y*H(), rx=nc.rx*W(), ry=nc.ry*H();
-        // multi-layer radial gradient cloud
+        const opacity=vis*breath;
+        const ncx=nc.x*W(), ncy=nc.y*H(), rx=nc.rx*W(), ry=nc.ry*H();
         for(let layer=0;layer<3;layer++){
-          const lop=opacity*(1-layer*0.28);
-          const lrx=rx*(1+layer*0.35), lry=ry*(1+layer*0.4);
-          const dx=(layer-1)*rx*0.12, dy=(layer-1)*ry*0.08;
-          const ng=ctx.createRadialGradient(cx+dx,cy+dy,0,cx+dx,cy+dy,Math.max(lrx,lry));
+          const lop=opacity*(0.12-layer*0.03);
+          if(lop<0.005) continue;
+          const lrx=rx*(1+layer*0.4), lry=ry*(1+layer*0.5);
+          const dx=(layer-1)*rx*0.1, dy=(layer-1)*ry*0.08;
+          const ng=ctx.createRadialGradient(ncx+dx,ncy+dy,0,ncx+dx,ncy+dy,lrx);
           ng.addColorStop(0,`hsla(${nc.hue},80%,65%,${lop})`);
-          ng.addColorStop(0.4,`hsla(${nc.hue+20},70%,55%,${lop*0.6})`);
+          ng.addColorStop(0.45,`hsla(${nc.hue+20},70%,55%,${lop*0.5})`);
           ng.addColorStop(1,`hsla(${nc.hue+40},60%,45%,0)`);
           ctx.save();
-          ctx.scale(lrx/Math.max(lrx,lry),lry/Math.max(lrx,lry));
-          ctx.fillStyle=ng;
           ctx.beginPath();
-          ctx.arc((cx+dx)*(Math.max(lrx,lry)/lrx),(cy+dy)*(Math.max(lrx,lry)/lry),Math.max(lrx,lry),0,Math.PI*2);
-          ctx.fill();
+          ctx.ellipse(ncx+dx, ncy+dy, lrx, lry, 0, 0, Math.PI*2);
+          ctx.fillStyle=ng; ctx.fill();
           ctx.restore();
         }
       });
 
-      // Nebula dust specks — tiny coloured star-like particles
-      // Use a seeded-ish pattern (fixed positions)
-      for(let i=0;i<60;i++){
-        const fx=((i*137.5)%1), fy=((i*97.3)%0.45);
-        const fcol=`hsla(${(nc => nc.hue)(nebulaClouds[i%3])},80%,75%,${vis*0.55*(0.4+0.6*((i*53)%100)/100)})`;
-        ctx.beginPath(); ctx.arc(fx*W(),fy*H(),0.8,0,Math.PI*2);
-        ctx.fillStyle=fcol; ctx.fill();
+      // Nebula dust specks — fixed seeded positions, hue from cloud array
+      const hues=[280,200,320];
+      for(let i=0;i<55;i++){
+        const fx=((i*137.508)%1), fy=((i*97.31)%0.44);
+        const h=hues[i%3];
+        const al=vis*0.5*(0.3+0.7*((i*53)%97)/97);
+        ctx.beginPath(); ctx.arc(fx*W(),fy*H(),0.9,0,Math.PI*2);
+        ctx.fillStyle=`hsla(${h},80%,75%,${al})`; ctx.fill();
       }
     };
 
@@ -657,17 +657,7 @@ export function Bench({ T, lang, setTab, goBack }) {
         case 'horse': drawHorse(ctx,s,leg); break;
       }
 
-      // Subtle edge highlight — a thin lighter rim on top of body
-      ctx.save();
-      ctx.globalCompositeOperation='source-atop';
-      const rimG=ctx.createLinearGradient(0,-s*28,0,s*5);
-      rimG.addColorStop(0,`${glowBase},0.22)`);
-      rimG.addColorStop(0.4,`${glowBase},0.06)`);
-      rimG.addColorStop(1,`${glowBase},0)`);
-      ctx.fillStyle=rimG;
-      // approximate body bounding fill for the rim effect
-      ctx.beginPath(); ctx.ellipse(s*8,-s*4,s*32,s*16,0,0,Math.PI*2); ctx.fill();
-      ctx.restore();
+      // (rim highlight removed — source-atop compositing was corrupting canvas)
 
       ctx.restore();
       if(a.x>1.2||a.x<-0.2) a.alive=false;
