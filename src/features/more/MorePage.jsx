@@ -2,14 +2,14 @@ import React from 'react';
 import { PageNav } from '../../components/SharedUI';
 import { useLS } from '../../hooks/useLS';
 
-// ─── THE 6 REFINED MOODS ───
+// ─── THE 6 REFINED MOODS (Updated to your new list) ───
 const CORE_MOODS = [
-  { emoji: "😔", label: "Heavy",     labelH: "भारी",    theme: "Maroon" },
-  { emoji: "🌪️", label: "Restless",  labelH: "अशांत",   theme: "TwilightBlue" },
-  { emoji: "🔋", label: "Exhausted", labelH: "थका हुआ",  theme: "DeepSage" },
-  { emoji: "🙂", label: "Okay",      labelH: "ठीक हूँ",   theme: "SageSanctuary" },
-  { emoji: "😊", label: "Warm",      labelH: "गर्म",    theme: "PinkChampagne" },
-  { emoji: "🌊", label: "Clear",     labelH: "साफ़",    theme: "SeaGlass" }
+  { emoji: "😔", label: "Heavy",      labelH: "भारी",      theme: "Maroon" },
+  { emoji: "🌪️", label: "Restless",   labelH: "अशांत",     theme: "TwilightBlue" },
+  { emoji: "🔋", label: "Exhausted",  labelH: "थका हुआ",    theme: "DeepSage" },
+  { emoji: "🙂", label: "Okay",       labelH: "ठीक हूँ",    theme: "SageSanctuary" },
+  { emoji: "😊", label: "Warm",       labelH: "गर्म",      theme: "PinkChampagne" },
+  { emoji: "💧", label: "Sad",        labelH: "उदास",      theme: "SageGreen" } // Replaced Clear with Sad
 ];
 
 export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
@@ -28,7 +28,7 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
     { id: "practice",  emoji: "🧘", label: hi ? "अभ्यास" : "Practice",   desc: hi ? "सांस" : "Breathwork" },
     { id: "reflection", emoji: "🪞", label: hi ? "चिंतन" : "Reflection", desc: hi ? "शांत विचार" : "Quiet thought" },
     { id: "journal",   emoji: "📖", label: hi ? "जर्नल" : "Journal",    desc: hi ? "लिखें, बोलें" : "Write, speak" },
-    { id: "wishes",    emoji: "✨", label: hi ? "इच्छा" : "Wishes",     desc: hi ? "गैलरी" : "Gallery" }, // Added Wishes!
+    { id: "wishes",    emoji: "✨", label: hi ? "इच्छा" : "Wishes",     desc: hi ? "गैलरी" : "Gallery" }, 
   ];
 
   // Original Glass Logic
@@ -42,8 +42,15 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
   };
 
   const handleMoodSelection = (m) => {
+    // 1. Save it to local storage
     setMood(m);
+    
+    // 2. Change the global theme
     if (setThemeKey) setThemeKey(m.theme);
+
+    // 3. NEW: Route the user to the MoodAction page!
+    // We pass the mood label so App.jsx knows WHICH mood page to render.
+    setTab(`moodAction_${m.label}`); 
   };
 
   return (
