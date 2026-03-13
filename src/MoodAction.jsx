@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// 1. Updated Dictionary: Using your 'tab' names instead of URLs
+// 1. Updated Dictionary: Fixed 'Restless' and 'Sad' routing
 const moodLibrary = {
   Heavy: {
     bgColor: "#4a0b19", // Maroon
@@ -12,10 +12,10 @@ const moodLibrary = {
     secondaryLabel: "Or burn it in Reflection",
     secondaryTab: "reflection"
   },
-  Frustrated: {
-    bgColor: "#0f2c59", // Ocean Blue
+  Restless: { // FIXED: Changed from 'Frustrated' to 'Restless'
+    bgColor: "#1a2332", // Twilight Blue
     textColor: "#ffffff",
-    message: "Let the frustration have somewhere to go.",
+    message: "Let this restless energy have somewhere to go.",
     cta: "Burn it or write it out.",
     primaryLabel: "Open Reflection",
     primaryTab: "reflection",
@@ -58,13 +58,12 @@ const moodLibrary = {
     message: "Let go of it and be a witness.",
     cta: "Let it sink.",
     primaryLabel: "Write a message and let it sink in water",
-    primaryTab: "wishes", // Sending this to your new Wishes gallery for now!
+    primaryTab: "focus", // FIXED: Now routes to the Focus games!
     secondaryLabel: "Or write your Journal",
     secondaryTab: "journal"
   }
 };
 
-// 2. Added setTab as a prop so we can navigate
 export default function MoodAction({ selectedMood, goBack, setTab }) {
   const [aiTip, setAiTip] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -105,15 +104,24 @@ export default function MoodAction({ selectedMood, goBack, setTab }) {
       justifyContent: "center",
       backgroundColor: activeMood.bgColor,
       color: activeMood.textColor,
-      transition: "background-color 0.5s ease"
+      transition: "background-color 0.5s ease",
+      position: "relative" // Ensure absolute positioning works for top buttons
     }}>
       
-      {/* Back Button */}
+      {/* LEFT: Back Button */}
       <button 
         onClick={goBack}
         style={{ position: "absolute", top: 20, left: 20, background: "none", border: "none", color: "inherit", opacity: 0.7, cursor: "pointer", fontSize: "16px" }}
       >
         ← Back
+      </button>
+
+      {/* RIGHT: Home Button (NEW) */}
+      <button 
+        onClick={() => setTab("home")}
+        style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "inherit", opacity: 0.7, cursor: "pointer", fontSize: "16px" }}
+      >
+        Home ⌂
       </button>
 
       {/* Core Message */}
@@ -132,7 +140,7 @@ export default function MoodAction({ selectedMood, goBack, setTab }) {
 
       <p style={{ fontSize: "18px", marginBottom: "32px", opacity: 0.9 }}>{activeMood.cta}</p>
 
-      {/* Routing Buttons using setTab! */}
+      {/* Routing Buttons */}
       <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "300px" }}>
         <button 
           onClick={() => setTab(activeMood.primaryTab)}
