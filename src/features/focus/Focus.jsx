@@ -87,7 +87,7 @@ export function Focus({ setTab, T, lang }) {
             <div style={{
               display: "grid",
               /* ─── THE MAGIC FIX: Auto-stacking grid ─── */
-              gridTemplateColumns: "repeat(2, 1fr)",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
               gap: 16,
               width: "100%",
               boxSizing: "border-box"

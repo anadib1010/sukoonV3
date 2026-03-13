@@ -116,7 +116,7 @@ export function Home({ setTab, T, lang }) {
       }}>
         <div style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "16px",
           width: "100%",
         }}>

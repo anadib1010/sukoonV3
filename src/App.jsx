@@ -83,12 +83,13 @@ export default function App() {
 
   // ─── MASTER LAYOUT WRAPPER ───
   return (
-    <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808" }}>
+    <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ 
         height: "100%", width: "100%", maxWidth: 600, 
         background: T.bg, color: T.text, 
         transition: "background 0.8s ease, color 0.8s ease", 
-        overflow: "hidden", position: "relative",
+        overflowX: "hidden",   // ← CHANGE overflow:"hidden" to these two
+        overflowY: "hidden", position: "relative",
         boxShadow: "0 0 50px rgba(0,0,0,0.5)" 
       }}>
         
