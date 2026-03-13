@@ -12,7 +12,6 @@ const SCENES = [
   { id:'predawn',  dur:40, sky0:'#0a0515', sky1:'#1a0820', stars:0.3, moon:0.2,  aurora:0,   glow:0.25,glowR:180, glowG:60,  glowB:120 },
   { id:'pinkdawn', dur:40, sky0:'#1a0820', sky1:'#4a1535', stars:0.1, moon:0,    aurora:0,   glow:0.7, glowR:255, glowG:80,  glowB:140 },
   { id:'sunrise',  dur:40, sky0:'#1a0a02', sky1:'#5a2008', stars:0,   moon:0,    aurora:0,   glow:1.0, glowR:255, glowG:100, glowB:10  },
-  { id:'nebula',   dur:55, sky0:'#040214', sky1:'#080320', stars:0.9, moon:0.4,  aurora:0,   glow:0,   glowR:160, glowG:60,  glowB:220, nebula:true },
 ];
 
 function lerpN(a, b, t) { return a + (b - a) * t; }
@@ -27,19 +26,6 @@ function lerpHex(a, b, t) {
   const [r1,g1,b1]=hexRGB(a), [r2,g2,b2]=hexRGB(b);
   return `rgb(${Math.round(lerpN(r1,r2,t))},${Math.round(lerpN(g1,g2,t))},${Math.round(lerpN(b1,b2,t))})`;
 }
-
-// Constellation definitions
-const ALL_CONSTELLATIONS = [
-  { name:'Ursa Major', bx:0.56,by:0.04,bw:0.30,bh:0.22,
-    stars:[{x:0.00,y:0.60,r:1.4},{x:0.18,y:0.72,r:1.2},{x:0.36,y:0.58,r:1.1},{x:0.32,y:0.38,r:1.1},{x:0.52,y:0.20,r:1.3},{x:0.72,y:0.10,r:1.2},{x:1.00,y:0.00,r:1.1}],
-    lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
-  { name:'Ursa Minor', bx:0.72,by:0.02,bw:0.18,bh:0.16,
-    stars:[{x:0.00,y:0.00,r:1.6},{x:0.22,y:0.18,r:0.9},{x:0.40,y:0.30,r:0.8},{x:0.55,y:0.15,r:0.9},{x:0.70,y:0.35,r:0.8},{x:0.85,y:0.55,r:0.9},{x:1.00,y:0.60,r:1.0}],
-    lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
-  { name:'Orion', bx:0.04,by:0.08,bw:0.26,bh:0.28,
-    stars:[{x:0.20,y:0.00,r:1.5},{x:0.80,y:0.05,r:1.3},{x:0.15,y:0.80,r:1.4},{x:0.85,y:0.85,r:1.2},{x:0.35,y:0.42,r:1.0},{x:0.50,y:0.40,r:1.0},{x:0.65,y:0.38,r:1.0}],
-    lines:[[0,4],[4,5],[5,6],[6,1],[0,2],[1,3],[2,3]] },
-];
 
 export function Bench({ T, lang, setTab, goBack }) {
   const canvasRef     = useRef(null);
@@ -128,15 +114,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       w: 0.55+i*0.08,
     }));
 
-    // Constellation per-index opacity
-    const constellationOp = [0,0,0];
-
-    // Standing aurora curtains
-    const auroraStanding = Array.from({length:4},(_,i)=>({
-      hue:145+i*32, y:0.05+i*0.055, amp:0.016+i*0.005, w:0.68+i*0.06,
-      breathOff:i*0.9, breathSpd:0.00016+i*0.00007,
-    }));
-
     // Shooting star
     let ss = { on:false, x:0, y:0, vx:0, vy:0, life:0, tail:[] };
 
@@ -216,40 +193,6 @@ export function Bench({ T, lang, setTab, goBack }) {
       }
     };
 
-    const drawNebula = (ctx, time) => {
-      const sc=SCENES[scIdx], nsc=nextIdx>=0?SCENES[nextIdx]:null;
-      const isN=sc.nebula||false, isNn=nsc?.nebula||false;
-      const vis=isN?(isNn?1:clamp(1-blend*1.2,0,1)):(isNn?clamp(blend*1.2,0,1):0);
-      if (vis<0.02) return;
-      const clouds=[
-        {x:0.30,y:0.17,rx:0.20,ry:0.12,hue:280},
-        {x:0.64,y:0.10,rx:0.17,ry:0.09,hue:200},
-        {x:0.50,y:0.29,rx:0.24,ry:0.10,hue:320},
-      ];
-      clouds.forEach((c,i)=>{
-        const breath=0.72+0.28*Math.sin(time*0.00012+i*1.4);
-        const cx=c.x*W(), cy=c.y*H(), rx=c.rx*W(), ry=c.ry*H();
-        for(let layer=0;layer<3;layer++){
-          const lop=vis*breath*(0.11-layer*0.03);
-          if(lop<0.005) continue;
-          const lrx=rx*(1+layer*0.38), lry=ry*(1+layer*0.44);
-          const ng=ctx.createRadialGradient(cx,cy,0,cx,cy,lrx);
-          ng.addColorStop(0,`hsla(${c.hue},80%,65%,${lop})`);
-          ng.addColorStop(0.5,`hsla(${c.hue+20},70%,55%,${lop*0.5})`);
-          ng.addColorStop(1,`hsla(${c.hue+40},60%,45%,0)`);
-          ctx.beginPath(); ctx.ellipse(cx,cy,lrx,lry,0,0,Math.PI*2);
-          ctx.fillStyle=ng; ctx.fill();
-        }
-      });
-      // dust specks
-      const hues=[280,200,320];
-      for(let i=0;i<50;i++){
-        const fx=((i*137.5)%1), fy=((i*97.3)%0.44);
-        ctx.beginPath(); ctx.arc(fx*W(),fy*H(),0.8,0,Math.PI*2);
-        ctx.fillStyle=`hsla(${hues[i%3]},80%,75%,${vis*0.45})`; ctx.fill();
-      }
-    };
-
     const drawStars = (ctx, time) => {
       const sc   = SCENES[scIdx];
       const nsc  = nextIdx >= 0 ? SCENES[nextIdx] : null;
@@ -319,76 +262,6 @@ export function Bench({ T, lang, setTab, goBack }) {
         }
         ctx.closePath();
         ctx.fillStyle = g; ctx.fill();
-      });
-
-      // Standing wave curtains — barely move, just breathe in opacity
-      auroraStanding.forEach(b => {
-        const breath = Math.sin(time*b.breathSpd + b.breathOff);
-        const al = vis*(0.045 + 0.028*breath);
-        const cy=b.y*H(), amp=b.amp*H(), bw=b.w*W(), sx=(W()-bw)/2;
-        const g2=ctx.createLinearGradient(0,cy-amp*3,0,cy+amp*3);
-        g2.addColorStop(0,   `hsla(${b.hue},75%,60%,0)`);
-        g2.addColorStop(0.4, `hsla(${b.hue},75%,65%,${al})`);
-        g2.addColorStop(0.6, `hsla(${b.hue+15},70%,68%,${al*1.2})`);
-        g2.addColorStop(1,   `hsla(${b.hue},75%,58%,0)`);
-        ctx.beginPath();
-        const steps=50;
-        for(let i=0;i<=steps;i++){
-          const tt=i/steps, x=sx+tt*bw;
-          const y=cy+Math.sin(tt*Math.PI*4)*amp+Math.sin(tt*Math.PI*7)*amp*0.3;
-          i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-        }
-        for(let i=steps;i>=0;i--){
-          const tt=i/steps, x=sx+tt*bw;
-          const y=cy+Math.sin(tt*Math.PI*4)*amp+Math.sin(tt*Math.PI*7)*amp*0.3+amp*(0.4+0.2*breath);
-          ctx.lineTo(x,y);
-        }
-        ctx.closePath(); ctx.fillStyle=g2; ctx.fill();
-      });
-    };
-
-    const drawConstellations = (ctx, time) => {
-      const sc=SCENES[scIdx], nsc=nextIdx>=0?SCENES[nextIdx]:null;
-      const vis=nsc?lerpN(sc.stars,nsc.stars,blend):sc.stars;
-      if (vis<0.4) return;
-      ALL_CONSTELLATIONS.forEach((con, ci) => {
-        // each constellation visible for ~100s, staggered by 80s
-        const cycle=360, off=ci*110;
-        const t=(Math.floor(time/1200+off)%cycle);
-        const targetOp = (t>30 && t<290) ? vis*0.65 : 0;
-        constellationOp[ci] = lerpN(constellationOp[ci], targetOp, 0.004);
-        const op = constellationOp[ci];
-        if (op<0.015) return;
-        const bx=con.bx*W(), by=con.by*H(), bw=con.bw*W(), bh=con.bh*H();
-        // lines
-        ctx.save();
-        ctx.strokeStyle=`rgba(180,210,255,${op*0.35})`;
-        ctx.lineWidth=0.9;
-        con.lines.forEach(([a,b])=>{
-          const sa=con.stars[a], sb=con.stars[b];
-          ctx.beginPath();
-          ctx.moveTo(bx+sa.x*bw, by+sa.y*bh);
-          ctx.lineTo(bx+sb.x*bw, by+sb.y*bh);
-          ctx.stroke();
-        });
-        // stars
-        con.stars.forEach(s=>{
-          const sx=bx+s.x*bw, sy=by+s.y*bh;
-          const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,s.r*4);
-          sg.addColorStop(0,`rgba(200,225,255,${op*0.5})`);
-          sg.addColorStop(1,'rgba(200,225,255,0)');
-          ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx,sy,s.r*4,0,Math.PI*2); ctx.fill();
-          ctx.fillStyle=`rgba(230,242,255,${op*0.9})`;
-          ctx.beginPath(); ctx.arc(sx,sy,s.r,0,Math.PI*2); ctx.fill();
-        });
-        // name
-        if (op>0.3) {
-          ctx.font=`${clamp(W()*0.018,10,13)}px Georgia,serif`;
-          ctx.fillStyle=`rgba(160,195,240,${(op-0.3)*0.9})`;
-          ctx.textAlign='left'; ctx.textBaseline='top';
-          ctx.fillText(con.name, bx, by+bh+3);
-        }
-        ctx.restore();
       });
     };
 
@@ -486,42 +359,20 @@ export function Bench({ T, lang, setTab, goBack }) {
       for(let i=flocks.length-1;i>=0;i--) if(!flocks[i].alive) flocks.splice(i,1);
     };
 
-    let wishVisible = false;
-    let wishAlpha = 0;
-
     const drawShootingStar = (ctx) => {
-      if (!ss.on && Math.random()<0.00035) {
-        ss={on:true,x:0.04+Math.random()*0.5,y:0.03+Math.random()*0.18,
-            vx:1.0+Math.random()*0.8,vy:0.25+Math.random()*0.35,
-            life:1,tail:[]};
-        wishVisible=true; wishAlpha=0;
-      }
-      // wish text fade
-      if (wishVisible) {
-        wishAlpha = Math.min(wishAlpha+0.04, 1);
-        if (!ss.on) wishAlpha = Math.max(wishAlpha-0.025, 0);
-        if (!ss.on && wishAlpha<=0) wishVisible=false;
-        const fs = clamp(W()*0.048, 18, 32);
-        ctx.save();
-        ctx.font = `300 ${fs}px Georgia,serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = `rgba(255,248,200,${wishAlpha*0.92})`;
-        ctx.shadowColor = `rgba(255,220,80,${wishAlpha*0.6})`;
-        ctx.shadowBlur = 18;
-        ctx.fillText('✨ make a wish…', W()*0.5, H()*0.22);
-        ctx.restore();
+      if (!ss.on && Math.random()<0.0006) {
+        ss={on:true,x:0.05+Math.random()*0.55,y:0.04+Math.random()*0.22,vx:3+Math.random()*2.5,vy:0.7+Math.random()*0.8,life:1,tail:[]};
       }
       if (!ss.on) return;
-      ss.x+=ss.vx/W()*7; ss.y+=ss.vy/H()*7; ss.life-=0.007;
+      ss.x+=ss.vx/W()*18; ss.y+=ss.vy/H()*18; ss.life-=0.02;
       ss.tail.unshift({x:ss.x,y:ss.y});
-      if (ss.tail.length>22) ss.tail.pop();
+      if (ss.tail.length>16) ss.tail.pop();
       if (ss.life<=0||ss.x>1.12){ss.on=false;return;}
       for(let i=1;i<ss.tail.length;i++){
         const t1=ss.tail[i-1],t2=ss.tail[i];
-        const al=(1-i/ss.tail.length)*ss.life*0.9;
+        const al=(1-i/ss.tail.length)*ss.life*0.88;
         ctx.strokeStyle=`rgba(255,255,235,${al})`;
-        ctx.lineWidth=(1-i/ss.tail.length)*2.4;
+        ctx.lineWidth=(1-i/ss.tail.length)*2.0;
         ctx.beginPath(); ctx.moveTo(t1.x*W(),t1.y*H()); ctx.lineTo(t2.x*W(),t2.y*H()); ctx.stroke();
       }
     };
@@ -624,22 +475,12 @@ export function Bench({ T, lang, setTab, goBack }) {
       });
     };
 
-    const animalGlow = { horse:'255,200,120', cow:'200,220,160', dog:'255,220,150', cat:'220,200,255' };
     const drawAnimal = (ctx, a) => {
       a.x += a.dir*a.spd;
       a.wp += 0.055;
       const ax=a.x*W(), ay=a.y*H();
       const bob=Math.sin(a.wp)*1.4*a.sz;
       const leg=Math.sin(a.wp)*0.25;
-      // soft ground glow under animal
-      const gc = animalGlow[a.type]||'255,220,150';
-      const gr = clamp(a.sz*W()*0.06, 20, 60);
-      const gg = ctx.createRadialGradient(ax, ay+a.sz*12, 0, ax, ay+a.sz*12, gr*2);
-      gg.addColorStop(0, `rgba(${gc},0.18)`);
-      gg.addColorStop(0.5, `rgba(${gc},0.07)`);
-      gg.addColorStop(1, `rgba(${gc},0)`);
-      ctx.fillStyle=gg;
-      ctx.beginPath(); ctx.ellipse(ax, ay+a.sz*12, gr*2, gr*0.65, 0, 0, Math.PI*2); ctx.fill();
       ctx.save();
       ctx.translate(ax, ay+bob*0.3);
       if (a.dir<0) ctx.scale(-1,1);
@@ -733,9 +574,7 @@ export function Bench({ T, lang, setTab, goBack }) {
 
       // Draw order
       drawSky(ctx, time);
-      drawNebula(ctx, time);
       drawStars(ctx, time);
-      drawConstellations(ctx, time);
       drawAurora(ctx, time);
       drawMoon(ctx, time);
       drawShootingStar(ctx);
@@ -772,8 +611,8 @@ export function Bench({ T, lang, setTab, goBack }) {
         🏠
       </button>
 
-      {/* Sound buttons — bottom, thumb-friendly */}
-      <div style={{position:'absolute',bottom:28,left:0,right:0,zIndex:10,display:'flex',justifyContent:'center',flexWrap:'wrap',gap:8,padding:'0 16px'}}>
+      {/* Sound buttons */}
+      <div style={{position:'absolute',top:62,left:0,right:0,zIndex:10,display:'flex',justifyContent:'center',flexWrap:'wrap',gap:6,padding:'0 10px'}}>
         {[
           {key:'birds.mp3', icon:'🐦',en:'Birds', hi:'पक्षी'},
           {key:'wind.mp3',  icon:'💨',en:'Wind',  hi:'हवा'},
