@@ -23,6 +23,7 @@ const Crisis = lazy(() => import('./features/crisis/Crisis').then(m => ({ defaul
 const About = lazy(() => import('./features/about/About').then(m => ({ default: m.About })));
 const Privacy = lazy(() => import('./features/privacy/Privacy').then(m => ({ default: m.Privacy })));
 const WishesGallery = lazy(() => import('./features/reflection/WishesGallery').then(m => ({ default: m.WishesGallery })));
+const MoodAction = lazy(() => import('./MoodAction'));
 
 export default function App() {
   // ─── ONBOARDING STATE ───
@@ -134,6 +135,21 @@ export default function App() {
             {tab === "legal" && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
             {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
             {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
+
+            {/* ─── NEW: DYNAMIC MOOD ROUTING ─── */}
+            {tab && tab.startsWith("moodAction_") && (
+              <Suspense fallback={
+                <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontStyle: "italic" }}>
+                  {lang === "Hindi" ? "एक शांत जगह तैयार कर रहे हैं..." : "Gathering a gentle space..."}
+                </div>
+              }>
+                <MoodAction 
+                  selectedMood={tab.split("_")[1]} 
+                  goBack={() => setTab("more")} 
+                  T={T} 
+                  lang={lang} 
+                />
+            
             {tab === "settings" && (
               <Settings 
                 setTab={setTab} 
