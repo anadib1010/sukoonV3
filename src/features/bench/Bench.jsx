@@ -22,9 +22,21 @@ const SCENES = [
   { id:'pinkdawn', top:'#1a0820', bot:'#3a1030', stars:0.1, moon:0,   aurora:0,   glow:0.6, gR:240, gG:80,  gB:140 },
   { id:'sunrise',  top:'#1a0a02', bot:'#5a2008', stars:0,   moon:0,   aurora:0,   glow:1.0, gR:255, gG:100, gB:10  },
   { id:'morning',  top:'#080402', bot:'#3a1a08', stars:0,   moon:0,   aurora:0,   glow:0.7, gR:255, gG:140, gB:40  },
+  { id:'nebula',   top:'#040114', bot:'#080222', stars:0.95, moon:0.5, aurora:0,   glow:0,   gR:0,   gG:0,   gB:0,   nebula:true },
 ];
 const SCENE_DUR = 240; // frames per scene (~4s at 60fps)
 const BLEND_DUR = 60;  // frames to crossfade
+
+
+// Constellations — Big Dipper and Orion only, simple and clean
+const CONSTELLATIONS = [
+  { name:'Big Dipper', bx:0.55, by:0.03, bw:0.28, bh:0.20,
+    stars:[{x:0.00,y:0.60,r:1.4},{x:0.18,y:0.72,r:1.2},{x:0.36,y:0.58,r:1.1},{x:0.32,y:0.38,r:1.1},{x:0.52,y:0.20,r:1.3},{x:0.72,y:0.10,r:1.2},{x:1.00,y:0.00,r:1.1}],
+    lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
+  { name:'Orion', bx:0.05, by:0.07, bw:0.24, bh:0.26,
+    stars:[{x:0.20,y:0.00,r:1.5},{x:0.80,y:0.05,r:1.3},{x:0.15,y:0.80,r:1.4},{x:0.85,y:0.85,r:1.2},{x:0.35,y:0.42,r:1.0},{x:0.50,y:0.40,r:1.0},{x:0.65,y:0.38,r:1.0}],
+    lines:[[0,4],[4,5],[5,6],[6,1],[0,2],[1,3],[2,3]] },
+];
 
 export function Bench({ T, lang, setTab, goBack }) {
   const canvasRef     = useRef(null);
@@ -103,6 +115,16 @@ export function Bench({ T, lang, setTab, goBack }) {
       twSpd: 0.0007+Math.random()*0.001,
       op:    0.4+Math.random()*0.6,
     }));
+
+    // ── Constellation opacity (one per constellation, lerps in/out) ──────
+    const conOp = CONSTELLATIONS.map(() => 0);
+
+    // ── Nebula clouds — three elliptical colour washes, ellipse only ──────
+    const NEBULA_CLOUDS = [
+      { x:0.28, y:0.16, rx:0.19, ry:0.11, hue:280 },
+      { x:0.62, y:0.09, rx:0.16, ry:0.08, hue:200 },
+      { x:0.48, y:0.28, rx:0.23, ry:0.10, hue:320 },
+    ];
 
     // ── Moon ──────────────────────────────────────────────────────────
     let moonX = 0.82; // drifts right→left
@@ -231,6 +253,92 @@ export function Bench({ T, lang, setTab, goBack }) {
           ctx.lineTo(x,y);
         }
         ctx.closePath(); ctx.fillStyle=g; ctx.fill();
+      });
+    };
+
+    // ── Draw: Nebula ─────────────────────────────────────────────────
+    const drawNebula = (ctx, time) => {
+      const sc = SCENES[scIdx], nx = nextIdx >= 0 ? SCENES[nextIdx] : null;
+      const isN = sc.nebula || false, isNx = nx?.nebula || false;
+      const vis = isN ? (isNx ? 1 : clamp(1 - blend*1.3, 0, 1))
+                      : (isNx ? clamp(blend*1.3, 0, 1) : 0);
+      if (vis < 0.02) return;
+      NEBULA_CLOUDS.forEach((c, i) => {
+        const breath = 0.72 + 0.28 * Math.sin(time * 0.00012 + i * 1.4);
+        const cx = c.x * W(), cy = c.y * H() * 0.88;
+        const rx = c.rx * W(), ry = c.ry * H();
+        for (let layer = 0; layer < 3; layer++) {
+          const lop = vis * breath * (0.10 - layer * 0.028);
+          if (lop < 0.005) continue;
+          const lrx = rx * (1 + layer * 0.4), lry = ry * (1 + layer * 0.45);
+          const ng = ctx.createRadialGradient(cx, cy, 0, cx, cy, lrx);
+          ng.addColorStop(0,   `hsla(${c.hue},80%,65%,${lop})`);
+          ng.addColorStop(0.5, `hsla(${c.hue+20},70%,55%,${lop*0.5})`);
+          ng.addColorStop(1,   `hsla(${c.hue+40},60%,45%,0)`);
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, lrx, lry, 0, 0, Math.PI * 2);
+          ctx.fillStyle = ng; ctx.fill();
+        }
+      });
+      // coloured dust specks — fixed seeded positions
+      const hues = [280, 200, 320];
+      for (let i = 0; i < 55; i++) {
+        const fx = (i * 137.508) % 1, fy = (i * 97.31) % 0.42;
+        ctx.beginPath();
+        ctx.arc(fx * W(), fy * H() * 0.85, 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hues[i%3]},80%,75%,${vis * 0.45})`;
+        ctx.fill();
+      }
+    };
+
+    // ── Draw: Constellations ──────────────────────────────────────────
+    const drawConstellations = (ctx, time) => {
+      const vis = getVal('stars');
+      if (vis < 0.4) {
+        CONSTELLATIONS.forEach((_, i) => { conOp[i] = lerpN(conOp[i], 0, 0.015); });
+        return;
+      }
+      CONSTELLATIONS.forEach((con, ci) => {
+        // stagger: each constellation visible on alternate ~90s windows
+        const cycle = 300, off = ci * 140;
+        const t = (Math.floor(time / 1000 + off) % cycle);
+        const target = (t > 20 && t < 250) ? vis * 0.7 : 0;
+        conOp[ci] = lerpN(conOp[ci], target, 0.004);
+        const op = conOp[ci];
+        if (op < 0.015) return;
+        const bx = con.bx * W(), by = con.by * H() * 0.85;
+        const bw = con.bw * W(), bh = con.bh * H();
+        ctx.save();
+        // connecting lines
+        ctx.strokeStyle = `rgba(180,210,255,${op * 0.32})`;
+        ctx.lineWidth = 0.8;
+        con.lines.forEach(([a, b]) => {
+          const sa = con.stars[a], sb = con.stars[b];
+          ctx.beginPath();
+          ctx.moveTo(bx + sa.x * bw, by + sa.y * bh);
+          ctx.lineTo(bx + sb.x * bw, by + sb.y * bh);
+          ctx.stroke();
+        });
+        // star dots with small glow
+        con.stars.forEach(s => {
+          const sx = bx + s.x * bw, sy = by + s.y * bh;
+          const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.r * 4);
+          sg.addColorStop(0, `rgba(200,225,255,${op * 0.45})`);
+          sg.addColorStop(1, 'rgba(200,225,255,0)');
+          ctx.fillStyle = sg;
+          ctx.beginPath(); ctx.arc(sx, sy, s.r * 4, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = `rgba(230,242,255,${op * 0.92})`;
+          ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI * 2); ctx.fill();
+        });
+        // name — very faint
+        if (op > 0.3) {
+          const fs = clamp(W() * 0.017, 9, 13);
+          ctx.font = `${fs}px Georgia,serif`;
+          ctx.fillStyle = `rgba(160,195,240,${(op - 0.3) * 0.85})`;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+          ctx.fillText(con.name, bx, by + bh + 3);
+        }
+        ctx.restore();
       });
     };
 
@@ -438,37 +546,87 @@ export function Bench({ T, lang, setTab, goBack }) {
       const sY = gY - bh * 0.28;
       const lgH = bh * 0.88;
       ctx.save();
-      ctx.strokeStyle = 'rgba(32,20,10,0.92)';
       ctx.lineCap = 'round';
-      // legs
+      // legs — warm teak brown
       ctx.lineWidth = clamp(bw*0.044, 3, 7);
+      ctx.strokeStyle = 'rgba(110,62,28,0.95)';
       [[-0.42,-0.18],[0.18,0.42]].forEach(([a,b]) => {
         ctx.beginPath(); ctx.moveTo(cx+a*bw, sY); ctx.lineTo(cx+a*bw, sY+lgH); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cx+b*bw, sY); ctx.lineTo(cx+b*bw, sY+lgH); ctx.stroke();
       });
       // crossbar
       ctx.beginPath(); ctx.moveTo(cx-bw*0.42, sY+lgH*0.55); ctx.lineTo(cx+bw*0.42, sY+lgH*0.55); ctx.stroke();
-      // seat planks
+      // seat planks — lighter wood on top, darker underneath
       const ph = clamp(bh*0.13, 5, 10);
+      const plankCols = ['rgba(145,88,42,0.95)','rgba(132,78,36,0.92)','rgba(118,68,30,0.88)'];
       for (let i=0; i<3; i++) {
         ctx.lineWidth = ph;
-        ctx.strokeStyle = `rgba(32,20,10,${0.85-i*0.08})`;
+        ctx.strokeStyle = plankCols[i];
         ctx.beginPath(); ctx.moveTo(cx-bw*0.48, sY-i*ph*0.35); ctx.lineTo(cx+bw*0.48, sY-i*ph*0.35); ctx.stroke();
       }
-      // backrest
+      // backrest planks
       const bkY = sY - bh*0.52;
       ctx.lineWidth = clamp(ph*0.75, 3, 8);
       for (let i=0; i<2; i++) {
-        ctx.strokeStyle = `rgba(32,20,10,${0.82-i*0.1})`;
+        ctx.strokeStyle = `rgba(138,82,38,${0.92-i*0.08})`;
         ctx.beginPath(); ctx.moveTo(cx-bw*0.44, bkY-i*ph*0.42); ctx.lineTo(cx+bw*0.44, bkY-i*ph*0.42); ctx.stroke();
       }
       // back posts
       ctx.lineWidth = clamp(bw*0.036, 2.5, 6);
-      ctx.strokeStyle = 'rgba(32,20,10,0.88)';
+      ctx.strokeStyle = 'rgba(110,62,28,0.92)';
       [-0.38, 0.38].forEach(bx => {
         ctx.beginPath(); ctx.moveTo(cx+bx*bw, sY); ctx.lineTo(cx+bx*bw, bkY-ph); ctx.stroke();
       });
       ctx.restore();
+    };
+
+    // ── Rain ──────────────────────────────────────────────────────────
+    const drops = Array.from({length:220}, () => ({
+      x:    Math.random(),
+      y:    Math.random(),
+      speed:0.0018 + Math.random()*0.003,
+      len:  0.012 + Math.random()*0.022,
+      op:   0.10 + Math.random()*0.18,
+    }));
+    let rainIntensity  = 0;
+    let rainTarget     = 0;
+    let rainPhaseTimer = 0;
+    let rainPhaseIdx   = 0;
+    const mkPhases = () => [
+      { target:0,    dur:900  + Math.random()*700 },
+      { target:0.22, dur:500  + Math.random()*400 },
+      { target:0.60, dur:600  + Math.random()*500 },
+      { target:1.0,  dur:350  + Math.random()*350 },
+      { target:0.35, dur:400  + Math.random()*300 },
+      { target:0,    dur:700  + Math.random()*500 },
+    ];
+    let rainPhases = mkPhases();
+    rainTarget = rainPhases[0].target;
+
+    const drawRain = (ctx) => {
+      rainPhaseTimer++;
+      if (rainPhaseTimer > rainPhases[rainPhaseIdx].dur) {
+        rainPhaseIdx = (rainPhaseIdx + 1) % rainPhases.length;
+        if (rainPhaseIdx === 0) rainPhases = mkPhases();
+        rainTarget = rainPhases[rainPhaseIdx].target;
+        rainPhaseTimer = 0;
+      }
+      rainIntensity += (rainTarget - rainIntensity) * 0.008;
+      if (rainIntensity < 0.015) return;
+      const activeCount = Math.floor(rainIntensity * drops.length);
+      ctx.lineCap = 'butt';
+      for (let i=0; i<activeCount; i++) {
+        const d = drops[i];
+        d.y += d.speed * (0.5 + rainIntensity*0.8);
+        if (d.y > 1 + d.len) { d.y = -d.len; d.x = Math.random(); }
+        const al = Math.min(d.op * rainIntensity * 1.5, 0.38);
+        ctx.strokeStyle = `rgba(180,210,240,${al})`;
+        ctx.lineWidth   = 0.7 + rainIntensity*0.6;
+        ctx.beginPath();
+        ctx.moveTo(d.x*W(),                      d.y*H());
+        ctx.lineTo(d.x*W() + rainIntensity*2.5,  (d.y+d.len)*H());
+        ctx.stroke();
+      }
     };
 
     // ── RENDER LOOP ───────────────────────────────────────────────────
@@ -502,6 +660,8 @@ export function Bench({ T, lang, setTab, goBack }) {
       // Draw order
       drawSky(ctx);
       drawStars(ctx, time);
+      drawNebula(ctx, time);
+      drawConstellations(ctx, time);
       drawAurora(ctx, time);
       drawMoon(ctx);
       drawShootingStar(ctx);
@@ -510,6 +670,7 @@ export function Bench({ T, lang, setTab, goBack }) {
       trees.forEach(t => drawTree(ctx, t, time));
       animals.forEach(a => drawAnimal(ctx, a));
       drawBench(ctx);
+      drawRain(ctx);
 
       animRef.current = requestAnimationFrame(render);
     };
@@ -563,11 +724,12 @@ export function Bench({ T, lang, setTab, goBack }) {
           { key:'waves.mp3',  icon:'🌊', en:'Waves',  hi:'लहरें'    },
         ].map(s => (
           <button key={s.key} onClick={() => playBenchSound(s.key)} style={{
-            background: activeSound===s.key ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.55)',
-            border:     `1px solid ${activeSound===s.key ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)'}`,
-            borderRadius:99, color:'#fff', padding:'10px 14px',
+            background: activeSound===s.key ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.72)',
+            border:     `1px solid ${activeSound===s.key ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
+            borderRadius:99, color: activeSound===s.key ? 'rgba(255,255,220,0.95)' : 'rgba(255,255,255,0.55)',
+            padding:'10px 14px',
             display:'flex', alignItems:'center', gap:6, fontSize:13, cursor:'pointer',
-            transition:'all 0.2s', backdropFilter:'blur(6px)',
+            transition:'all 0.2s', backdropFilter:'blur(8px)',
           }}>
             <span>{s.icon}</span>
             <span>{hi ? s.hi : s.en}</span>
