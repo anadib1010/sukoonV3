@@ -169,7 +169,7 @@ export default function App() {
             {tab === 'wishes' && <WishesGallery setTab={setTab} T={T} lang={lang} />}
 
             {/* FALLBACK */}
-            {!["home", "focus", "journal", "warmth", "bench", "more", "practice", "legal", "reflection", "progress", "settings", "audio", "crisis", "about", "privacy", "wishes"].includes(tab) && (
+            {!["home", "focus", "journal", "warmth", "bench", "more", "practice", "legal", "reflection", "progress", "settings", "audio", "crisis", "about", "privacy", "wishes"].includes(tab) && !tab.startsWith("moodAction_") && (
               <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
                 <span style={{ fontSize: 48, marginBottom: 16 }}>🚧</span>
                 <button onClick={() => setTab("home")} style={{ padding: "12px 32px", borderRadius: 99, background: T.accent, color: T.bg, border: "none", fontSize: 14, cursor: "pointer" }}>
