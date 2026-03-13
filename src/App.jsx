@@ -4,9 +4,7 @@ import { THEMES } from './utils/theme';
 import { creditSession } from './utils/activity';
 
 // ─── LAZY LOAD ALL ROOMS ───
-// Added Onboarding to the lazy list!
 const Onboarding = lazy(() => import('./features/onboarding/Onboarding').then(m => ({ default: m.Onboarding })));
-
 const Settings = lazy(() => import('./features/settings/Settings').then(m => ({ default: m.Settings })));
 const Home = lazy(() => import('./features/home/Home').then(m => ({ default: m.Home })));
 const Focus = lazy(() => import('./features/focus/Focus').then(m => ({ default: m.Focus })));
@@ -36,7 +34,6 @@ export default function App() {
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
   const [themeKey, setThemeKey] = useLS("jsukoon_theme", "Void");
   
-  const [ritualDone, setRitualDone] = useState(false);
   const [tab, setTab] = useState("home");
   const [mood, setMood] = useState(null);
 
@@ -58,14 +55,13 @@ export default function App() {
   }, [setLang]);
 
   // ─── PASSIVE CREDITING ───
+  // Now tracks time automatically as soon as they are in the app
   useEffect(() => {
     const browseTimer = setInterval(() => {
-      if (ritualDone) {
-        creditSession(1, true); 
-      }
+      creditSession(1, true); 
     }, 60000);
     return () => clearInterval(browseTimer);
-  }, [ritualDone]);
+  }, []);
 
   // ─── ONBOARDING COMPLETION HANDLER ───
   const completeOnboarding = () => {
@@ -98,89 +94,71 @@ export default function App() {
         boxShadow: "0 0 50px rgba(0,0,0,0.5)" 
       }}>
         
-        {!ritualDone ? (
-          <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, marginBottom: 32, fontWeight: 400 }}>
-              {lang === "Hindi" ? "आप कैसा महसूस कर रहे हैं?" : "How are you feeling?"}
-            </h1>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", maxWidth: 300 }}>
-              {["Void", "Twilight Blue", "Pink Champagne", "Sea Glass"].map(m => (
-                <button 
-                  key={m}
-                  onClick={() => { setMood(m); setRitualDone(true); setTab("home"); }}
-                  style={{ padding: "14px 24px", borderRadius: 99, border: `1px solid ${T.borderWarm}`, background: "transparent", color: T.textSoft, fontSize: 14, cursor: "pointer", transition: "all 0.3s ease" }}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
+        {/* The redundant "Ritual" page was completely removed here! */}
+        
+        <Suspense fallback={
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg }}>
+            <p className="pulse" style={{ color: T.muted, fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontStyle: "italic" }}>
+              {lang === "Hindi" ? "सांस लें..." : "Breathe..."}
+            </p>
           </div>
-        ) : (
-          
-          <Suspense fallback={
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg }}>
-              <p className="pulse" style={{ color: T.muted, fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontStyle: "italic" }}>
-                {lang === "Hindi" ? "सांस लें..." : "Breathe..."}
-              </p>
-            </div>
-          }>
-            {tab === "home" && <Home setTab={setTab} T={T} lang={lang} />}
-            {tab === "focus" && <Focus setTab={setTab} T={T} lang={lang} />}
-            {tab === "journal" && <Journal setTab={setTab} T={T} lang={lang} />}
-            {tab === "warmth" && <WarmthPage setTab={setTab} T={T} lang={lang} />}
-            {tab === "bench" && <Bench setTab={setTab} T={T} lang={lang} />}
-            {tab === "more" && <MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
-            {tab === "practice" && <Practice setTab={setTab} T={T} lang={lang} />}
-            {tab === "legal" && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
-            {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
-            {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
+        }>
+          {tab === "home" && <Home setTab={setTab} T={T} lang={lang} />}
+          {tab === "focus" && <Focus setTab={setTab} T={T} lang={lang} />}
+          {tab === "journal" && <Journal setTab={setTab} T={T} lang={lang} />}
+          {tab === "warmth" && <WarmthPage setTab={setTab} T={T} lang={lang} />}
+          {tab === "bench" && <Bench setTab={setTab} T={T} lang={lang} />}
+          {tab === "more" && <MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
+          {tab === "practice" && <Practice setTab={setTab} T={T} lang={lang} />}
+          {tab === "legal" && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
+          {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
+          {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
 
-            {/* ─── NEW: DYNAMIC MOOD ROUTING ─── */}
-            {tab && tab.startsWith("moodAction_") && (
-              <Suspense fallback={
-                <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontStyle: "italic" }}>
-                  {lang === "Hindi" ? "एक शांत जगह तैयार कर रहे हैं..." : "Gathering a gentle space..."}
-                </div>
-              }>
-                <MoodAction 
-                  selectedMood={tab.split("_")[1]} 
-                  goBack={() => setTab("more")} 
-                  setTab={setTab} // Passed setTab down!
-                  T={T} 
-                  lang={lang} 
-                />
-              </Suspense>
-            )}
-            
-            {tab === "settings" && (
-              <Settings 
+          {/* ─── DYNAMIC MOOD ROUTING ─── */}
+          {tab && tab.startsWith("moodAction_") && (
+            <Suspense fallback={
+              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontStyle: "italic" }}>
+                {lang === "Hindi" ? "एक शांत जगह तैयार कर रहे हैं..." : "Gathering a gentle space..."}
+              </div>
+            }>
+              <MoodAction 
+                selectedMood={tab.split("_")[1]} 
+                goBack={() => setTab("more")} 
                 setTab={setTab} 
                 T={T} 
                 lang={lang} 
-                setLang={setLang} 
-                setThemeKey={setThemeKey} 
-                setThemeSource={setThemeSource} 
-                themeSource={themeSource} 
-                themeKey={themeKey} 
               />
-            )}
-            {tab === "audio" && <AudioPage setTab={setTab} T={T} lang={lang} />}
-            {tab === "crisis" && <Crisis setTab={setTab} T={T} lang={lang} />}
-            {tab === "about" && <About setTab={setTab} T={T} lang={lang} />}
-            {tab === "privacy" && <Privacy setTab={setTab} T={T} lang={lang} />}
-            {tab === 'wishes' && <WishesGallery setTab={setTab} T={T} lang={lang} />}
+            </Suspense>
+          )}
+          
+          {tab === "settings" && (
+            <Settings 
+              setTab={setTab} 
+              T={T} 
+              lang={lang} 
+              setLang={setLang} 
+              setThemeKey={setThemeKey} 
+              setThemeSource={setThemeSource} 
+              themeSource={themeSource} 
+              themeKey={themeKey} 
+            />
+          )}
+          {tab === "audio" && <AudioPage setTab={setTab} T={T} lang={lang} />}
+          {tab === "crisis" && <Crisis setTab={setTab} T={T} lang={lang} />}
+          {tab === "about" && <About setTab={setTab} T={T} lang={lang} />}
+          {tab === "privacy" && <Privacy setTab={setTab} T={T} lang={lang} />}
+          {tab === 'wishes' && <WishesGallery setTab={setTab} T={T} lang={lang} />}
 
-            {/* FALLBACK */}
-            {!["home", "focus", "journal", "warmth", "bench", "more", "practice", "legal", "reflection", "progress", "settings", "audio", "crisis", "about", "privacy", "wishes"].includes(tab) && !tab.startsWith("moodAction_") && (
-              <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
-                <span style={{ fontSize: 48, marginBottom: 16 }}>🚧</span>
-                <button onClick={() => setTab("home")} style={{ padding: "12px 32px", borderRadius: 99, background: T.accent, color: T.bg, border: "none", fontSize: 14, cursor: "pointer" }}>
-                  {lang === "Hindi" ? "वापस लौटें" : "Return to Home"}
-                </button>
-              </div>
-            )}
-          </Suspense>
-        )}
+          {/* FALLBACK */}
+          {!["home", "focus", "journal", "warmth", "bench", "more", "practice", "legal", "reflection", "progress", "settings", "audio", "crisis", "about", "privacy", "wishes"].includes(tab) && !tab.startsWith("moodAction_") && (
+            <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+              <span style={{ fontSize: 48, marginBottom: 16 }}>🚧</span>
+              <button onClick={() => setTab("home")} style={{ padding: "12px 32px", borderRadius: 99, background: T.accent, color: T.bg, border: "none", fontSize: 14, cursor: "pointer" }}>
+                {lang === "Hindi" ? "वापस लौटें" : "Return to Home"}
+              </button>
+            </div>
+          )}
+        </Suspense>
       </div>
     </div>
   );
