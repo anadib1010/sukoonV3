@@ -74,15 +74,14 @@ export default function App() {
   };
 
   // ─── ONBOARDING GATEKEEPER ───
-  // Wrapped in Suspense because it is now lazy-loaded!
   if (!hasOnboarded) {
     return (
       <Suspense fallback={<div style={{ background: "#050505", height: "100vh" }} />}>
         <Onboarding 
           onComplete={completeOnboarding} 
           setThemeKey={setThemeKey} 
-          setLang={setLang}         
-          T={T}                     
+          setLang={setLang}        
+          T={T}                    
         />
       </Suspense>
     );
@@ -136,7 +135,7 @@ export default function App() {
             {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
             {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
 
-            {/* ─── NEW: DYNAMIC MOOD ROUTING (FIXED CLOSING TAGS) ─── */}
+            {/* ─── NEW: DYNAMIC MOOD ROUTING ─── */}
             {tab && tab.startsWith("moodAction_") && (
               <Suspense fallback={
                 <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontStyle: "italic" }}>
@@ -146,12 +145,12 @@ export default function App() {
                 <MoodAction 
                   selectedMood={tab.split("_")[1]} 
                   goBack={() => setTab("more")} 
+                  setTab={setTab} // Passed setTab down!
                   T={T} 
                   lang={lang} 
                 />
               </Suspense>
             )}
-            {/* ☝️ These two closing tags were missing! */}
             
             {tab === "settings" && (
               <Settings 
