@@ -119,12 +119,17 @@ export function Home({ setTab, T, lang }) {
         justifyContent: "center",
         width: "100%",
         paddingBottom: "60px",
+        boxSizing: "border-box",
       }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-          width: "min(420px, calc(100vw - 48px))",  // responsive, never touches edges
+          gap: "16px",
+          width: "100%",
+          maxWidth: "420px",
+          paddingLeft: "24px",
+          paddingRight: "24px",
+          boxSizing: "border-box",
         }}>
 
           {/* 1. RACING THOUGHTS */}
