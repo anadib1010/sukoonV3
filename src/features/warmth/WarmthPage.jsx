@@ -513,27 +513,36 @@ const generateWarmthImage = (recipient, sender, lang, paletteId, characterId) =>
     }
   }
 
-  // Branding top
-  ctx.font = '500 14px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.textAlign='center';
-  ctx.fillText('JSukoon  •  jsukoon.vercel.app', W/2, 38);
+  // Branding top — readable at all ages, with text shadow glow
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.shadowColor = `rgba(${ar},${ag},${ab},0.6)`;
+  ctx.shadowBlur = 12;
+  ctx.font = '500 28px Georgia, serif';
+  ctx.fillStyle = `rgba(${ar},${ag},${ab},0.92)`;
+  ctx.fillText('a moment of warmth, from JSukoon', W/2, 54);
+  ctx.shadowBlur = 0;
+
+  // Thin rule under branding
+  ctx.strokeStyle = `rgba(${ar},${ag},${ab},0.28)`; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W*0.2, 66); ctx.lineTo(W*0.8, 66); ctx.stroke();
 
   // Recipient name
   const displayName = recipient || (hi ? 'आपको' : 'You');
-  ctx.font = '300 54px Georgia, serif'; ctx.fillStyle = palette.accent;
+  ctx.font = '300 58px Georgia, serif'; ctx.fillStyle = palette.accent;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText(displayName, W/2, 110);
+  ctx.fillText(displayName, W/2, 132);
 
   // Message
   const msg = hi ? 'को प्रेम, शांति और सुख मिले।' : 'May you be at peace. May you be well.';
-  ctx.font = 'italic 21px Georgia, serif'; ctx.fillStyle='rgba(255,255,255,0.82)';
-  ctx.fillText(msg, W/2, 148);
+  ctx.font = 'italic 24px Georgia, serif'; ctx.fillStyle='rgba(255,255,255,0.82)';
+  ctx.fillText(msg, W/2, 172);
 
   // Sender bottom
   const fromText = sender
     ? (hi ? `— ${sender} की ओर से 💛` : `— with love from ${sender} 💛`)
-    : '— from JSukoon 💛';
-  ctx.font = '15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.42)';
-  ctx.fillText(fromText, W/2, H - 46);
+    : '— JSukoon 💛';
+  ctx.font = '500 20px Georgia, serif'; ctx.fillStyle=`rgba(${ar},${ag},${ab},0.65)`;
+  ctx.fillText(fromText, W/2, H - 42);
 
   // Border
   ctx.strokeStyle=`rgba(${ar},${ag},${ab},0.35)`; ctx.lineWidth=1;
