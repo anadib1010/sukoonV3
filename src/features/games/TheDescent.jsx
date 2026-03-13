@@ -9,12 +9,60 @@ export function TheDescent({ setTab, T, lang }) {
   
   const requestRef = useRef();
   const holdStartTime = useRef(0);
+  // ─── THE AUDIO ENGINE ───
+  const audioCtxRef = useRef(null);
+  const oscillatorRef = useRef(null);
+  const gainNodeRef = useRef(null);
+
+  const startSound = () => {
+    // Only start if it isn't already playing
+    if (audioCtxRef.current) return; 
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioCtxRef.current = new AudioContext();
+    
+    // Create a deep, humming sound
+    oscillatorRef.current = audioCtxRef.current.createOscillator();
+    oscillatorRef.current.type = 'sine'; // Smooth, pure tone
+    oscillatorRef.current.frequency.setValueAtTime(60, audioCtxRef.current.currentTime); // 60Hz is a deep, sleepy hum
+
+    // Control the volume
+    gainNodeRef.current = audioCtxRef.current.createGain();
+    gainNodeRef.current.gain.setValueAtTime(0.01, audioCtxRef.current.currentTime); // Start quiet
+    
+    // Gradually increase volume over 5 seconds
+    gainNodeRef.current.gain.linearRampToValueAtTime(0.2, audioCtxRef.current.currentTime + 5);
+
+    oscillatorRef.current.connect(gainNodeRef.current);
+    gainNodeRef.current.connect(audioCtxRef.current.destination);
+    oscillatorRef.current.start();
+  };
+
+  const stopSound = () => {
+    if (gainNodeRef.current && audioCtxRef.current) {
+      // Gently fade the sound out over 3 seconds so it isn't jarring
+      gainNodeRef.current.gain.linearRampToValueAtTime(0.01, audioCtxRef.current.currentTime + 3);
+      
+      // Stop and clean up after the fade out
+      setTimeout(() => {
+        if (oscillatorRef.current) {
+          oscillatorRef.current.stop();
+          oscillatorRef.current.disconnect();
+          oscillatorRef.current = null;
+        }
+        if (audioCtxRef.current) {
+          audioCtxRef.current.close();
+          audioCtxRef.current = null;
+        }
+      }, 3000);
+    }
+  };
 
   // ─── THE DESCENT ENGINE ───
   // This runs 60 times a second while the thumb is on the screen.
   const updateDescent = () => {
     setDepth((prevDepth) => {
-      const newDepth = prevDepth + 0.05; // Adjust this number to make the descent faster or slower
+      const newDepth = prevDepth + 0.005; // Adjust this number to make the descent faster or slower
       return newDepth;
     });
     requestRef.current = requestAnimationFrame(updateDescent);
@@ -29,6 +77,8 @@ export function TheDescent({ setTab, T, lang }) {
     setPhase('descending');
     holdStartTime.current = Date.now();
     requestRef.current = requestAnimationFrame(updateDescent);
+
+    startSound();
   };
 
   const handleTouchEnd = () => {
@@ -46,6 +96,7 @@ export function TheDescent({ setTab, T, lang }) {
       // THE MAGIC MOMENT: They held it for a long time, and their thumb slipped. 
       // They are falling asleep. Trigger the 15-second fade to black.
       setPhase('slipping');
+      stopSound();
     }
   };
 
