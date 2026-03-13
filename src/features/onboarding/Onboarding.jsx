@@ -19,7 +19,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
     { langPick: true },
     { line1: hi?"स्वागत है।":"Welcome.", line2: hi?"JSukoon एक शांति का स्थान है — जब मन भारी हो, जब विचार दौड़ रहे हों, या जब बस एक पल की शांति चाहिए।":"JSukoon is a space for your mind — when thoughts race, when you feel heavy, or when you simply need one quiet moment.", sub:null, button: hi?"आगे":"Continue", legal:true },
     { features: true },
-    { line1: hi?"न streak। न लक्ष्य।":"No goals.", line2: hi?"यहाँ कोई दबाव नहीं है। आप जब चाहें आएं, जितना चाहें रुकें।":"No pressure here. Come when you need to. Stay as long as you like.", sub: hi?"यह जगह हमेशा आपके लिए है।":"This space is always here for you.", button: hi?"आगे":"Continue" },
+    { line1: hi?"न लक्ष्य।":"No goals.", line2: hi?"यहाँ कोई दबाव नहीं है। आप जब चाहें आएं, जितना चाहें रुकें।":"No pressure here. Come when you need to. Stay as long as you like.", sub: hi?"यह जगह हमेशा आपके लिए है।":"This space is always here for you.", button: hi?"आगे":"Continue" },
     { line1: hi?"आज आप कैसे आए हैं?":"How are you arriving today?", line2:null, sub:null, button:null, mood:true },
     { line1: hi?"एक धीमी सांस लें।":"Take one slow breath.", line2: hi?"नाक से धीरे सांस लें — रोकें — और धीरे छोड़ें।":"Breathe in slowly through your nose — hold — and breathe out.", sub: hi?"जब तैयार हों, शुरू करें।":"When you are ready, begin.", button: hi?"JSukoon में प्रवेश करें":"Enter JSukoon", breathe:true },
   ];
