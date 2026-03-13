@@ -16,7 +16,7 @@ export function Home({ setTab, T, lang }) {
     backdropFilter: "blur(25px)",
     WebkitBackdropFilter: "blur(25px)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "32px", // Slightly tighter rounding for a modern feel
+    borderRadius: "32px", 
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -24,7 +24,7 @@ export function Home({ setTab, T, lang }) {
     aspectRatio: "1 / 1",
     cursor: "pointer",
     transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-    padding: "16px", // Reduced padding so text doesn't hit edges on small phones
+    padding: "16px", 
     boxShadow: "0 15px 45px rgba(0,0,0,0.2)",
     textAlign: "center",
     boxSizing: "border-box",
@@ -58,14 +58,14 @@ export function Home({ setTab, T, lang }) {
       flexDirection: "column",
       alignItems: "center",
       background: T.bg,
-      overflow: "hidden", // Completely disables the overall scrollbar
+      overflow: "hidden", 
       boxSizing: "border-box",
-      padding: "0 24px", // Universal side padding ensures nothing touches the edge
+      padding: "0 24px", 
     }}>
 
       {/* ─── BRANDING & GREETING ─── */}
       <div style={{ 
-        paddingTop: "max(10vh, 40px)", // Dynamic padding based on screen size
+        paddingTop: "max(10vh, 40px)", 
         textAlign: "center", 
         width: "100%",
         display: "flex",
@@ -76,29 +76,16 @@ export function Home({ setTab, T, lang }) {
         {/* JSukoon — sleek, non-italic, elegant */}
         <h1 style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(40px, 10vw, 56px)", // Slightly scaled down for small screens
+          fontSize: "clamp(40px, 10vw, 56px)", 
           color: T.text,
-          fontWeight: 400, // Slightly bolder than before for presence
-          fontStyle: "normal", // Removed italic
+          fontWeight: 400, 
+          fontStyle: "normal", 
           margin: "0 0 4px",
           letterSpacing: "2px",
           lineHeight: 1,
         }}>
           JSukoon
         </h1>
-
-        {/* Urdu */}
-        <p style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(14px, 3.5vw, 16px)",
-          color: T.textSoft,
-          margin: "4px 0 0",
-          opacity: 0.6,
-          letterSpacing: "1px",
-          fontStyle: "italic",
-        }}>
-          سکون
-        </p>
 
         <div style={{ width: "30px", height: "1px", background: T.accent, margin: "20px 0", opacity: 0.5 }} />
 
@@ -124,8 +111,8 @@ export function Home({ setTab, T, lang }) {
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        maxWidth: "400px", // Locks the grid width so it centers perfectly
-        margin: "0 auto", // Forces horizontal centering
+        maxWidth: "400px", 
+        margin: "0 auto", 
       }}>
         <div style={{
           display: "grid",
