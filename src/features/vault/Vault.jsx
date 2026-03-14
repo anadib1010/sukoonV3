@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StoneDrop }        from '../games/StoneDrop';
 import { BilateralTapping } from '../games/BilateralTapping';
 import { UnsentLetter }     from '../games/UnsentLetter';
-import { NadiShodhana }     from '../games/NadiShodhana';
+import { NadiShodhana }     from '../breathing/NadiShodhana';
 
 // ── The 6 Vault tools — removed from Focus, live only here ──────────
 
