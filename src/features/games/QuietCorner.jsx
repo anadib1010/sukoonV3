@@ -4,32 +4,36 @@ export function QuietCorner({ setTab, T, lang }) {
   const isHindi = lang === "Hindi";
   const videoRef = useRef(null);
   
-  const [permission, setPermission] = useState('prompt'); // prompt, granted, denied
+  const [permission, setPermission] = useState('prompt'); 
   const [heading, setHeading] = useState(180); 
-  const [targetHeading] = useState(45); // 45 degrees = North-East (Vastu's Ishanya)
+  const [targetHeading] = useState(45); 
 
-  // ─── 1. CAMERA SETUP ───
+  // ─── 1. SMARTER CAMERA SETUP ───
   useEffect(() => {
     let stream = null;
     const startCamera = async () => {
       try {
-        // Try to get the back camera
+        // First try: Look for a back-facing camera (Phones)
         stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "environment" } 
+          video: { facingMode: { ideal: "environment" } } 
         });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
+        if (videoRef.current) videoRef.current.srcObject = stream;
         setPermission('granted');
       } catch (err) {
-        console.warn("Camera access denied or unavailable", err);
-        setPermission('denied');
+        // Second try: If that fails, just grab ANY camera (Laptops/Desktops)
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          if (videoRef.current) videoRef.current.srcObject = stream;
+          setPermission('granted');
+        } catch (fallbackErr) {
+          console.warn("Camera access denied or unavailable", fallbackErr);
+          setPermission('denied');
+        }
       }
     };
 
     startCamera();
 
-    // Cleanup: turn off the camera when they leave the page
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -39,15 +43,10 @@ export function QuietCorner({ setTab, T, lang }) {
 
   // ─── 2. COMPASS / MOVEMENT SETUP ───
   useEffect(() => {
-    // For mobile phones with a gyroscope/compass
     const handleOrientation = (e) => {
-      if (e.alpha !== null) {
-        // e.alpha represents the compass heading (0 to 360)
-        setHeading(e.alpha);
-      }
+      if (e.alpha !== null) setHeading(e.alpha);
     };
 
-    // For desktop testing (simulates spinning by moving your mouse left to right)
     const handleMouseMove = (e) => {
       const simulatedHeading = (e.clientX / window.innerWidth) * 360;
       setHeading(simulatedHeading);
@@ -63,16 +62,12 @@ export function QuietCorner({ setTab, T, lang }) {
   }, []);
 
   // ─── 3. CALCULATE THE "MAGIC" GLOW ───
-  // Find the shortest distance between their current heading and the target (0 to 180 degrees)
   let diff = Math.abs(heading - targetHeading);
   if (diff > 180) diff = 360 - diff;
 
-  // The closer they are to the target (diff < 40), the stronger the glow (0.0 to 1.0)
   const intensity = Math.max(0, 1 - (diff / 40));
   const isPerfect = intensity > 0.95;
 
-  // ─── VISUAL STYLES ───
-  // A dark, mysterious overlay that turns into a bright, warm sun
   const overlayGradient = `radial-gradient(circle at center, rgba(255, 220, 100, ${intensity * 0.9}) 0%, rgba(10, 10, 15, ${1 - (intensity * 0.5)}) 100%)`;
 
   return (
@@ -85,7 +80,7 @@ export function QuietCorner({ setTab, T, lang }) {
       {/* ─── NAV ─── */}
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}>
         <button onClick={(e) => { e.stopPropagation(); setTab('resonance'); }}
-          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 14, textShadow: "0px 2px 4px rgba(0,0,0,0.5)" }}>
+          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 14, textShadow: "0px 2px 4px rgba(0,0,0,0.5)", cursor: 'pointer' }}>
           ← {isHindi ? 'वापस' : 'Back'}
         </button>
       </div>
@@ -100,7 +95,7 @@ export function QuietCorner({ setTab, T, lang }) {
           position: "absolute", top: 0, left: 0,
           width: "100%", height: "100%",
           objectFit: "cover",
-          filter: `blur(${5 - (intensity * 5)}px) grayscale(${100 - (intensity * 100)}%)`, // Clears up and gains color as you get closer
+          filter: `blur(${5 - (intensity * 5)}px) grayscale(${100 - (intensity * 100)}%)`, 
           transition: "filter 0.5s ease"
         }}
       />
@@ -116,7 +111,6 @@ export function QuietCorner({ setTab, T, lang }) {
         pointerEvents: "none"
       }}>
 
-        {/* ─── INSTRUCTIONS / SUCCESS MESSAGE ─── */}
         <div style={{ textAlign: "center", padding: "0 20px" }}>
           {permission === 'denied' ? (
              <p style={{ color: "rgba(255,255,255,0.6)", fontFamily: "'Cormorant Garamond', serif", fontSize: 18 }}>
