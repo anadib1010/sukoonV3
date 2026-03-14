@@ -36,26 +36,30 @@ export function Home({ setTab, T, lang }) {
     boxShadow: "0 15px 45px rgba(0,0,0,0.2)",
     textAlign: "center",
     boxSizing: "border-box",
+    width: "100%",
+    minWidth: 0,
   });
 
   const titleStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(17px, 4.2vw, 22px)",
+    fontSize: "clamp(15px, 3.8vw, 20px)",
     fontWeight: 500,
     marginBottom: "4px",
     letterSpacing: "0.4px",
     lineHeight: 1.2,
+    wordBreak: "break-word",
   };
 
   const subTextStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(13px, 3.2vw, 15px)",
+    fontSize: "clamp(12px, 2.8vw, 14px)",
     opacity: 0.72,
     lineHeight: 1.4,
     letterSpacing: "0.5px",
     fontWeight: 400,
     marginTop: "5px",
     fontStyle: "italic",
+    wordBreak: "break-word",
   };
 
   return (
@@ -63,7 +67,7 @@ export function Home({ setTab, T, lang }) {
       height: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center",       // ← centres every child horizontally
+      alignItems: "center",
       background: T.bg,
       overflowX: "hidden",
       boxSizing: "border-box",
@@ -72,7 +76,7 @@ export function Home({ setTab, T, lang }) {
       {/* ─── BRANDING & GREETING ─── */}
       <div style={{ padding: "70px 0 36px", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
 
-        {/* JSukoon — beautiful italic serif */}
+        {/* JSukoon — long press opens Vault */}
         <h1
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
@@ -80,19 +84,19 @@ export function Home({ setTab, T, lang }) {
           onTouchStart={handlePressStart}
           onTouchEnd={handlePressEnd}
           style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(44px, 12vw, 64px)",
-          color: T.text,
-          fontWeight: 300,
-          fontStyle: "italic",
-          margin: "0 0 4px",
-          letterSpacing: "4px",
-          lineHeight: 1,
-        }}>
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: "clamp(44px, 12vw, 64px)",
+            color: T.text,
+            fontWeight: 300,
+            margin: "0 0 4px",
+            letterSpacing: "4px",
+            lineHeight: 1,
+            userSelect: "none",
+            cursor: "default",
+          }}>
           JSukoon
         </h1>
 
-        {/* Urdu — the meaning, small and soft */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: "clamp(13px, 3.5vw, 16px)",
@@ -107,7 +111,6 @@ export function Home({ setTab, T, lang }) {
 
         <div style={{ width: "28px", height: "1px", background: T.accent, margin: "14px auto", opacity: 0.4 }} />
 
-        {/* Greeting */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: "clamp(16px, 4vw, 20px)",
@@ -123,8 +126,6 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── 2×2 GRID ─── */}
-      {/* The trick: fixed width in px on mobile, percentage on desktop.
-          align-items:center on the parent centres this block. No margin:auto needed. */}
       <div style={{
         flex: 1,
         display: "flex",
@@ -136,12 +137,10 @@ export function Home({ setTab, T, lang }) {
       }}>
         <div style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
           gap: "16px",
-          width: "100%",
+          width: "calc(100% - 48px)",
           maxWidth: "420px",
-          paddingLeft: "24px",
-          paddingRight: "24px",
           boxSizing: "border-box",
         }}>
 
