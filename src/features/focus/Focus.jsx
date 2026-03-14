@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PageNav, SectionLabel, Card } from "../../components/SharedUI";
-import { ParticleCanvas, SensoryAnchor, BreathPainting, BloomGame } from "../../components/games";
+import { ParticleCanvas } from "../../components/ParticleCanvas";
+import { SensoryAnchor }  from "../games/SensoryAnchor";
+import { BreathPainting } from "../breathing/BreathPainting";
+import { BloomGame }      from "../games/BloomGame";
 import useLS from "../../hooks/useLS";
 
 export function Focus({ setTab, goBack, T, lang }) {
