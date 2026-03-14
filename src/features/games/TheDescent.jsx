@@ -159,8 +159,14 @@ export function TheDescent({ setTab, T, lang }) {
         transition: 'opacity 1s ease',
         pointerEvents: phase === 'intro' ? 'auto' : 'none'
       }}>
-        <button onClick={() => setTab('vault')}
-          style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 14, opacity: 0.6 }}>
+        <button 
+          onClick={(e) => { e.stopPropagation(); setTab('vault'); }}
+          style={{ 
+            background: 'transparent', border: 'none', color: '#fff', 
+            fontSize: 14, opacity: 0.6, cursor: 'pointer',
+            position: 'relative', zIndex: 9999,
+            pointerEvents: 'all'
+          }}>
           ← {hi ? 'वापस' : 'Back'}
         </button>
       </div>
