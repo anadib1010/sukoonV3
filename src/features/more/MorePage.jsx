@@ -4,12 +4,12 @@ import { useLS } from '../../hooks/useLS';
 
 // ─── THE 6 REFINED MOODS ───
 const CORE_MOODS = [
-  { emoji: "😔", label: "Heavy",      labelH: "भारी",      theme: "Maroon" },
-  { emoji: "🌪️", label: "Restless",   labelH: "अशांत",     theme: "TwilightBlue" },
-  { emoji: "🔋", label: "Exhausted",  labelH: "थका हुआ",    theme: "DeepSage" },
-  { emoji: "🙂", label: "Okay",       labelH: "ठीक हूँ",    theme: "SageSanctuary" },
-  { emoji: "😊", label: "Warm",       labelH: "गर्म",      theme: "PinkChampagne" },
-  { emoji: "💧", label: "Sad",        labelH: "उदास",      theme: "SageGreen" }
+  { emoji: "😔", label: "Heavy",     labelH: "भारी",     theme: "Void"          },
+  { emoji: "😤", label: "Restless",  labelH: "बेचैन",   theme: "TwilightBlue"  },
+  { emoji: "😩", label: "Exhausted", labelH: "थका हुआ", theme: "SageSanctuary" },
+  { emoji: "🙂", label: "Okay",      labelH: "ठीक",     theme: "FirstLight"    },
+  { emoji: "😊", label: "Warm",      labelH: "गर्म",    theme: "PinkChampagne" },
+  { emoji: "😢", label: "Sad",       labelH: "उदास",    theme: "SeaGlass"      },
 ];
 
 export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
