@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { SeedInMud } from '../games/SeedInMud';
+import { SingingBowl } from '../games/SingingBowl';
+import { QuietCorner } from '../games/QuietCorner';
 // We will import the others here as we build them!
 // import { SingingBowl } from '../games/SingingBowl'; 
 // import { QuietCorner } from '../games/QuietCorner';
