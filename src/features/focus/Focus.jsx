@@ -3,7 +3,7 @@ import { PageNav, SectionLabel, Card } from "../components/shared";
 import { ParticleCanvas, SensoryAnchor, BreathPainting, BloomGame } from "../components/games";
 import useLS from "../hooks/useLS";
 
-function Focus({ setTab, goBack, T, lang }) {
+export function Focus({ setTab, goBack, T, lang }) {
   const [activeGame, setActiveGame] = useState(null);
   const [gameComplete, setGameComplete] = useState(false);
   const [focusDone, setFocusDone] = useLS("jsukoon_focus_done", {});
