@@ -4,7 +4,7 @@ import { ParticleCanvas } from "../../components/ParticleCanvas";
 import { SensoryAnchor }  from "../games/SensoryAnchor";
 import { BreathPainting } from "../breathing/BreathPainting";
 import { BloomGame }      from "../games/BloomGame";
-import useLS from "../../hooks/useLS";
+import { useLS } from "../../hooks/useLS";
 
 export function Focus({ setTab, goBack, T, lang }) {
   const [activeGame, setActiveGame] = useState(null);
