@@ -23,6 +23,7 @@ import { Privacy } from './features/privacy/Privacy';
 import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
 import { TheDescent } from './features/games/TheDescent';
+import { Vault } from './features/vault/Vault';
 
 export default function App() {
   // ─── ONBOARDING STATE ───
@@ -88,23 +89,24 @@ export default function App() {
         height: "100%", width: "100%", maxWidth: 600, 
         background: T.bg, color: T.text, 
         transition: "background 0.8s ease, color 0.8s ease", 
-        overflowX: "hidden",   // ← CHANGE overflow:"hidden" to these two
+        overflowX: "hidden",
         overflowY: "hidden", position: "relative",
         boxShadow: "0 0 50px rgba(0,0,0,0.5)" 
       }}>
         
         {/* ─── INSTANT PAGE ROUTING ─── */}
-        {tab === "home" && <Home setTab={setTab} T={T} lang={lang} />}
-        {tab === "focus" && <Focus setTab={setTab} T={T} lang={lang} />}
-        {tab === "journal" && <Journal setTab={setTab} T={T} lang={lang} />}
-        {tab === "warmth" && <WarmthPage setTab={setTab} T={T} lang={lang} />}
-        {tab === "bench" && <Bench setTab={setTab} T={T} lang={lang} />}
-        {tab === "more" && <MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
-        {tab === "practice" && <Practice setTab={setTab} T={T} lang={lang} />}
-        {tab === "legal" && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
+        {tab === "home"       && <Home       setTab={setTab} T={T} lang={lang} />}
+        {tab === "focus"      && <Focus      setTab={setTab} T={T} lang={lang} />}
+        {tab === "journal"    && <Journal    setTab={setTab} T={T} lang={lang} />}
+        {tab === "warmth"     && <WarmthPage setTab={setTab} T={T} lang={lang} />}
+        {tab === "bench"      && <Bench      setTab={setTab} T={T} lang={lang} />}
+        {tab === "more"       && <MorePage   setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
+        {tab === "practice"   && <Practice   setTab={setTab} T={T} lang={lang} />}
+        {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
         {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
-        {tab === "progress" && <Progress setTab={setTab} T={T} lang={lang} />}
-        {tab === "descent" && <TheDescent setTab={setTab} T={T} lang={lang} />}
+        {tab === "progress"   && <Progress   setTab={setTab} T={T} lang={lang} />}
+        {tab === "descent"    && <TheDescent setTab={setTab} T={T} lang={lang} />}
+        {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
 
         {/* ─── DYNAMIC MOOD ROUTING ─── */}
         {tab && tab.startsWith("moodAction_") && (
@@ -129,14 +131,14 @@ export default function App() {
             themeKey={themeKey} 
           />
         )}
-        {tab === "audio" && <AudioPage setTab={setTab} T={T} lang={lang} />}
-        {tab === "crisis" && <Crisis setTab={setTab} T={T} lang={lang} />}
-        {tab === "about" && <About setTab={setTab} T={T} lang={lang} />}
-        {tab === "privacy" && <Privacy setTab={setTab} T={T} lang={lang} />}
-        {tab === 'wishes' && <WishesGallery setTab={setTab} T={T} lang={lang} />}
+        {tab === "audio"   && <AudioPage    setTab={setTab} T={T} lang={lang} />}
+        {tab === "crisis"  && <Crisis       setTab={setTab} T={T} lang={lang} />}
+        {tab === "about"   && <About        setTab={setTab} T={T} lang={lang} />}
+        {tab === "privacy" && <Privacy      setTab={setTab} T={T} lang={lang} />}
+        {tab === "wishes"  && <WishesGallery setTab={setTab} T={T} lang={lang} />}
 
         {/* FALLBACK (Under Construction) */}
-        {!["home", "focus", "journal", "warmth", "bench", "more", "practice", "legal", "reflection", "progress", "settings", "audio", "crisis", "about", "privacy", "wishes", "descent"].includes(tab) && !tab.startsWith("moodAction_") && (
+        {!["home","focus","journal","warmth","bench","more","practice","legal","reflection","progress","settings","audio","crisis","about","privacy","wishes","descent","vault"].includes(tab) && !tab.startsWith("moodAction_") && (
           <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
             <span style={{ fontSize: 48, marginBottom: 16 }}>🚧</span>
             <button onClick={() => setTab("home")} style={{ padding: "12px 32px", borderRadius: 99, background: T.accent, color: T.bg, border: "none", fontSize: 14, cursor: "pointer" }}>
