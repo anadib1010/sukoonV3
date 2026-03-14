@@ -7,6 +7,13 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
   const [mood, setMood]         = useState(null);
   const [lang, setLocalLang]    = useState(null);
 
+  // Pin body background immediately so there's never a white flash
+  React.useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = "#050505";
+    return () => { document.body.style.background = prev; };
+  }, []);
+
   const hi = lang === "Hindi";
 
   // ── Screen order ──────────────────────────────────────────────────
@@ -115,10 +122,18 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "0 32px",
-      opacity: leaving ? 0 : 1,
-      transition: "opacity 0.4s ease",
       overflowX: "hidden",
     }}>
+
+      {/* Content wrapper — this fades, not the outer shell */}
+      <div style={{
+        width: "100%",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        opacity: leaving ? 0 : 1,
+        transition: "opacity 0.35s ease",
+        willChange: "opacity",
+      }}>
 
       {/* Subtle star dots */}
       {[...Array(8)].map((_, i) => (
@@ -154,7 +169,6 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
             fontFamily: serif,
             fontSize: "clamp(52px, 14vw, 72px)",
             fontWeight: 300,
-            fontStyle: "italic",
             color: "#e8e8e8",
             margin: "0 0 6px",
             letterSpacing: "4px",
@@ -163,17 +177,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
             JSukoon
           </h1>
 
-          {/* Urdu mark */}
-          <p style={{
-            fontFamily: serif,
-            fontSize: 18,
-            color: "rgba(255,255,255,0.35)",
-            margin: "0 0 20px",
-            letterSpacing: 1,
-            fontStyle: "italic",
-          }}>سکون</p>
-
-          <div style={{ width: 28, height: 1, background: "rgba(255,255,255,0.2)", margin: "0 auto 28px" }} />
+          <div style={{ width: 28, height: 1, background: "rgba(255,255,255,0.2)", margin: "8px auto 28px" }} />
 
           {/* Value proposition — bilingual, feels universal */}
           <p style={{
@@ -272,14 +276,14 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
 
           {[
             { emoji:"🌀", title: hi?"दौड़ते विचार":"Racing Thoughts",
-              desc: hi?"श्वास और ग्राउंडिंग अभ्यास — मन को अभी शांत करने के लिए।"
-                      :"Breathing and grounding tools — to calm your mind right now." },
+              desc: hi?"श्वास और ग्राउंडिंग अभ्यास — मन में ठहराव लाने के लिए।"
+                      :"Breathing and grounding tools to bring stillness." },
             { emoji:"🧘", title: hi?"ध्यान":"Meditation",
               desc: hi?"12 गाइडेड सत्र — नींद, सुबह, करुणा, और अधिक के लिए।"
                       :"Guided sessions — for sleep, mornings, compassion, and more." },
             { emoji:"📖", title: hi?"जर्नल":"Journal",
-              desc: hi?"लिखें, बोलें, जलाएं। AI आपके विचारों पर शांत प्रतिबिंब देगा।"
-                      :"Write, speak, burn. AI offers a calm reflection on what you share." },
+              desc: hi?"लिखें, बोलें, जलाएं। AI आपके विचारों पर एक सौम्य दृष्टि देगा।"
+                      :"Write, speak, burn. AI offers a gentle reflection on what you share." },
             { emoji:"🌿", title: hi?"अभयारण्य":"Sanctuary",
               desc: hi?"एक शांत कोना — परिवेश ध्वनि, उद्धरण, और बस बैठने की जगह।"
                       :"A quiet corner — ambient sound, quotes, and a place to just sit." },
@@ -426,6 +430,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
         </div>
       )}
 
+      </div> {/* end content wrapper */}
     </div>
   );
 }
