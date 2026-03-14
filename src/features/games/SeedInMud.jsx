@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SeedInMud } from '../games/SeedInMud';
 
 export function SeedInMud({ setTab, T, lang }) {
   const isHindi = lang === "Hindi";
