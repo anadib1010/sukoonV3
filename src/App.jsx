@@ -24,7 +24,7 @@ import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
 import { TheDescent } from './features/games/TheDescent';
 import { Vault } from './features/vault/Vault';
-import { Resonance } from './Resonance';
+import { Resonance } from "./features/resonance/Resonance";
 
 export default function App() {
   // ─── ONBOARDING STATE ───
