@@ -36,7 +36,6 @@ export function Home({ setTab, T, lang }) {
     boxShadow: "0 15px 45px rgba(0,0,0,0.2)",
     textAlign: "center",
     boxSizing: "border-box",
-    width: "100%",
   });
 
   const titleStyle = {
@@ -71,7 +70,7 @@ export function Home({ setTab, T, lang }) {
     }}>
 
       {/* ─── BRANDING & GREETING ─── */}
-      <div style={{ padding: "70px 0 36px", textAlign: "center", width: "100%" }}>
+      <div style={{ padding: "70px 0 36px", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
 
         {/* JSukoon — beautiful italic serif */}
         <h1
