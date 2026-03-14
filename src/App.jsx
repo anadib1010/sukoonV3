@@ -105,7 +105,7 @@ export default function App() {
         {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
         {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
         {tab === "progress"   && <Progress   setTab={setTab} T={T} lang={lang} />}
-        {tab === "descent"    && <TheDescent setTab={setTab} T={T} lang={lang} />}
+        {tab === "descent" && <TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />}
         {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
 
         {/* ─── DYNAMIC MOOD ROUTING ─── */}

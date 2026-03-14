@@ -13,12 +13,7 @@ const VAULT_TOOLS = [
     hi:         "लिखें। फिर जाने दें।",
     tab:        "reflection",
   },
-  {
-    id:         "descent",
-    en:         "Let go of the day completely.",
-    hi:         "दिन को पूरी तरह छोड़ दें।",
-    tab:        "descent",
-  },
+  { id:"descent", en:"Let go of the day completely.", hi:"दिन को पूरी तरह छोड़ दें।", tab:"descent" },
   {
     id:         "bilateral",
     en:         "For what the mind cannot release alone.",
@@ -102,23 +97,21 @@ export function Vault({ setTab, T, lang }) {
 
   // ── If a tool is active inline ───────────────────────────────────
   if (activeTool) {
-    return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
-        <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={() => setActiveTool(null)} style={{ background: "none", border: "none", fontSize: 20, color: T.text, cursor: "pointer" }}>←</button>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: T.textSoft, fontWeight: 300 }}>
-            {hi ? "अंतर्मन" : "The quieter place"}
-          </span>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 40px" }}>
-          {activeTool === "bilateral" && <BilateralTapping T={T} lang={lang} />}
-          {activeTool === "nadi"      && <NadiShodhana     T={T} lang={lang} />}
-          {activeTool === "letter"    && <UnsentLetter      T={T} lang={lang} />}
-          {activeTool === "stone"     && <StoneDrop         T={T} lang={lang} />}
-        </div>
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:T.bg, overflow:"hidden" }}>
+      <div style={{ padding:"20px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <button onClick={() => setActiveTool(null)} style={{ background:"none", border:"none", fontSize:20, color:T.text, cursor:"pointer" }}>←</button>
+        <button onClick={() => setTab("home")} style={{ background:"none", border:"none", fontSize:20, color:T.text, cursor:"pointer", opacity:0.6 }}>🏠</button>
       </div>
-    );
-  }
+      <div style={{ flex:1, overflowY:"auto", padding:"0 24px 40px" }}>
+        {activeTool==="bilateral" && <BilateralTapping T={T} lang={lang} />}
+        {activeTool==="nadi"      && <NadiShodhana     T={T} lang={lang} />}
+        {activeTool==="letter"    && <UnsentLetter      T={T} lang={lang} />}
+        {activeTool==="stone"     && <StoneDrop         T={T} lang={lang} />}
+      </div>
+    </div>
+  );
+}
 
   // ── Main Vault screen ────────────────────────────────────────────
   return (
