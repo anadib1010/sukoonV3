@@ -25,6 +25,7 @@ import MoodAction from './MoodAction';
 import { TheDescent } from './features/games/TheDescent';
 import { Vault } from './features/vault/Vault';
 import { Resonance } from "./features/resonance/Resonance";
+import { Stillness } from './features/games/Stillness';
 
 export default function App() {
   // ─── ONBOARDING STATE ───
@@ -109,6 +110,7 @@ export default function App() {
         {tab === "descent" && <TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />}
         {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
         {tab === "resonance"  && <Resonance  setTab={setTab} T={T} lang={lang} />}
+        {tab === "stillness" && <Stillness setTab={setTab} T={T} lang={lang} />}
 
         {/* ─── DYNAMIC MOOD ROUTING ─── */}
         {tab && tab.startsWith("moodAction_") && (

@@ -13,8 +13,6 @@ export function Resonance({ setTab, T, lang }) {
     { id: "vastu", icon: "🧭", title: isHindi ? "शांत कोना" : "The Quiet Corner", desc: isHindi ? "अपने स्थान को संरेखित करें" : "Align your physical space" }
   ];
 
-  // ─── THIS IS THE RENDER TOOL ───
-  // It acts as the traffic cop, deciding which game to show based on what button you clicked
   const renderTool = () => {
     switch(activeTool) {
       case "seed":  return <SeedInMud   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
@@ -27,13 +25,12 @@ export function Resonance({ setTab, T, lang }) {
   return (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      background: "linear-gradient(180deg, #1a1a24 0%, #0d0d14 100%)", // Deep, quiet background
+      background: "linear-gradient(180deg, #1a1a24 0%, #0d0d14 100%)", 
       overflowX: "hidden"
     }}>
       {/* ─── NAV ─── */}
       <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 16 }}>
         <button
-          // If a tool is open, go back to Resonance Menu. If Menu is open, go back to Layer 3 Vault.
           onClick={() => activeTool ? setActiveTool(null) : setTab("vault")} 
           style={{ background: 'none', border: 'none', fontSize: 20, color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}
         >
@@ -47,7 +44,6 @@ export function Resonance({ setTab, T, lang }) {
       {/* ─── CONTENT ─── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 24px" }}>
         
-        {/* If a tool is selected, show the tool. Otherwise, show the menu list. */}
         {activeTool ? (
           <div style={{ width: "100%", height: "100%" }}>
             {renderTool()}
@@ -86,6 +82,20 @@ export function Resonance({ setTab, T, lang }) {
                 </button>
               ))}
             </div>
+
+            {/* ─── THE DOOR TO LAYER 5 (Now properly inside the menu) ─── */}
+            <div style={{ marginTop: "60px", textAlign: "center", paddingBottom: "40px" }}>
+              <button 
+                onClick={() => setTab("stillness")}
+                style={{
+                  background: "none", border: "none", color: "rgba(255,255,255,0.05)", 
+                  fontSize: 10, letterSpacing: "6px", textTransform: "uppercase", cursor: "pointer", padding: "20px"
+                }}
+              >
+                {isHindi ? "शून्य में उतरें" : "Enter the Void"}
+              </button>
+            </div>
+
           </div>
         )}
       </div>
