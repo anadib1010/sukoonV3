@@ -44,7 +44,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       line2:   hi ? "नाक से धीरे सांस लें — रोकें — और धीरे छोड़ें।"
                   : "Breathe in slowly through your nose — hold — and breathe out.",
       sub:     hi ? "जब तैयार हों, शुरू करें।" : "When you are ready, begin.",
-      button:  hi ? "प्रवेश करें" : "Enter",
+      button:  hi ? "JSukoon में प्रवेश करें" : "Enter JSukoon",
       breathe: true,
       last:    true,
     },
