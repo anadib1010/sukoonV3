@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { SeedInMud } from '../games/SeedInMud';
-import { SingingBowl } from '../games/SingingBowl';
+import { SeedInMud }   from '../games/SeedInMud';
+import { SoundBath }   from '../games/SoundBath'; 
 import { QuietCorner } from '../games/QuietCorner';
-// We will import the others here as we build them!
-// import { SingingBowl } from '../games/SingingBowl'; 
-// import { QuietCorner } from '../games/QuietCorner';
 
 export function Resonance({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
@@ -16,9 +13,13 @@ export function Resonance({ setTab, T, lang }) {
     { id: "vastu", icon: "🧭", title: isHindi ? "शांत कोना" : "The Quiet Corner", desc: isHindi ? "अपने स्थान को संरेखित करें" : "Align your physical space" }
   ];
 
+  // ─── THIS IS THE RENDER TOOL ───
+  // It acts as the traffic cop, deciding which game to show based on what button you clicked
   const renderTool = () => {
     switch(activeTool) {
-      case "seed": return <SeedInMud setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "seed":  return <SeedInMud   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "bowl":  return <SoundBath   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "vastu": return <QuietCorner setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       default: return null;
     }
   };
@@ -45,6 +46,8 @@ export function Resonance({ setTab, T, lang }) {
 
       {/* ─── CONTENT ─── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 24px" }}>
+        
+        {/* If a tool is selected, show the tool. Otherwise, show the menu list. */}
         {activeTool ? (
           <div style={{ width: "100%", height: "100%" }}>
             {renderTool()}
