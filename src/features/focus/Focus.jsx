@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useState } from "react";
 import { PageNav, SectionLabel, Card } from "../components/shared";
 import { ParticleCanvas, SensoryAnchor, BreathPainting, BloomGame } from "../components/games";
 import useLS from "../hooks/useLS";
