@@ -5,6 +5,7 @@ import { SensoryAnchor }  from "../games/SensoryAnchor";
 import { BreathPainting } from "../breathing/BreathPainting";
 import { BloomGame }      from "../games/BloomGame";
 import { useLS } from "../../hooks/useLS";
+import { ZenBox } from "../zen-box/ZenBox";
 
 export function Focus({ setTab, goBack, T, lang }) {
   const [activeGame, setActiveGame] = useState(null);
