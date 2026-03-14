@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PageNav, SectionLabel, Card } from "../components/shared";
-import { ParticleCanvas, SensoryAnchor, BreathPainting, BloomGame } from "../components/games";
-import useLS from "../hooks/useLS";
+import { PageNav, SectionLabel, Card } from "../../components/SharedUI";
+import { ParticleCanvas, SensoryAnchor, BreathPainting, BloomGame } from "../../components/games";
+import useLS from "../../hooks/useLS";
 
 export function Focus({ setTab, goBack, T, lang }) {
   const [activeGame, setActiveGame] = useState(null);
