@@ -5,6 +5,7 @@ import { UnsentLetter }     from '../games/UnsentLetter';
 import { NadiShodhana }     from '../games/NadiShodhana';
 
 // ── The 6 Vault tools — removed from Focus, live only here ──────────
+
 const VAULT_TOOLS = [
   {
     id:         "reflection",
