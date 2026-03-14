@@ -1,72 +1,96 @@
 import React, { useState, useEffect } from 'react';
 
-// 1. Updated Dictionary: Fixed 'Restless' and 'Sad' routing
 const moodLibrary = {
   Heavy: {
-    bgColor: "#4a0b19", // Maroon
-    textColor: "#ffffff",
-    message: "You're carrying something heavy.",
-    cta: "A 2-minute breath might help.",
-    primaryLabel: "Quick Return · 2 min",
-    primaryTab: "practice",
+    bgColor: "#0a0a0f",
+    textColor: "#e8e8e8",
+    message:        "You're carrying something heavy.",
+    messageH:       "आप कुछ भारी लिए चल रहे हैं।",
+    cta:            "A 2-minute breath might help.",
+    ctaH:           "दो मिनट की सांस शायद मदद करे।",
+    primaryLabel:   "Quick Return · 2 min",
+    primaryLabelH:  "त्वरित वापसी · 2 मिनट",
+    primaryTab:     "practice",
     secondaryLabel: "Or burn it in Reflection",
-    secondaryTab: "reflection"
+    secondaryLabelH:"या इसे चिंतन में जलाएं",
+    secondaryTab:   "reflection",
   },
-  Restless: { // FIXED: Changed from 'Frustrated' to 'Restless'
-    bgColor: "#1a2332", // Twilight Blue
-    textColor: "#ffffff",
-    message: "Let this restless energy have somewhere to go.",
-    cta: "Burn it or write it out.",
-    primaryLabel: "Open Reflection",
-    primaryTab: "reflection",
+  Restless: {
+    bgColor: "#0f1824",
+    textColor: "#e8f0ff",
+    message:        "Let this restless energy have somewhere to go.",
+    messageH:       "इस बेचैन ऊर्जा को कहीं जाने दें।",
+    cta:            "Burn it or write it out.",
+    ctaH:           "इसे जलाएं या लिख डालें।",
+    primaryLabel:   "Open Reflection",
+    primaryLabelH:  "चिंतन खोलें",
+    primaryTab:     "reflection",
     secondaryLabel: "Or write in your journal",
-    secondaryTab: "journal"
+    secondaryLabelH:"या अपने जर्नल में लिखें",
+    secondaryTab:   "journal",
   },
   Exhausted: {
-    bgColor: "#2c4c3b", // Deep Sage
-    textColor: "#ffffff",
-    message: "Acknowledging exhaustion takes courage.",
-    cta: "A sleep meditation might be what you need.",
-    primaryLabel: "Meditation Clips",
-    primaryTab: "audio",
+    bgColor: "#141f1a",
+    textColor: "#d4e8dc",
+    message:        "Acknowledging exhaustion takes courage.",
+    messageH:       "थकान को स्वीकार करना साहस का काम है।",
+    cta:            "A sleep meditation might be what you need.",
+    ctaH:           "शायद एक नींद ध्यान आपके काम आए।",
+    primaryLabel:   "Meditation Clips",
+    primaryLabelH:  "ध्यान सत्र",
+    primaryTab:     "audio",
     secondaryLabel: "Or just rest",
-    secondaryTab: "bench"
+    secondaryLabelH:"या बस आराम करें",
+    secondaryTab:   "bench",
   },
   Okay: {
-    bgColor: "#e8ede7", // Sage Sanctuary
-    textColor: "#1a1a1a",
-    message: "Steady is a good place to be.",
-    cta: "Write a little — it helps.",
-    primaryLabel: "Open your journal",
-    primaryTab: "journal",
+    bgColor: "#f5f0e8",
+    textColor: "#2a2a1a",
+    message:        "Steady is a good place to be.",
+    messageH:       "स्थिर रहना एक अच्छी जगह है।",
+    cta:            "Write a little — it helps.",
+    ctaH:           "थोड़ा लिखें — यह मदद करता है।",
+    primaryLabel:   "Open your journal",
+    primaryLabelH:  "जर्नल खोलें",
+    primaryTab:     "journal",
     secondaryLabel: "Or explore practices",
-    secondaryTab: "practice"
+    secondaryLabelH:"या अभ्यास देखें",
+    secondaryTab:   "practice",
   },
   Warm: {
-    bgColor: "#f9e8e8", // Pink Champagne
-    textColor: "#1a1a1a",
-    message: "A warm feeling — hold it gently.",
-    cta: "Write a little, or send warmth.",
-    primaryLabel: "Send Warmth",
-    primaryTab: "warmth", 
+    bgColor: "#fdf0f0",
+    textColor: "#2a1a1a",
+    message:        "A warm feeling — hold it gently.",
+    messageH:       "एक गर्म एहसास — इसे धीरे से थामे रहें।",
+    cta:            "Write a little, or send warmth.",
+    ctaH:           "थोड़ा लिखें, या गर्माहट भेजें।",
+    primaryLabel:   "Send Warmth",
+    primaryLabelH:  "गर्माहट भेजें",
+    primaryTab:     "warmth",
     secondaryLabel: "Or write in your journal",
-    secondaryTab: "journal"
+    secondaryLabelH:"या अपने जर्नल में लिखें",
+    secondaryTab:   "journal",
   },
   Sad: {
-    bgColor: "#234035", // Sage Green
-    textColor: "#ffffff",
-    message: "Let go of it and be a witness.",
-    cta: "Let it sink.",
-    primaryLabel: "Write a message and let it sink in water",
-    primaryTab: "focus", // FIXED: Now routes to the Focus games!
-    secondaryLabel: "Or write your Journal",
-    secondaryTab: "journal"
-  }
+    bgColor: "#0e1c20",
+    textColor: "#c8e0e8",
+    message:        "Let go of it and be a witness.",
+    messageH:       "इसे जाने दें और एक साक्षी बनें।",
+    cta:            "Let it sink.",
+    ctaH:           "इसे डूब जाने दें।",
+    primaryLabel:   "Write a message and let it sink in water",
+    primaryLabelH:  "एक संदेश लिखें और इसे पानी में डूबने दें",
+    primaryTab:     "focus",
+    secondaryLabel: "Or write your journal",
+    secondaryLabelH:"या अपना जर्नल लिखें",
+    secondaryTab:   "journal",
+  },
 };
 
-export default function MoodAction({ selectedMood, goBack, setTab }) {
-  const [aiTip, setAiTip] = useState("");
+export default function MoodAction({ selectedMood, goBack, setTab, lang }) {
+  const [aiTip, setAiTip]       = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const hi = lang === "Hindi";
 
   const activeMood = moodLibrary[selectedMood];
 
@@ -78,84 +102,136 @@ export default function MoodAction({ selectedMood, goBack, setTab }) {
         const response = await fetch('/api/mood', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mood: selectedMood })
+          body: JSON.stringify({ mood: selectedMood, lang }),
         });
         const data = await response.json();
         setAiTip(data.tip);
       } catch (error) {
         console.error("AI fetch failed", error);
-        setAiTip("Take a gentle breath. You are in a safe space.");
+        setAiTip(
+          hi
+            ? "एक धीमी सांस लें। आप एक सुरक्षित जगह पर हैं।"
+            : "Take a gentle breath. You are in a safe space."
+        );
       } finally {
         setIsLoading(false);
       }
     };
     fetchAiTip();
-  }, [selectedMood]);
+  }, [selectedMood, lang]);
 
-  if (!activeMood) return <div style={{ color: "white", padding: 20 }}>Mood not found.</div>;
+  if (!activeMood) return (
+    <div style={{ color: "white", padding: 20 }}>
+      {hi ? "मूड नहीं मिला।" : "Mood not found."}
+    </div>
+  );
+
+  const isLight = activeMood.textColor.startsWith("#2") || activeMood.textColor.startsWith("#1a1");
+  const btnBg   = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.13)";
 
   return (
-    <div style={{ 
-      minHeight: "100%", 
-      padding: "40px 24px", 
-      display: "flex", 
-      flexDirection: "column", 
-      alignItems: "center", 
+    <div style={{
+      minHeight: "100%",
+      padding: "64px 24px 40px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
       justifyContent: "center",
       backgroundColor: activeMood.bgColor,
       color: activeMood.textColor,
       transition: "background-color 0.5s ease",
-      position: "relative" // Ensure absolute positioning works for top buttons
+      position: "relative",
+      boxSizing: "border-box",
     }}>
-      
-      {/* LEFT: Back Button */}
-      <button 
-        onClick={goBack}
-        style={{ position: "absolute", top: 20, left: 20, background: "none", border: "none", color: "inherit", opacity: 0.7, cursor: "pointer", fontSize: "16px" }}
-      >
-        ← Back
+
+      {/* Back */}
+      <button onClick={goBack} style={{
+        position: "absolute", top: 20, left: 20,
+        background: "none", border: "none",
+        color: "inherit", opacity: 0.65,
+        cursor: "pointer", fontSize: 16,
+      }}>
+        ← {hi ? "वापस" : "Back"}
       </button>
 
-      {/* RIGHT: Home Button (NEW) */}
-      <button 
-        onClick={() => setTab("home")}
-        style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "inherit", opacity: 0.7, cursor: "pointer", fontSize: "16px" }}
-      >
-        Home ⌂
+      {/* Home */}
+      <button onClick={() => setTab("home")} style={{
+        position: "absolute", top: 20, right: 20,
+        background: "none", border: "none",
+        color: "inherit", opacity: 0.65,
+        cursor: "pointer", fontSize: 16,
+      }}>
+        {hi ? "होम" : "Home"} ⌂
       </button>
 
-      {/* Core Message */}
-      <h1 style={{ fontSize: "28px", fontWeight: 300, textAlign: "center", marginBottom: "16px", fontFamily: "'Cormorant Garamond', serif" }}>
-        {activeMood.message}
+      {/* Core message */}
+      <h1 style={{
+        fontSize: "clamp(22px, 6vw, 30px)",
+        fontWeight: 300,
+        textAlign: "center",
+        marginBottom: 16,
+        fontFamily: "'Cormorant Garamond', serif",
+        lineHeight: 1.4,
+        maxWidth: 320,
+      }}>
+        {hi ? activeMood.messageH : activeMood.message}
       </h1>
-      
-      {/* The AI Comfort Tip */}
-      <div style={{ minHeight: "60px", display: "flex", alignItems: "center", marginBottom: "32px", textAlign: "center" }}>
+
+      {/* AI tip */}
+      <div style={{ minHeight: 60, display: "flex", alignItems: "center", marginBottom: 28, textAlign: "center", maxWidth: 300 }}>
         {isLoading ? (
-          <p style={{ fontSize: "14px", fontStyle: "italic", opacity: 0.7 }}>Gathering a gentle thought...</p>
+          <p style={{ fontSize: 14, fontStyle: "italic", opacity: 0.6 }}>
+            {hi ? "एक विचार इकट्ठा हो रहा है..." : "Gathering a gentle thought..."}
+          </p>
         ) : (
-          <p style={{ fontSize: "15px", fontStyle: "italic", opacity: 0.9 }}>"{aiTip}"</p>
+          <p style={{ fontSize: 15, fontStyle: "italic", opacity: 0.88, lineHeight: 1.6 }}>"{aiTip}"</p>
         )}
       </div>
 
-      <p style={{ fontSize: "18px", marginBottom: "32px", opacity: 0.9 }}>{activeMood.cta}</p>
+      {/* CTA */}
+      <p style={{ fontSize: 17, marginBottom: 32, opacity: 0.85, textAlign: "center", maxWidth: 280, lineHeight: 1.5 }}>
+        {hi ? activeMood.ctaH : activeMood.cta}
+      </p>
 
-      {/* Routing Buttons */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "300px" }}>
-        <button 
+      {/* Buttons */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", maxWidth: 300 }}>
+        <button
           onClick={() => setTab(activeMood.primaryTab)}
-          style={{ backgroundColor: activeMood.textColor === "#ffffff" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)", color: "inherit", padding: "16px", borderRadius: "16px", border: `1px solid ${activeMood.textColor}`, cursor: "pointer", fontSize: "16px" }}
+          style={{
+            backgroundColor: btnBg,
+            color: "inherit",
+            padding: "16px",
+            borderRadius: 16,
+            border: `1px solid ${activeMood.textColor}33`,
+            cursor: "pointer",
+            fontSize: 15,
+            fontFamily: "'Cormorant Garamond', serif",
+            letterSpacing: 0.3,
+            lineHeight: 1.3,
+          }}
         >
-          {activeMood.primaryLabel}
+          {hi ? activeMood.primaryLabelH : activeMood.primaryLabel}
         </button>
-        
-        <button 
+
+        <button
           onClick={() => setTab(activeMood.secondaryTab)}
-          style={{ backgroundColor: "transparent", color: "inherit", padding: "16px", borderRadius: "16px", border: "none", cursor: "pointer", opacity: 0.7, fontSize: "14px", textDecoration: "underline" }}
+          style={{
+            backgroundColor: "transparent",
+            color: "inherit",
+            padding: "12px",
+            borderRadius: 16,
+            border: "none",
+            cursor: "pointer",
+            opacity: 0.62,
+            fontSize: 13,
+            textDecoration: "underline",
+            fontFamily: "'Cormorant Garamond', serif",
+          }}
         >
-          {activeMood.secondaryLabel}
+          {hi ? activeMood.secondaryLabelH : activeMood.secondaryLabel}
         </button>
       </div>
+
     </div>
   );
 }
