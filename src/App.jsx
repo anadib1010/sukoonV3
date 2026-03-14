@@ -24,6 +24,7 @@ import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
 import { TheDescent } from './features/games/TheDescent';
 import { Vault } from './features/vault/Vault';
+import { Resonance } from './Resonance';
 
 export default function App() {
   // ─── ONBOARDING STATE ───
@@ -107,6 +108,7 @@ export default function App() {
         {tab === "progress"   && <Progress   setTab={setTab} T={T} lang={lang} />}
         {tab === "descent" && <TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />}
         {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
+        {tab === "resonance"  && <Resonance  setTab={setTab} T={T} lang={lang} />}
 
         {/* ─── DYNAMIC MOOD ROUTING ─── */}
         {tab && tab.startsWith("moodAction_") && (
@@ -138,7 +140,7 @@ export default function App() {
         {tab === "wishes"  && <WishesGallery setTab={setTab} T={T} lang={lang} />}
 
         {/* FALLBACK (Under Construction) */}
-        {!["home","focus","journal","warmth","bench","more","practice","legal","reflection","progress","settings","audio","crisis","about","privacy","wishes","descent","vault"].includes(tab) && !tab.startsWith("moodAction_") && (
+        {!["home","focus","journal","warmth","bench","more","practice","legal","reflection","progress","settings","audio","crisis","about","privacy","wishes","descent","vault","resonance"].includes(tab) && !tab.startsWith("moodAction_") && (
           <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
             <span style={{ fontSize: 48, marginBottom: 16 }}>🚧</span>
             <button onClick={() => setTab("home")} style={{ padding: "12px 32px", borderRadius: 99, background: T.accent, color: T.bg, border: "none", fontSize: 14, cursor: "pointer" }}>

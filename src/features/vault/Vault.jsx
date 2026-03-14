@@ -217,3 +217,21 @@ export function Vault({ setTab, T, lang }) {
     </div>
   );
 }
+{/* ─── THE DOOR TO LAYER 4 ─── */}
+      <div style={{ marginTop: "40px", textAlign: "center" }}>
+        <button 
+          onClick={() => setTab("resonance")}
+          style={{
+            background: "none", 
+            border: "none", 
+            color: "rgba(255,255,255,0.2)", // Very faint text
+            fontSize: 12, 
+            letterSpacing: "4px", 
+            textTransform: "uppercase", 
+            cursor: "pointer",
+            padding: "20px"
+          }}
+        >
+          {isHindi ? "गहरा उतरें" : "Descend Further"}
+        </button>
+      </div>
