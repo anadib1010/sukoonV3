@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StoneDrop }        from '../../components/games/StoneDrop';
-import { BilateralTapping } from '../../components/games/BilateralTapping';
-import { UnsentLetter }     from '../../components/games/UnsentLetter';
-import { NadiShodhana }     from '../../components/games/NadiShodhana';
+import { StoneDrop }        from '../games/StoneDrop';
+import { BilateralTapping } from '../games/BilateralTapping';
+import { UnsentLetter }     from '../games/UnsentLetter';
+import { NadiShodhana }     from '../games/NadiShodhana';
 
 // ── The 6 Vault tools — removed from Focus, live only here ──────────
 const VAULT_TOOLS = [
