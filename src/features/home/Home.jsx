@@ -102,7 +102,7 @@ export function Home({ setTab, T, lang }) {
           letterSpacing: "1px",
           fontStyle: "italic",
         }}>
-          سکون
+          Discover Stillness
         </p>
 
         <div style={{ width: "28px", height: "1px", background: T.accent, margin: "14px auto", opacity: 0.4 }} />
