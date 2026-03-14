@@ -98,7 +98,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
     fontSize: 13,
     fontFamily: "'DM Sans', sans-serif",
     letterSpacing: 2,
-    textTransform: "uppercase",
+    textTransform: "none",
     cursor: "pointer",
     transition: "all 0.3s ease",
     width: "100%",
@@ -112,7 +112,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
     cursor: "pointer",
     padding: "10px 0",
     width: "100%",
-    textTransform: "uppercase",
+    textTransform: "none",
   };
 
   return (
