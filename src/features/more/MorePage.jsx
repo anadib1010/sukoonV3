@@ -120,6 +120,21 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
           </div>
         </button>
 
+        {/* Vault entry — almost invisible, only for the curious */}
+        <button onClick={() => setTab('vault')} style={{
+          background: 'none', border: 'none',
+          width: '100%', padding: '24px 0 8px',
+          cursor: 'pointer',
+          color: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+          fontFamily: "'Cormorant Garamond', serif",
+          fontStyle: 'italic',
+          fontSize: 13,
+          letterSpacing: '0.3px',
+          textAlign: 'center',
+        }}>
+          {hi ? 'एक और गहरी जगह है, अगर आप तैयार हैं।' : 'There is a quieter place, if you are ready.'}
+        </button>
+
       </div>
 
       {/* ── THEME PROMPT OVERLAY ── */}

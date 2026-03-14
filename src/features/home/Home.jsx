@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 
 export function Home({ setTab, T, lang }) {
   const hi = lang === "Hindi";
+  const pressTimer = useRef(null);
+
+  const handlePressStart = () => {
+    pressTimer.current = setTimeout(() => setTab('vault'), 1500);
+  };
+  const handlePressEnd = () => {
+    clearTimeout(pressTimer.current);
+  };
 
   const hours = new Date().getHours();
   let greeting;
@@ -16,7 +24,7 @@ export function Home({ setTab, T, lang }) {
     backdropFilter: "blur(25px)",
     WebkitBackdropFilter: "blur(25px)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "32px", 
+    borderRadius: "40px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -24,7 +32,7 @@ export function Home({ setTab, T, lang }) {
     aspectRatio: "1 / 1",
     cursor: "pointer",
     transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-    padding: "16px", 
+    padding: "20px",
     boxShadow: "0 15px 45px rgba(0,0,0,0.2)",
     textAlign: "center",
     boxSizing: "border-box",
@@ -33,21 +41,21 @@ export function Home({ setTab, T, lang }) {
 
   const titleStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(16px, 4vw, 20px)",
+    fontSize: "clamp(17px, 4.2vw, 22px)",
     fontWeight: 500,
     marginBottom: "4px",
-    letterSpacing: "0.5px",
+    letterSpacing: "0.4px",
     lineHeight: 1.2,
   };
 
   const subTextStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(12px, 3vw, 14px)",
-    opacity: 0.7,
-    lineHeight: 1.3,
+    fontSize: "clamp(13px, 3.2vw, 15px)",
+    opacity: 0.72,
+    lineHeight: 1.4,
     letterSpacing: "0.5px",
     fontWeight: 400,
-    marginTop: "2px",
+    marginTop: "5px",
     fontStyle: "italic",
   };
 
@@ -56,48 +64,59 @@ export function Home({ setTab, T, lang }) {
       height: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center",
+      alignItems: "center",       // ← centres every child horizontally
       background: T.bg,
-      overflow: "hidden", 
+      overflowX: "hidden",
       boxSizing: "border-box",
-      padding: "0 24px", 
     }}>
 
       {/* ─── BRANDING & GREETING ─── */}
-      <div style={{ 
-        paddingTop: "max(10vh, 40px)", 
-        textAlign: "center", 
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center"
-      }}>
+      <div style={{ padding: "70px 0 36px", textAlign: "center", width: "100%" }}>
 
-        {/* JSukoon — sleek, non-italic, elegant */}
-        <h1 style={{
+        {/* JSukoon — beautiful italic serif */}
+        <h1
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(40px, 10vw, 56px)", 
+          fontSize: "clamp(44px, 12vw, 64px)",
           color: T.text,
-          fontWeight: 400, 
-          fontStyle: "normal", 
+          fontWeight: 300,
+          fontStyle: "italic",
           margin: "0 0 4px",
-          letterSpacing: "2px",
+          letterSpacing: "4px",
           lineHeight: 1,
         }}>
           JSukoon
         </h1>
 
-        <div style={{ width: "30px", height: "1px", background: T.accent, margin: "20px 0", opacity: 0.5 }} />
+        {/* Urdu — the meaning, small and soft */}
+        <p style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: "clamp(13px, 3.5vw, 16px)",
+          color: T.textSoft,
+          margin: "6px 0 0",
+          opacity: 0.5,
+          letterSpacing: "1px",
+          fontStyle: "italic",
+        }}>
+          سکون
+        </p>
+
+        <div style={{ width: "28px", height: "1px", background: T.accent, margin: "14px auto", opacity: 0.4 }} />
 
         {/* Greeting */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(15px, 4vw, 18px)",
+          fontSize: "clamp(16px, 4vw, 20px)",
           color: T.textSoft,
           letterSpacing: "2px",
           textTransform: "uppercase",
           margin: 0,
-          opacity: 0.8,
+          opacity: 0.85,
           fontWeight: 300,
         }}>
           {greeting}
@@ -105,25 +124,31 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── 2×2 GRID ─── */}
+      {/* The trick: fixed width in px on mobile, percentage on desktop.
+          align-items:center on the parent centres this block. No margin:auto needed. */}
       <div style={{
         flex: 1,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        maxWidth: "400px", 
-        margin: "0 auto", 
+        paddingBottom: "60px",
+        boxSizing: "border-box",
       }}>
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gridTemplateColumns: "1fr 1fr",
           gap: "16px",
           width: "100%",
+          maxWidth: "420px",
+          paddingLeft: "24px",
+          paddingRight: "24px",
+          boxSizing: "border-box",
         }}>
 
           {/* 1. RACING THOUGHTS */}
           <button onClick={() => { sessionStorage.setItem("jsukoon_context","racing"); setTab("practice"); }} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>🌀</span>
+            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>🌀</span>
             <span style={{ ...titleStyle, color: "#a090d0" }}>
               {hi ? "दौड़ते विचार" : "Racing Thoughts"}
             </span>
@@ -134,7 +159,7 @@ export function Home({ setTab, T, lang }) {
 
           {/* 2. SANCTUARY */}
           <button onClick={() => setTab("bench")} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>🌿</span>
+            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>🌿</span>
             <span style={{ ...titleStyle, color: T.text }}>
               {hi ? "अभयारण्य" : "Sanctuary"}
             </span>
@@ -145,7 +170,7 @@ export function Home({ setTab, T, lang }) {
 
           {/* 3. SEND WARMTH */}
           <button onClick={() => setTab("warmth")} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>❤️</span>
+            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>❤️</span>
             <span style={{ ...titleStyle, color: "#C88A8E" }}>
               {hi ? "गर्माहट भेजें" : "Send Warmth"}
             </span>
@@ -156,7 +181,7 @@ export function Home({ setTab, T, lang }) {
 
           {/* 4. EXPLORE MORE */}
           <button onClick={() => setTab("more")} style={squareGlass()}>
-            <span style={{ fontSize: "clamp(24px, 6vw, 32px)", marginBottom: "8px", opacity: 0.9 }}>✨</span>
+            <span style={{ fontSize: "clamp(26px,7vw,34px)", marginBottom: "10px", opacity: 0.9 }}>✨</span>
             <span style={{ ...titleStyle, color: T.accent }}>
               {hi ? "और खोजें" : "Explore More"}
             </span>
@@ -169,7 +194,7 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── FOOTER ─── */}
-      <div style={{ paddingBottom: "max(3vh, 20px)", textAlign: "center", width: "100%" }}>
+      <div style={{ paddingBottom: "30px", textAlign: "center" }}>
         <button onClick={() => setTab("legal")} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.3 }}>
           <span style={{ color: T.muted, fontSize: 10, letterSpacing: "2px", textTransform: "uppercase" }}>
             {hi ? "अस्वीकरण" : "Disclaimer"}
