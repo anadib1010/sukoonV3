@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ShatteredThoughts } from '../games/ShatteredThoughts'; 
+import { ShatteredThoughts } from './ShatteredThoughts';
+import { SteadyStar } from './SteadyStar';
 
 export function Stillness({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
