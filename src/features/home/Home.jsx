@@ -1,8 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react'; // Added useState here!
+import { getReflection } from '../../utils/quoteEngine';
 
 export function Home({ setTab, T, lang }) {
   const hi = lang === "Hindi";
   const pressTimer = useRef(null);
+  
+  // 1. This creates your random quote when the page loads
+  const [quote] = useState(getReflection());
 
   const handlePressStart = () => {
     pressTimer.current = setTimeout(() => setTab('vault'), 1500);
@@ -13,12 +17,15 @@ export function Home({ setTab, T, lang }) {
 
   const hours = new Date().getHours();
   let greeting;
+  
+  // 2. We only want words here, no HTML!
   if (hi) {
     greeting = hours < 12 ? "सुप्रभात" : hours < 17 ? "शुभ दोपहर" : "शुभ संध्या";
   } else {
     greeting = hours < 12 ? "Good morning" : hours < 17 ? "Good afternoon" : "Good evening";
   }
 
+  // --- STYLES ---
   const squareGlass = () => ({
     background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
     backdropFilter: "blur(25px)",
@@ -74,10 +81,9 @@ export function Home({ setTab, T, lang }) {
       boxSizing: "border-box",
     }}>
 
-      {/* ─── BRANDING & GREETING ─── */}
+      {/* ─── BRANDING, GREETING & QUOTE ─── */}
       <div style={{ padding: "6vh 0 2vh", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
 
-        {/* JSukoon — long press opens Vault */}
         <h1
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
@@ -124,6 +130,20 @@ export function Home({ setTab, T, lang }) {
         }}>
           {greeting}
         </p>
+
+        {/* 3. THE QUOTE BOX IS NOW IN THE RIGHT PLACE! */}
+        <div style={{ marginTop: '20px', padding: '0 40px' }}>
+          <p style={{ 
+            fontFamily: "'Cormorant Garamond', serif",
+            fontStyle: 'italic', 
+            fontSize: '18px', 
+            opacity: 0.7, 
+            color: T.accent,
+            lineHeight: 1.4
+          }}>
+            "{quote}"
+          </p>
+        </div>
       </div>
 
       {/* ─── 2×2 GRID ─── */}
@@ -144,7 +164,6 @@ export function Home({ setTab, T, lang }) {
           boxSizing: "border-box",
         }}>
 
-          {/* 1. RACING THOUGHTS */}
           <button onClick={() => { sessionStorage.setItem("jsukoon_context","racing"); setTab("practice"); }} style={squareGlass()}>
             <span style={{ fontSize: "clamp(22px, 6vw, 28px)", marginBottom: "6px", opacity: 0.9 }}>🌀</span>
             <span style={{ ...titleStyle, color: "#a090d0" }}>
@@ -155,7 +174,6 @@ export function Home({ setTab, T, lang }) {
             </span>
           </button>
 
-          {/* 2. SANCTUARY */}
           <button onClick={() => setTab("bench")} style={squareGlass()}>
             <span style={{ fontSize: "clamp(22px, 6vw, 28px)", marginBottom: "6px", opacity: 0.9 }}>🌿</span>
             <span style={{ ...titleStyle, color: T.text }}>
@@ -166,7 +184,6 @@ export function Home({ setTab, T, lang }) {
             </span>
           </button>
 
-          {/* 3. SEND WARMTH */}
           <button onClick={() => setTab("warmth")} style={squareGlass()}>
             <span style={{ fontSize: "clamp(22px, 6vw, 28px)", marginBottom: "6px", opacity: 0.9 }}>❤️</span>
             <span style={{ ...titleStyle, color: "#C88A8E" }}>
@@ -177,7 +194,6 @@ export function Home({ setTab, T, lang }) {
             </span>
           </button>
 
-          {/* 4. EXPLORE MORE */}
           <button onClick={() => setTab("more")} style={squareGlass()}>
             <span style={{ fontSize: "clamp(22px, 6vw, 28px)", marginBottom: "6px", opacity: 0.9 }}>✨</span>
             <span style={{ ...titleStyle, color: T.accent }}>
