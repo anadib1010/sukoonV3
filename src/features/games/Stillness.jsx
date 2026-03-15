@@ -67,7 +67,7 @@ export function Stillness({ setTab, T, lang }) {
                   <span style={{ fontSize: 24, opacity: 0.6 }}>{tool.icon}</span>
                   <div>
                     <h4 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "rgba(255,255,255,0.8)", margin: "0 0 2px", fontWeight: 300 }}>{tool.title}</h4>
-                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>{tool.desc}</p>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", margin: 0 }}>{tool.desc}</p>
                   </div>
                 </button>
               ))}
