@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShatteredThoughts } from './ShatteredThoughts';
-import { SteadyStar } from './SteadyStar';
+import { TheStaringStar } from './TheStaringStar'; // Updated to match our new component
 
 export function Stillness({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
@@ -8,13 +8,15 @@ export function Stillness({ setTab, T, lang }) {
 
   const TOOLS = [
     { id: "mirror", icon: "🪞", title: hi ? "बिखरे हुए विचार" : "Shattered Thoughts", desc: hi ? "अहंकार को पीछे छोड़ दें" : "Leave the ego behind" },
-    { id: "star",   icon: "✨", title: hi ? "स्थिर सितारा" : "The Steady Star", desc: hi ? "बिना हिले ध्यान केंद्रित करें" : "Focus without wavering" },
+    { id: "star",   icon: "✨", title: hi ? "स्थिर सितारा" : "The Staring Star", desc: hi ? "बिना हिले ध्यान केंद्रित करें" : "Focus without wavering" },
     { id: "sand",   icon: "⏳", title: hi ? "रेत की पेंटिंग" : "Sand Painting", desc: hi ? "अनित्यता को स्वीकार करें" : "Accept impermanence" }
   ];
 
   const renderTool = () => {
     switch(activeTool) {
       case "mirror": return <ShatteredThoughts setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      // ─── ADDED THE STAR GAME HERE ───
+      case "star": return <TheStaringStar setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
       default: return null;
     }
   };
