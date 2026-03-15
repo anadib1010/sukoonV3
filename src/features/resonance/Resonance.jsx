@@ -1,108 +1,108 @@
-import React, { useState } from 'react';
-import { SeedInMud }   from '../games/SeedInMud';
-import { SoundBath }   from '../games/SoundBath'; 
-import { QuietCorner } from '../games/QuietCorner';
-import { MandalaFlow } from '../games/MandalaFlow';
+import React from 'react';
 
 export function Resonance({ setTab, T, lang }) {
-  const [activeTool, setActiveTool] = useState(null);
   const isHindi = lang === "Hindi";
 
-  const TOOLS = [
-    { id: "seed", icon: "🌰", title: isHindi ? "कीचड़ में बीज" : "Seed in the Mud", desc: isHindi ? "धैर्य और समय का अभ्यास" : "A practice in patience and time" },
-    { id: "bowl", icon: "🥣", title: isHindi ? "ध्वनि स्नान" : "Sound Bath", desc: isHindi ? "आवृत्ति के साथ ऊर्जा को ट्यून करें" : "Tune your energy with frequency" },
-    { id: "vastu", icon: "🧭", title: isHindi ? "शांत कोना" : "The Quiet Corner", desc: isHindi ? "अपने स्थान को संरेखित करें" : "Align your physical space" },
-    // Fixed: changed 'hi' to 'isHindi' below
-    { id: "mandala", icon: "☸️", title: isHindi ? "मंडल प्रवाह" : "Mandala Flow", desc: isHindi ? "अपनी अराजकता में व्यवस्था खोजें" : "Find order in your chaos" },
-  ];
-
-  const renderTool = () => {
-    switch(activeTool) {
-      case "seed":    return <SeedInMud    setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "bowl":    return <SoundBath    setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "vastu":   return <QuietCorner  setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "mandala": return <MandalaFlow  setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      default: return null;
+  // ─── THE 5 RESONANCE GAMES ───
+  const resonanceGames = [
+    {
+      id: 'quietcorner',
+      title: isHindi ? "शांत कोना" : "The Quiet Corner",
+      subtitle: isHindi ? "वास्तु शास्त्र" : "Vastu Shastra",
+      desc: isHindi ? "लाइव कंपास के साथ अपना ध्यान का केंद्र खोजें।" : "Find your magnetic center for meditation using the live compass.",
+      icon: "🧭"
+    },
+    {
+      id: 'soundbath',
+      title: isHindi ? "ध्वनि स्नान" : "The Singing Bowl",
+      subtitle: isHindi ? "नाद योग" : "Nada Yoga",
+      desc: isHindi ? "गहरी आवृत्तियों के साथ अपने मन को शांत करें।" : "Wash away anxiety with deep, grounding frequencies.",
+      icon: "🥣"
+    },
+    {
+      id: 'mandala',
+      title: isHindi ? "मंडला प्रवाह" : "Mandala Flow",
+      subtitle: isHindi ? "पवित्र ज्यामिति" : "Sacred Geometry",
+      desc: isHindi ? "ध्यान केंद्रित करें और अपनी ऊर्जा साझा करें।" : "Draw, focus, and share your unique geometry with the world.",
+      icon: "✨"
+    },
+    {
+      id: 'seedinmud', // Note: Make sure this matches the exact ID in your App.jsx
+      title: isHindi ? "कीचड़ में बीज" : "Seed in the Mud",
+      subtitle: isHindi ? "धैर्य और श्वास" : "Trust & Patience",
+      desc: isHindi ? "दिव्य समय और धैर्य का अभ्यास करें।" : "A deep breathing practice to teach the concept of divine timing.",
+      icon: "🌱"
+    },
+    {
+      id: 'messageinbottle',
+      title: isHindi ? "बोतल में संदेश" : "Message in a Bottle",
+      subtitle: isHindi ? "कर्म और एकता" : "Karma & Oneness",
+      desc: isHindi ? "ब्रह्मांड में एक सकारात्मक विचार भेजें और देखें कि क्या लौटता है।" : "Release a positive thought into the universe and see what returns.",
+      icon: "🕊️"
     }
-  };
+  ];
 
   return (
     <div style={{
-      height: "100%", display: "flex", flexDirection: "column",
-      background: "linear-gradient(180deg, #1a1a24 0%, #0d0d14 100%)", 
-      overflowX: "hidden"
+      minHeight: '100%', width: '100%', backgroundColor: '#05050a',
+      color: '#fff', padding: '40px 20px', boxSizing: 'border-box',
+      display: 'flex', flexDirection: 'column', alignItems: 'center'
     }}>
-      {/* ─── NAV ─── */}
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 16 }}>
-        <button
-          onClick={() => activeTool ? setActiveTool(null) : setTab("vault")} 
-          style={{ background: 'none', border: 'none', fontSize: 20, color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}
-        >
-          ←
-        </button>
-        <span style={{ fontWeight: 300, color: 'rgba(255,255,255,0.6)', letterSpacing: '2px', textTransform: 'uppercase', fontSize: 14 }}>
+      
+      {/* ─── HEADER ─── */}
+      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, color: '#d4af37', margin: '0 0 10px' }}>
           {isHindi ? "अनुनाद" : "Resonance"}
-        </span>
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, fontStyle: 'italic', maxWidth: 300, margin: '0 auto' }}>
+          {isHindi 
+            ? "अपने आस-पास की दुनिया और ब्रह्मांड के साथ तालमेल बिठाएं।" 
+            : "Harmonize with the world around you and the universe beyond."}
+        </p>
       </div>
 
-      {/* ─── CONTENT ─── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 24px" }}>
-        
-        {activeTool ? (
-          <div style={{ width: "100%", height: "100%" }}>
-            {renderTool()}
-          </div>
-        ) : (
-          <div style={{ width: "100%", maxWidth: 500, marginTop: "20px" }}>
-            <div style={{ textAlign: 'center', marginBottom: 40 }}>
-              <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: "#fff", fontWeight: 300, margin: 0 }}>
-                {isHindi ? "स्तर ४: अनुनाद" : "Level 4: Resonance."}
+      {/* ─── GAME LIST ─── */}
+      <div style={{ width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {resonanceGames.map((game) => (
+          <div 
+            key={game.id}
+            onClick={() => setTab(game.id)}
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 16, padding: 20, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 20,
+              transition: 'background 0.3s ease, transform 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+          >
+            {/* Icon */}
+            <div style={{ fontSize: 32, background: 'rgba(0,0,0,0.3)', width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {game.icon}
+            </div>
+            
+            {/* Text Content */}
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, margin: '0 0 4px', color: '#fff' }}>
+                {game.title}
+              </h3>
+              <span style={{ display: 'inline-block', fontSize: 11, color: '#d4af37', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+                {game.subtitle}
+              </span>
+              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                {game.desc}
               </p>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 8, fontStyle: 'italic' }}>
-                {isHindi ? "अपनी आवृत्ति को ट्यून करें।" : "Tune your frequency."}
-              </p>
             </div>
-
-            {/* Menu Buttons */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {TOOLS.map(tool => (
-                <button
-                  key={tool.id}
-                  onClick={() => setActiveTool(tool.id)}
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 16, padding: "20px",
-                    display: "flex", alignItems: "center", gap: 20,
-                    cursor: "pointer", textAlign: "left", width: "100%",
-                    transition: "background 0.2s ease"
-                  }}
-                >
-                  <span style={{ fontSize: 28 }}>{tool.icon}</span>
-                  <div>
-                    <h4 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#fff", margin: "0 0 4px", fontWeight: 400 }}>{tool.title}</h4>
-                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0 }}>{tool.desc}</p>
-                  </div>
-                </button>
-              ))}
+            
+            {/* Arrow */}
+            <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 20 }}>
+              ›
             </div>
-
-            {/* ─── THE DOOR TO LAYER 5 ─── */}
-            <div style={{ marginTop: "60px", textAlign: "center", paddingBottom: "40px" }}>
-              <button 
-                onClick={() => setTab("stillness")}
-                style={{
-                  background: "none", border: "none", color: "rgba(255,255,255,0.15)", 
-                  fontSize: 10, letterSpacing: "6px", textTransform: "uppercase", cursor: "pointer", padding: "20px"
-                }}
-              >
-                {isHindi ? "शून्य में उतरें" : "Enter the Void"}
-              </button>
-            </div>
-
           </div>
-        )}
+        ))}
       </div>
+
     </div>
   );
 }
