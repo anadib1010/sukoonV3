@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SeedInMud }   from '../games/SeedInMud';
 import { SoundBath }   from '../games/SoundBath'; 
 import { QuietCorner } from '../games/QuietCorner';
+import { MandalaFlow } from '../games/MandalaFlow';
 
 export function Resonance({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
@@ -10,7 +11,8 @@ export function Resonance({ setTab, T, lang }) {
   const TOOLS = [
     { id: "seed", icon: "🌰", title: isHindi ? "कीचड़ में बीज" : "Seed in the Mud", desc: isHindi ? "धैर्य और समय का अभ्यास" : "A practice in patience and time" },
     { id: "bowl", icon: "🥣", title: isHindi ? "ध्वनि स्नान" : "Sound Bath", desc: isHindi ? "आवृत्ति के साथ ऊर्जा को ट्यून करें" : "Tune your energy with frequency" },
-    { id: "vastu", icon: "🧭", title: isHindi ? "शांत कोना" : "The Quiet Corner", desc: isHindi ? "अपने स्थान को संरेखित करें" : "Align your physical space" }
+    { id: "vastu", icon: "🧭", title: isHindi ? "शांत कोना" : "The Quiet Corner", desc: isHindi ? "अपने स्थान को संरेखित करें" : "Align your physical space" },
+    { id: "mandala", icon: "☸️", title: hi ? "मंडल प्रवाह" : "Mandala Flow", desc: hi ? "अपनी अराजकता में व्यवस्था खोजें" : "Find order in your chaos" },
   ];
 
   const renderTool = () => {
@@ -18,6 +20,7 @@ export function Resonance({ setTab, T, lang }) {
       case "seed":  return <SeedInMud   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       case "bowl":  return <SoundBath   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       case "vastu": return <QuietCorner setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "mandala": return <MandalaFlow setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       default: return null;
     }
   };
