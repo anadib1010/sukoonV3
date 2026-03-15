@@ -11,7 +11,7 @@ export function TheHeavyStone({ setTab, T, lang }) {
   const animationRef = useRef(null);
   const rumbleInterval = useRef(null);
   
-  // Drag state (Using refs for 60fps smoothness without React re-renders)
+  // Drag state
   const isDragging = useRef(false);
   const startY = useRef(0);
   const currentY = useRef(0);
@@ -24,15 +24,12 @@ export function TheHeavyStone({ setTab, T, lang }) {
     isDragging.current = true;
     startY.current = e.clientY - currentY.current;
     
-    // Lock the pointer to the rock so if their thumb slips slightly, it keeps dragging
     if (rockRef.current) rockRef.current.setPointerCapture(e.pointerId);
 
-    // Start the haptic/visual rumble loop
     if (!rumbleInterval.current) {
       rumbleInterval.current = setInterval(applyRumble, 50);
     }
     
-    // Start visual physics loop
     updatePhysics();
   };
 
@@ -41,9 +38,8 @@ export function TheHeavyStone({ setTab, T, lang }) {
     if (!isDragging.current) return;
     
     const containerHeight = containerRef.current ? containerRef.current.clientHeight : window.innerHeight;
-    const maxDrag = containerHeight - 150; // Leave room at the bottom
+    const maxDrag = containerHeight - 150; 
     
-    // Calculate new Y, clamped between 0 and the bottom of the screen
     let newY = e.clientY - startY.current;
     if (newY < 0) newY = 0;
     if (newY > maxDrag) newY = maxDrag;
@@ -63,27 +59,21 @@ export function TheHeavyStone({ setTab, T, lang }) {
       rumbleInterval.current = null;
     }
 
-    // Did they drag it deep enough to surrender it?
     if (depthRatio.current > 0.85) {
-      // They surrendered it. Let it sink the rest of the way automatically.
       setPhase('sunk');
-      if (navigator.vibrate) navigator.vibrate([30, 50, 20]); // Final gentle pulse
+      if (navigator.vibrate) navigator.vibrate([30, 50, 20]); 
     } else {
-      // They let go too early. The burden snaps back to the top.
       snapBackToTop();
     }
   };
 
-  // ─── THE RUMBLE ENGINE (HAPTIC + VISUAL) ───
+  // ─── THE RUMBLE ENGINE ───
   const applyRumble = () => {
     if (!isDragging.current) return;
     
-    // At top (depth 0), intensity is 1. At bottom (depth 1), intensity is 0.
     const intensity = 1 - depthRatio.current;
     
-    // 1. Android Haptics
     if (navigator.vibrate && intensity > 0.1) {
-      // Shorter, softer pulses as it goes deeper
       navigator.vibrate(Math.floor(intensity * 30)); 
     }
   };
@@ -93,18 +83,15 @@ export function TheHeavyStone({ setTab, T, lang }) {
     if (!rockRef.current) return;
 
     if (isDragging.current) {
-      // Calculate visual shake based on depth (Intense at top, calm at bottom)
       const shakeAmount = (1 - Math.pow(depthRatio.current, 0.5)) * 8; 
       const offsetX = (Math.random() - 0.5) * shakeAmount;
       const offsetY = (Math.random() - 0.5) * shakeAmount;
       
-      // Calculate color and glow darkening as it sinks
-      const darkness = depthRatio.current * 0.8; // Gets darker
+      const darkness = depthRatio.current * 0.8; 
       
       rockRef.current.style.transform = `translateY(${currentY.current}px) translate(${offsetX}px, ${offsetY}px)`;
       rockRef.current.style.filter = `brightness(${1 - darkness})`;
       
-      // Change the background color to get deeper blue/black as you drag
       if (containerRef.current) {
         const r = Math.floor(5 - depthRatio.current * 5);
         const g = Math.floor(5 - depthRatio.current * 5);
@@ -116,10 +103,10 @@ export function TheHeavyStone({ setTab, T, lang }) {
     }
   };
 
-  // ─── SNAP BACK (IF LET GO EARLY) ───
+  // ─── SNAP BACK ───
   const snapBackToTop = () => {
     const snap = () => {
-      currentY.current *= 0.8; // Spring physics
+      currentY.current *= 0.8; 
       depthRatio.current = currentY.current / (containerRef.current.clientHeight - 150);
       
       if (rockRef.current) {
@@ -132,13 +119,12 @@ export function TheHeavyStone({ setTab, T, lang }) {
       } else {
         currentY.current = 0;
         depthRatio.current = 0;
-        if (containerRef.current) containerRef.current.style.backgroundColor = '#05050a'; // Reset bg
+        if (containerRef.current) containerRef.current.style.backgroundColor = '#05050a'; 
       }
     };
     animationRef.current = requestAnimationFrame(snap);
   };
 
-  // ─── CLEANUP ───
   useEffect(() => {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -205,6 +191,7 @@ export function TheHeavyStone({ setTab, T, lang }) {
             {isHindi ? "समर्पण" : "Surrender"}
           </p>
 
+          {/* DRAGGING CONTAINER */}
           <div 
             ref={rockRef}
             onPointerDown={handlePointerDown}
@@ -213,16 +200,26 @@ export function TheHeavyStone({ setTab, T, lang }) {
             onPointerCancel={handlePointerUp}
             style={{
               position: 'absolute', top: 120,
-              width: 100, height: 120,
-              background: 'radial-gradient(ellipse at 30% 30%, #4a4a5a 0%, #1a1a24 100%)',
-              borderRadius: '40% 60% 55% 45% / 50% 45% 60% 50%', // Makes it look like a jagged rock
-              boxShadow: 'inset -10px -10px 20px rgba(0,0,0,0.8), 0 20px 40px rgba(0,0,0,0.6)',
-              cursor: 'grab', touchAction: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              cursor: 'grab', 
+              touchAction: 'none',
+              // ─── MAGIC FIX: Disables mobile copy/paste menus ───
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none'
             }}
           >
-            {/* Thumbprint icon / Hint */}
-            <span style={{ fontSize: 32, opacity: 0.2 }}>👆</span>
+            {/* THE PHYSICAL ROCK */}
+            <div style={{
+              width: 100, height: 120,
+              background: 'radial-gradient(ellipse at 30% 30%, #4a4a5a 0%, #1a1a24 100%)',
+              borderRadius: '40% 60% 55% 45% / 50% 45% 60% 50%', 
+              boxShadow: 'inset -10px -10px 20px rgba(0,0,0,0.8), 0 20px 40px rgba(0,0,0,0.6)',
+              pointerEvents: 'none' // Lets the touch pass through to the container
+            }} />
+            
+            {/* THE ICON BELOW THE ROCK */}
+            <span style={{ fontSize: 32, opacity: 0.4, marginTop: 15, pointerEvents: 'none' }}>👆</span>
           </div>
         </div>
       )}
