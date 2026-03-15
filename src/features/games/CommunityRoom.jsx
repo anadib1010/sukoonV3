@@ -68,6 +68,22 @@ export function CommunityRoom({ setTab, goBack, T, lang }) {
         onClick={handleSkyClick}
         style={{ flex: 1, position: "relative", cursor: "crosshair", overflow: "hidden" }}
       >
+        {/* Subtle Instruction Overlay */}
+        <div style={{
+          position: "absolute", top: 20, left: 0, right: 0,
+          textAlign: "center", pointerEvents: "none", zIndex: 5
+        }}>
+          <p style={{ 
+            margin: 0, fontSize: 13, color: T.muted, 
+            fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
+            letterSpacing: 0.5, opacity: 0.8
+          }}>
+            {hi 
+              ? "नीचे एक भाव चुनें, फिर उसे आकाश में छोड़ने के लिए टैप करें।" 
+              : "Choose a feeling below, then tap the sky to release it."}
+          </p>
+        </div>
+
         {stars.map(star => (
           <div key={star.id} style={{
             position: "absolute", left: `${star.x}%`, top: `${star.y}%`,
@@ -87,17 +103,6 @@ export function CommunityRoom({ setTab, goBack, T, lang }) {
             </span>
           </div>
         ))}
-
-        {stars.length === 0 && (
-          <div style={{
-            position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-            textAlign: "center", opacity: 0.4, width: "80%"
-          }}>
-            <p style={{ margin: 0, fontSize: 16, color: T.text, fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
-              {hi ? "आकाश को छूकर अपनी भावना छोड़ें" : "Touch the sky to release your emotion"}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* ── DROPDOWN SELECTOR ── */}
@@ -116,9 +121,9 @@ export function CommunityRoom({ setTab, goBack, T, lang }) {
             border: isDark ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(0,0,0,0.1)",
             background: isDark ? "rgba(0,0,0,0.2)" : "#fff",
             color: T.text,
-            fontSize: "16px", // Keeps iOS from zooming in on focus
+            fontSize: "16px",
             outline: "none",
-            appearance: "none", // Removes default arrow for custom look
+            appearance: "none",
             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(T.muted)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "right 12px center",
@@ -126,7 +131,7 @@ export function CommunityRoom({ setTab, goBack, T, lang }) {
           }}
         >
           {EMOTIONS.map(e => (
-            <option key={e.id} value={e.id} style={{ background: isDark ? "#222" : "#fff", color: "#000" }}>
+            <option key={e.id} value={e.id} style={{ background: isDark ? "#222" : "#fff", color: isDark ? "#fff" : "#000" }}>
               {hi ? e.hi : e.en}
             </option>
           ))}
