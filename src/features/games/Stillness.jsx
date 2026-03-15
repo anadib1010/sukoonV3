@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShatteredThoughts } from './ShatteredThoughts';
-import { TheStaringStar } from './TheStaringStar'; // Updated to match our new component
+import { TheStaringStar } from './TheStaringStar';
+import { SandPainting } from './SandPainting';
 
 export function Stillness({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
@@ -15,8 +16,8 @@ export function Stillness({ setTab, T, lang }) {
   const renderTool = () => {
     switch(activeTool) {
       case "mirror": return <ShatteredThoughts setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      // ─── ADDED THE STAR GAME HERE ───
       case "star": return <TheStaringStar setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
+      case "sand": return <SandPainting setTab={() => setActiveTool(null)} T={T} lang={lang} />; // ─── ADD THIS LINE ───
       default: return null;
     }
   };
