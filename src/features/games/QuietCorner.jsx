@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export function QuietCorner({ setTab, T, lang }) {
   const isHindi = lang === "Hindi";
@@ -57,7 +57,6 @@ export function QuietCorner({ setTab, T, lang }) {
     }
   };
 
-  // Cleanup listeners when leaving the room
   useEffect(() => {
     return () => {
       window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
@@ -68,7 +67,7 @@ export function QuietCorner({ setTab, T, lang }) {
   // ─── PC SIMULATION TRIGGER ───
   const simulatePC = () => {
     setHasStarted(true);
-    setHeading(45); // Force exact Northeast
+    setHeading(45); 
     setIsAligned(true);
   };
 
@@ -95,18 +94,23 @@ export function QuietCorner({ setTab, T, lang }) {
       </div>
 
       {!hasStarted ? (
-        // ─── START SCREEN (Permission Gate) ───
+        // ─── START SCREEN ───
         <div style={{ textAlign: 'center', padding: 30, maxWidth: 400, zIndex: 10 }}>
           <span style={{ fontSize: 40, display: 'block', marginBottom: 20 }}>🧭</span>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: '#fff', fontWeight: 300, marginBottom: 16 }}>
             {isHindi ? "ईशान कोण खोजें" : "Find Your Ishan Kone"}
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.6, marginBottom: 40 }}>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.6, marginBottom: 20 }}>
             {isHindi 
               ? "वास्तु में, उत्तर-पूर्व (ईशान कोण) ध्यान और स्पष्टता की दिशा है। अपने फोन के कंपास का उपयोग करके इसे खोजें।" 
               : "In Vastu, the Northeast (Ishan Kone) is the direction of meditation and clarity. Let's use your compass to find it."}
           </p>
           
+          {/* ─── MOBILE DEVICE WARNING ─── */}
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontStyle: 'italic', marginBottom: 30 }}>
+            {isHindi ? "📱 लाइव कंपास के लिए कृपया मोबाइल फ़ोन का उपयोग करें।" : "📱 Please use a mobile device for the live compass."}
+          </p>
+
           <button 
             onClick={startCompass}
             style={{ 
@@ -120,13 +124,12 @@ export function QuietCorner({ setTab, T, lang }) {
 
           {error && <p style={{ color: '#ff6b6b', fontSize: 13, marginTop: 10 }}>{error}</p>}
 
-          {/* PC Fallback Button */}
-          <button onClick={simulatePC} style={{ display: 'block', margin: '0 auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
+          <button onClick={simulatePC} style={{ display: 'block', margin: '0 auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
             {isHindi ? "PC पर परीक्षण करें" : "Test on PC Browser"}
           </button>
         </div>
       ) : (
-        // ─── THE LIVE COMPASS INTERFACE ───
+        // ─── LIVE COMPASS ───
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
           
           <div style={{
@@ -136,18 +139,15 @@ export function QuietCorner({ setTab, T, lang }) {
             transition: 'box-shadow 2s ease'
           }}>
             
-            {/* Rotating Ring */}
             <div style={{
               width: '100%', height: '100%', position: 'absolute',
               transform: compassRotation, transition: 'transform 0.1s linear'
             }}>
-              {/* Markers */}
               <span style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>N</span>
               <span style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.4)' }}>S</span>
               <span style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }}>E</span>
               <span style={{ position: 'absolute', top: '50%', left: 10, transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }}>W</span>
               
-              {/* Northeast Marker (The Goal) */}
               <div style={{
                 position: 'absolute', top: 35, right: 35,
                 width: 12, height: 12, borderRadius: '50%',
@@ -157,10 +157,8 @@ export function QuietCorner({ setTab, T, lang }) {
               }} />
             </div>
 
-            {/* Static Center Indicator */}
             <div style={{ width: 2, height: 40, background: 'rgba(255,255,255,0.8)', position: 'absolute', top: -20, borderRadius: 2 }} />
             
-            {/* Center Core */}
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
               background: isAligned ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.05)',
@@ -172,7 +170,6 @@ export function QuietCorner({ setTab, T, lang }) {
             </div>
           </div>
 
-          {/* Dynamic Text Feedback */}
           <div style={{ marginTop: 50, textAlign: 'center', height: 80 }}>
             <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: isAligned ? '#d4af37' : '#fff', fontWeight: 300, margin: '0 0 8px', transition: 'color 1s ease' }}>
               {isAligned 
