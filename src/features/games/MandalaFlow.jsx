@@ -120,7 +120,7 @@ export function MandalaFlow({ setTab, T, lang }) {
     }
 
     // Watermark
-    ctx.font = `300 ${Math.round(size*0.5)}px Georgia, serif`;
+    ctx.font = `300 ${Math.round(size*0.05)}px Georgia, serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.)8';
     ctx.fillText('JSukoon', size/4, size * 0.94);
     
