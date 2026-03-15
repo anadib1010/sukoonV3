@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShatteredThoughts } from './ShatteredThoughts';
 import { TheStaringStar } from './TheStaringStar';
 import { SandPainting } from './SandPainting';
+import { TheHeavyStone } from './TheHeavyStone';
 
 export function Stillness({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
