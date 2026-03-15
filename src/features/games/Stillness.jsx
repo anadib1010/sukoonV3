@@ -3,6 +3,7 @@ import { ShatteredThoughts } from './ShatteredThoughts';
 import { TheStaringStar } from './TheStaringStar';
 import { SandPainting } from './SandPainting';
 import { TheHeavyStone } from './TheHeavyStone';
+import { TheUnsentLetter } from './TheUnsentLetter';
 
 export function Stillness({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
@@ -13,6 +14,7 @@ export function Stillness({ setTab, T, lang }) {
     { id: "mirror",     icon: "🪞", title: hi ? "बिखरे हुए विचार" : "Shattered Thoughts", desc: hi ? "अहंकार को पीछे छोड़ दें" : "Leave the ego behind" },
     { id: "star",       icon: "✨", title: hi ? "स्थिर सितारा" : "The Staring Star", desc: hi ? "बिना हिले ध्यान केंद्रित करें" : "Focus without wavering" },
     { id: "heavystone", icon: "🪨", title: hi ? "भारी पत्थर" : "The Heavy Stone", desc: hi ? "नियंत्रण को जाने दें" : "Surrender your burdens" },
+    { id: "letter",     icon: "✉️", title: hi ? "अनभेजा पत्र" : "The Unsent Letter", desc: hi ? "कर्म के तारों को काटें" : "Sever karmic cords" }, // ─── ADD THIS LINE ───
     { id: "sand",       icon: "⏳", title: hi ? "रेत की पेंटिंग" : "Sand Painting", desc: hi ? "अनित्यता को स्वीकार करें" : "Accept impermanence" }
   ];
 
@@ -21,6 +23,7 @@ export function Stillness({ setTab, T, lang }) {
       case "mirror":     return <ShatteredThoughts setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       case "star":       return <TheStaringStar    setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
       case "heavystone": return <TheHeavyStone     setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
+      case "letter":     return <TheUnsentLetter   setTab={() => setActiveTool(null)} T={T} lang={lang} />; // ─── ADD THIS LINE ───
       case "sand":       return <SandPainting      setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
       default: return null;
     }
