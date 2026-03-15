@@ -5,14 +5,18 @@ export function MandalaFlow({ setTab, T, lang }) {
   const [isActive, setIsActive] = useState(false);
   const [pullCount, setPullCount] = useState(0);
   const [mandalaDNA, setMandalaDNA] = useState(null);
+  
+  // Restored all three text states
   const [recipient, setRecipient] = useState('');
+  const [message, setMessage] = useState('');
+  const [sender, setSender] = useState('');
+  
   const [status, setStatus] = useState('idle'); // idle, recording, processing, shared
 
   const isHindi = lang === "Hindi";
   const complete = pullCount >= 6;
   const size = Math.min(window.innerWidth, window.innerHeight);
 
-  // ─── 1. DNA & INITIALIZATION ───
   useEffect(() => {
     setMandalaDNA({
       symmetry: Math.random() > 0.5 ? 8 : 12,
@@ -79,21 +83,56 @@ export function MandalaFlow({ setTab, T, lang }) {
     setPullCount(0); setStatus('idle');
   };
 
-  // ─── 2. SHARING (STILL & ANIMATED) ───
+  // ─── SHARING LOGIC ───
   const shareStill = async () => {
     setStatus('processing');
     const out = document.createElement('canvas');
     out.width = size; out.height = size;
     const ctx = out.getContext('2d');
+    
+    // Draw original mandala
     ctx.drawImage(canvasRef.current, 0, 0);
-    // Add simple watermark for share
+    
+    // Add dark vignette so text is readable
+    const vg = ctx.createRadialGradient(size/2,size/2,size*0.3,size/2,size/2,size*0.72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, size, size);
+
+    // Render Text Variables
+    ctx.textAlign = 'center';
+    if (recipient.trim()) {
+      ctx.font = `300 ${Math.round(size*0.06)}px Georgia, serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillText(recipient.trim(), size/2, size * 0.18);
+    }
+    if (message.trim()) {
+      ctx.font = `italic ${Math.round(size*0.038)}px Georgia, serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillText(`"${message.trim()}"`, size/2, size * 0.26);
+    }
+    if (sender.trim()) {
+      const fromLine = isHindi ? `— ${sender.trim()} की ओर से` : `— with love from ${sender.trim()}`;
+      ctx.font = `400 ${Math.round(size*0.032)}px Georgia, serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillText(fromLine, size/2, size * 0.88);
+    }
+
+    // Watermark
+    ctx.font = `300 ${Math.round(size*0.025)}px Georgia, serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '14px Georgia';
-    ctx.fillText('JSukoon', size / 2 - 30, size - 20);
+    ctx.fillText('JSukoon', size/2, size * 0.94);
     
     out.toBlob(async (blob) => {
       const file = new File([blob], 'mandala.png', { type: 'image/png' });
-      if (navigator.share) await navigator.share({ files: [file] });
+      if (navigator.share) {
+        try {
+          await navigator.share({ files: [file] });
+        } catch (e) {
+          console.log("Share cancelled or failed", e);
+        }
+      }
       setStatus('shared');
     });
   };
@@ -101,14 +140,35 @@ export function MandalaFlow({ setTab, T, lang }) {
   const shareAnimation = async () => {
     setStatus('recording');
     const stream = canvasRef.current.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    // Use MP4 if supported, otherwise webm
+    const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+    const recorder = new MediaRecorder(stream, { mimeType: mime });
     const chunks = [];
+    
     recorder.ondataavailable = (e) => chunks.push(e.data);
     recorder.onstop = async () => {
-      const blob = new File([new Blob(chunks)], 'mandala.mp4', { type: 'video/mp4' });
-      if (navigator.share) await navigator.share({ files: [blob] });
+      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      const file = new File([new Blob(chunks)], `mandala.${ext}`, { type: mime });
+      
+      // Attempt to share through mobile share sheet
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          setStatus('shared');
+          return;
+        } catch (err) {
+          console.log("Native share rejected the video format. Falling back to download.");
+        }
+      }
+      
+      // Fallback: If share fails, force download so user can manually share it
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file);
+      a.download = `mandala.${ext}`;
+      a.click();
       setStatus('shared');
     };
+    
     recorder.start();
     setTimeout(() => recorder.stop(), 4000); 
   };
@@ -116,7 +176,6 @@ export function MandalaFlow({ setTab, T, lang }) {
   return (
     <div style={{ height:'100%', width:'100%', backgroundColor:'#000', position:'relative', overflow:'hidden', touchAction:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
       
-      {/* ─── TOP NAV (Restored Restart) ─── */}
       <div style={{ position:'absolute', top:20, left:20, right:20, zIndex:20, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <button onClick={() => setTab('resonance')} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.5)', fontSize:14, cursor:'pointer' }}>
           ← {isHindi ? 'वापस' : 'Back'}
@@ -126,12 +185,10 @@ export function MandalaFlow({ setTab, T, lang }) {
         </button>
       </div>
 
-      {/* ─── PULL COUNTER (Restored Full Opacity) ─── */}
       <div style={{ position:'absolute', top:60, right:20, zIndex:20, color:'#fff', fontWeight:500, letterSpacing:1 }}>
         {complete ? (isHindi ? "✦ पूर्ण" : "✦ Complete") : `${pullCount} / 6 ${isHindi ? 'खींचें' : 'pulls'}`}
       </div>
 
-      {/* ─── CENTER INSTRUCTION (Restored) ─── */}
       {!complete && pullCount === 0 && (
         <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -50%)', pointerEvents:'none', color:'rgba(255,255,255,0.9)', textAlign:'center', zIndex:15 }}>
           <div style={{ fontSize:40, marginBottom:10 }}>⦿</div>
@@ -144,7 +201,6 @@ export function MandalaFlow({ setTab, T, lang }) {
         </div>
       )}
 
-      {/* ─── CANVAS ─── */}
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
@@ -154,23 +210,37 @@ export function MandalaFlow({ setTab, T, lang }) {
         style={{ width: size, height: size, display:'block', touchAction:'none' }}
       />
 
-      {/* ─── SHARE PANEL (Restored Text) ─── */}
       {complete && (
-        <div style={{ position:'absolute', bottom:0, width:'100%', background:'rgba(0,0,0,0.95)', padding:24, borderTop:'1px solid rgba(255,255,255,0.1)', display:'flex', flexDirection:'column', gap:12, zIndex:30 }}>
+        <div style={{ position:'absolute', bottom:0, width:'100%', background:'rgba(0,0,0,0.95)', padding:24, borderTop:'1px solid rgba(255,255,255,0.1)', display:'flex', flexDirection:'column', gap:10, zIndex:30 }}>
           <p style={{ textAlign:'center', color:'rgba(255,255,255,0.7)', fontSize:14, margin:'0 0 5px' }}>
             {isHindi ? "इसे सोशल मीडिया पर साझा करें" : "Share your mandala on social media"}
           </p>
+          
           <input 
+            value={recipient}
             placeholder={isHindi ? "किसके लिए?" : "Recipient Name..."} 
             onChange={e => setRecipient(e.target.value)}
-            style={{ background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.2)', padding:12, borderRadius:8, color:'#fff', outline:'none' }} 
+            style={{ background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.2)', padding:10, borderRadius:8, color:'#fff', outline:'none' }} 
           />
-          <div style={{ display:'flex', gap:10 }}>
+          <input 
+            value={message}
+            placeholder={isHindi ? "एक छोटा संदेश" : "A short message..."} 
+            onChange={e => setMessage(e.target.value)}
+            style={{ background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.2)', padding:10, borderRadius:8, color:'#fff', outline:'none' }} 
+          />
+          <input 
+            value={sender}
+            placeholder={isHindi ? "आपका नाम" : "Your name..."} 
+            onChange={e => setSender(e.target.value)}
+            style={{ background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.2)', padding:10, borderRadius:8, color:'#fff', outline:'none' }} 
+          />
+
+          <div style={{ display:'flex', gap:10, marginTop:4 }}>
             <button onClick={shareStill} style={{ flex:1, padding:14, borderRadius:8, background:'#111', color:'#fff', border:'1px solid #333', cursor:'pointer' }}>
-              🖼️ {isHindi ? "फोटो" : "Still"}
+              🖼️ {isHindi ? "PNG साझा करें" : "Share PNG"}
             </button>
             <button onClick={shareAnimation} style={{ flex:1, padding:14, borderRadius:8, background:'#fff', color:'#000', fontWeight:'bold', cursor:'pointer' }}>
-              🌀 {status === 'recording' ? '...' : (isHindi ? "एनिमेशन" : "GIF / Video")}
+              🌀 {status === 'recording' ? '...' : (isHindi ? "GIF कैप्चर करें और साझा करें" : "Capture gif & share")}
             </button>
           </div>
         </div>
