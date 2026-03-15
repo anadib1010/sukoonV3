@@ -8,12 +8,14 @@ export function TheUnsentLetter({ setTab, T, lang }) {
   const [letter, setLetter] = useState("");
   
   const canvasRef = useRef(null);
-  const animationRef = useRef(null);
+  const phaseRef = useRef(phase);
+  const burnStartTime = useRef(0);
 
-  // ─── PROFOUND CORD-CUTTING FIRE ENGINE ───
+  // Keep ref synced for the animation loop
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+
+  // ─── THE CORD-CUTTING NETWORK ENGINE ───
   useEffect(() => {
-    if (phase !== 'burning') return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -22,128 +24,174 @@ export function TheUnsentLetter({ setTab, T, lang }) {
     canvas.height = window.innerHeight;
     const W = canvas.width;
     const H = canvas.height;
+
+    // 1. Initialize the Complex Network of Orbs
+    const orbs = [];
+    // The Center Orb (You)
+    orbs.push({ id: 0, x: W / 2, y: H / 2, baseRadius: 6, isCenter: true, angle: 0, dist: 0 }); 
     
-    let particles = [];
-    const startTime = Date.now();
-
-    const animateFire = () => {
-      const elapsed = Date.now() - startTime;
-      
-      // 1. Dark, trailing background for profound motion blur
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = 'rgba(5, 5, 8, 0.2)';
-      ctx.fillRect(0, 0, W, H);
-
-      ctx.globalCompositeOperation = 'screen'; // Magical, blending fire
-
-      // 2. Spawn Ethereal Fire (Crimson, Violet, Pure White)
-      if (elapsed < 4500) { // Fire builds for 4.5 seconds
-        let spawnRate = elapsed < 3000 ? 6 : 2; // Intense at first, then focuses on the cord
-        for (let i = 0; i < spawnRate; i++) {
-          particles.push({
-            // Start wide, then narrow in on the center as time passes
-            x: W/2 + (Math.random() - 0.5) * W * Math.max(0.2, 1 - elapsed/4000), 
-            y: H + 50,
-            size: Math.random() * 40 + 15,
-            vx: (Math.random() - 0.5) * 3,
-            vy: -(Math.random() * 7 + 2),
-            life: 1,
-            maxLife: Math.random() * 50 + 30,
-            color: ['#ff0040', '#7000ff', '#ff5a00', '#ffffff'][Math.floor(Math.random() * 4)]
-          });
-        }
-      }
-
-      // 3. Update & Draw Fire
-      let activeParticles = 0;
-      particles.forEach(p => {
-        if (p.life <= 0) return;
-        activeParticles++;
-        
-        p.x += p.vx;
-        p.y += p.vy;
-        p.size *= 0.95; // Flames shrink to sharp tips as they rise
-        p.life--;
-        
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(0.1, p.size), 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = Math.pow(p.life / p.maxLife, 1.5); // Fades out smoothly
-        ctx.fill();
-        ctx.globalAlpha = 1;
+    // The Peripheral Orbs (Attachments/Burdens)
+    for (let i = 1; i < 15; i++) {
+      orbs.push({
+        id: i,
+        x: W / 2, 
+        y: H / 2,
+        baseRadius: Math.random() * 3 + 2,
+        isCenter: false,
+        angle: Math.random() * Math.PI * 2,
+        dist: Math.random() * 160 + 60, // How far from center
+        speed: (Math.random() - 0.5) * 0.005
       });
+    }
 
-      // 4. The Spiritual Cord (Reveals, Burns, Snaps)
-      if (elapsed > 2000 && elapsed < 7500) {
-        ctx.globalCompositeOperation = 'source-over';
-        
-        // Cord fades in, then fades out after snap
-        let cordAlpha = Math.min(1, (elapsed - 2000) / 1000);
-        if (elapsed > 5000) cordAlpha = Math.max(0, 1 - (elapsed - 5000) / 1500);
+    let animationId;
 
-        ctx.lineWidth = 4;
-        ctx.shadowBlur = 20;
+    const render = () => {
+      ctx.clearRect(0, 0, W, H);
+      const currentPhase = phaseRef.current;
+      
+      let elapsed = 0;
+      if (currentPhase === 'burning') elapsed = Date.now() - burnStartTime.current;
+      if (currentPhase === 'gone') elapsed = 10000; // Force to post-snap state
 
-        if (elapsed < 4500) {
-          // THE TENSION: Taut cord, begins shaking violently right before the snap
-          let shake = elapsed > 3500 ? (Math.random() - 0.5) * 12 : 0;
-          
-          ctx.strokeStyle = `rgba(255, 100, 100, ${cordAlpha})`;
-          ctx.shadowColor = '#ff0040';
-          ctx.beginPath();
-          ctx.moveTo(0, H/2 + shake);
-          ctx.lineTo(W, H/2 - shake);
-          ctx.stroke();
-          
+      // 2. Physics & Orbit Updates
+      orbs.forEach(orb => {
+        if (orb.isCenter) {
+          // Keep center orb grounded
+          orb.x += (W / 2 - orb.x) * 0.1;
+          orb.y += (H / 2 - orb.y) * 0.1;
         } else {
-          // THE RELEASE: The cord snaps and recoils
-          let gap = Math.pow((elapsed - 4500) * 0.15, 1.3); // Exponential pulling apart
-          
-          ctx.strokeStyle = `rgba(200, 200, 255, ${cordAlpha})`;
-          ctx.shadowColor = '#ffffff';
-
-          // Left Half Recoils
-          ctx.beginPath();
-          ctx.moveTo(0, H/2);
-          ctx.quadraticCurveTo(W/4, H/2 + gap*0.4, W/2 - gap, H/2 + gap);
-          ctx.stroke();
-
-          // Right Half Recoils
-          ctx.beginPath();
-          ctx.moveTo(W, H/2);
-          ctx.quadraticCurveTo(W*0.75, H/2 + gap*0.4, W/2 + gap, H/2 + gap);
-          ctx.stroke();
-
-          // Blinding Flash at the exact moment of the snap
-          if (elapsed > 4500 && elapsed < 4700) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${1 - (elapsed - 4500) / 200})`;
-            ctx.fillRect(0, 0, W, H);
+          if (elapsed > 4500) {
+            // THE RELEASE: Peripherals shoot infinitely away off-screen
+            const dx = orb.x - W / 2;
+            const dy = orb.y - H / 2;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            orb.x += (dx / len) * 25; 
+            orb.y += (dy / len) * 25;
+          } else {
+            // THE TETHER: Slowly orbiting the center
+            orb.angle += orb.speed;
+            const targetX = W / 2 + Math.cos(orb.angle) * orb.dist;
+            const targetY = H / 2 + Math.sin(orb.angle) * orb.dist;
+            orb.x += (targetX - orb.x) * 0.02;
+            orb.y += (targetY - orb.y) * 0.02;
           }
         }
+      });
+
+      // 3. Draw the Complex Lines (The Cords)
+      if (elapsed < 4500) {
+        let shakeX = 0;
+        let shakeY = 0;
+        let lineColor = 'rgba(150, 180, 255, 0.15)'; // Gentle, complex grey/blue web initially
+        let lineWidth = 1;
+
+        if (currentPhase === 'burning') {
+          // Transition the web to intense, glowing RED
+          const progress = Math.min(1, elapsed / 4000);
+          const r = 255;
+          const g = Math.floor(150 * (1 - progress));
+          const b = Math.floor(255 * (1 - progress));
+          lineColor = `rgba(${r}, ${g}, ${b}, ${0.15 + progress * 0.7})`;
+          lineWidth = 1 + progress * 2;
+
+          // Violent shaking right before the snap
+          if (elapsed > 2000) {
+            const intensity = Math.pow((elapsed - 2000) / 2500, 2);
+            shakeX = (Math.random() - 0.5) * 15 * intensity;
+            shakeY = (Math.random() - 0.5) * 15 * intensity;
+          }
+        }
+
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = lineWidth;
+        ctx.shadowBlur = currentPhase === 'burning' ? 15 : 0;
+        ctx.shadowColor = '#ff0033';
+
+        ctx.beginPath();
+        const center = orbs[0];
+        for (let i = 1; i < orbs.length; i++) {
+          // Connect to center
+          ctx.moveTo(center.x + shakeX, center.y + shakeY);
+          ctx.lineTo(orbs[i].x + shakeX, orbs[i].y + shakeY);
+          
+          // Connect to neighbor to form a web
+          if (i < orbs.length - 1) {
+            ctx.moveTo(orbs[i].x + shakeX, orbs[i].y + shakeY);
+            ctx.lineTo(orbs[i+1].x + shakeX, orbs[i+1].y + shakeY);
+          }
+        }
+        ctx.stroke();
         ctx.shadowBlur = 0;
       }
 
-      // 5. End the animation loop
-      if (elapsed < 8000) {
-        animationRef.current = requestAnimationFrame(animateFire);
-      } else {
-        setPhase('gone');
+      // 4. THE FLASH (The Snap)
+      if (elapsed > 4500 && elapsed < 4800) {
+        const flashOpacity = 1 - (elapsed - 4500) / 300;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+        ctx.fillRect(0, 0, W, H);
       }
+
+      // 5. Draw the Orbs
+      orbs.forEach(orb => {
+        if (elapsed > 4500 && !orb.isCenter) return; // The burdens are gone
+
+        let orbShakeX = 0;
+        let orbShakeY = 0;
+        
+        if (currentPhase === 'burning' && elapsed < 4500) {
+          const intensity = Math.max(0, (elapsed - 2000) / 2500);
+          orbShakeX = (Math.random() - 0.5) * 10 * intensity;
+          orbShakeY = (Math.random() - 0.5) * 10 * intensity;
+        }
+
+        ctx.beginPath();
+        
+        if (orb.isCenter) {
+          if (elapsed > 4500) {
+            // Post-Snap: Lovely white orb glowing softly and peacefully
+            const pulse = Math.sin(Date.now() / 600) * 3;
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 25 + pulse * 10;
+            ctx.shadowColor = '#ffffff';
+            ctx.arc(orb.x, orb.y, orb.baseRadius + 6 + pulse, 0, Math.PI * 2);
+          } else {
+            // Pre-Snap Center Orb
+            ctx.fillStyle = currentPhase === 'burning' ? '#ffffff' : 'rgba(255, 255, 255, 0.8)';
+            ctx.arc(orb.x + orbShakeX, orb.y + orbShakeY, orb.baseRadius, 0, Math.PI * 2);
+          }
+        } else {
+          // Peripheral Orbs
+          ctx.fillStyle = currentPhase === 'burning' ? '#ff3333' : 'rgba(255, 255, 255, 0.3)';
+          ctx.arc(orb.x + orbShakeX, orb.y + orbShakeY, orb.baseRadius, 0, Math.PI * 2);
+        }
+        
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Move to Gone phase officially
+      if (currentPhase === 'burning' && elapsed > 6500) {
+        setPhase('gone'); 
+      }
+
+      animationId = requestAnimationFrame(render);
     };
 
-    animationRef.current = requestAnimationFrame(animateFire);
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [phase]);
+    render();
+    return () => cancelAnimationFrame(animationId);
+  }, []);
 
   const handleBurn = () => {
     if (!letter.trim()) return;
+    burnStartTime.current = Date.now();
     setPhase('burning');
     
     // HAPTIC CHOREOGRAPHY
     if (navigator.vibrate) {
-      navigator.vibrate([40, 60, 40]); // Initial fire crackle
-      // Precisely timed heavy vibration when the visual cord snaps at 4.5s
-      setTimeout(() => navigator.vibrate([200, 50, 250]), 4500); 
+      navigator.vibrate([30, 80, 30]); // The heat rising
+      // The exact moment of the snap (4.5s)
+      setTimeout(() => navigator.vibrate([200, 50, 300]), 4500); 
     }
   };
 
@@ -154,7 +202,7 @@ export function TheUnsentLetter({ setTab, T, lang }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
     }}>
       
-      {/* ─── FIRE CANVAS ─── */}
+      {/* ─── THE NETWORK CANVAS ─── */}
       <canvas 
         ref={canvasRef}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
@@ -173,11 +221,10 @@ export function TheUnsentLetter({ setTab, T, lang }) {
       {/* ─── PHASE 1 & 2: THE LETTER ─── */}
       {(phase === 'compose' || phase === 'burning') && (
         <div style={{
-          width: '85%', maxWidth: 400, zIndex: 5,
-          // CSS Magic: When burning, the letter dissolves into blinding white light and blurs away
+          width: '85%', maxWidth: 400, zIndex: 20,
           transition: 'all 3s cubic-bezier(0.25, 1, 0.5, 1)',
-          transform: phase === 'burning' ? 'scale(1.1) translateY(-30px)' : 'scale(1) translateY(0)',
-          filter: phase === 'burning' ? 'blur(20px) brightness(3)' : 'none',
+          transform: phase === 'burning' ? 'scale(1.05) translateY(-20px)' : 'scale(1) translateY(0)',
+          filter: phase === 'burning' ? 'blur(15px) brightness(2)' : 'none',
           opacity: phase === 'burning' ? 0 : 1
         }}>
           
@@ -197,7 +244,7 @@ export function TheUnsentLetter({ setTab, T, lang }) {
             disabled={phase === 'burning'}
             placeholder={isHindi ? "प्रिय..." : "Dear..."}
             style={{
-              width: '100%', height: 250, backgroundColor: 'rgba(255,255,255,0.03)',
+              width: '100%', height: 250, backgroundColor: 'rgba(255,255,255,0.02)',
               border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 20,
               color: 'rgba(255,255,255,0.8)', fontFamily: "'Cormorant Garamond', serif", fontSize: 18,
               lineHeight: 1.6, resize: 'none', outline: 'none', boxSizing: 'border-box'
@@ -229,9 +276,10 @@ export function TheUnsentLetter({ setTab, T, lang }) {
         <div style={{ 
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-          zIndex: 20, animation: 'fadeIn 3s ease', backgroundColor: '#050508'
+          zIndex: 20, animation: 'fadeIn 3s ease'
         }}>
-          <span style={{ fontSize: 40, marginBottom: 20, opacity: 0.8 }}>🕊️</span>
+          {/* Note: Background remains transparent here so the softly pulsing white orb on the canvas shows through! */}
+          <span style={{ fontSize: 40, marginBottom: 20, opacity: 0.8, marginTop: -100 }}>🕊️</span>
           <p style={{ color: '#d4af37', fontSize: 24, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', letterSpacing: 1, textAlign: 'center' }}>
             {isHindi ? "तार कट गया है।" : "The cord is cut."}
           </p>
