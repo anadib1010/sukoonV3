@@ -1540,6 +1540,4 @@ export function Bench({ T, lang, setTab, goBack }) {
 
 }
 
-
-
 export default Bench;
