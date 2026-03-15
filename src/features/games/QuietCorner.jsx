@@ -2,142 +2,192 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export function QuietCorner({ setTab, T, lang }) {
   const isHindi = lang === "Hindi";
-  const videoRef = useRef(null);
   
-  const [permission, setPermission] = useState('prompt'); 
-  const [heading, setHeading] = useState(180); 
-  const [targetHeading] = useState(45); 
+  const [hasStarted, setHasStarted] = useState(false);
+  const [heading, setHeading] = useState(null);
+  const [isAligned, setIsAligned] = useState(false);
+  const [error, setError] = useState(null);
 
-  // ─── 1. SMARTER CAMERA SETUP ───
-  useEffect(() => {
-    let stream = null;
-    const startCamera = async () => {
+  // ─── COMPASS LOGIC ───
+  const handleOrientation = (e) => {
+    let newHeading = null;
+    
+    // iOS uses webkitCompassHeading, Android uses alpha
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      newHeading = e.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      // Android alpha is counter-clockwise. Convert to compass heading:
+      newHeading = 360 - e.alpha; 
+    }
+
+    if (newHeading !== null) {
+      // Normalize heading to 0-360
+      let h = newHeading % 360;
+      if (h < 0) h += 360;
+      setHeading(h);
+
+      // Ishan Kone (Northeast) is 45°. We give a 15° buffer (30° to 60°)
+      if (h >= 30 && h <= 60) {
+        setIsAligned(true);
+      } else {
+        setIsAligned(false);
+      }
+    }
+  };
+
+  const startCompass = async () => {
+    // iOS 13+ requires explicit user permission for DeviceOrientation
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
-        // First try: Look for a back-facing camera (Phones)
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: { ideal: "environment" } } 
-        });
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        setPermission('granted');
-      } catch (err) {
-        // Second try: If that fails, just grab ANY camera (Laptops/Desktops)
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          if (videoRef.current) videoRef.current.srcObject = stream;
-          setPermission('granted');
-        } catch (fallbackErr) {
-          console.warn("Camera access denied or unavailable", fallbackErr);
-          setPermission('denied');
+        const permission = await DeviceOrientationEvent.requestPermission();
+        if (permission === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation, true);
+          setHasStarted(true);
+        } else {
+          setError(isHindi ? "कंपास की अनुमति अस्वीकृत कर दी गई।" : "Compass permission denied.");
         }
+      } catch (err) {
+        setError(err.message);
       }
-    };
+    } else {
+      // Non-iOS devices (Android, etc.)
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      setHasStarted(true);
+    }
+  };
 
-    startCamera();
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  // ─── 2. COMPASS / MOVEMENT SETUP ───
+  // Cleanup listeners when leaving the room
   useEffect(() => {
-    const handleOrientation = (e) => {
-      if (e.alpha !== null) setHeading(e.alpha);
-    };
-
-    const handleMouseMove = (e) => {
-      const simulatedHeading = (e.clientX / window.innerWidth) * 360;
-      setHeading(simulatedHeading);
-    };
-
-    window.addEventListener('deviceorientation', handleOrientation);
-    window.addEventListener('mousemove', handleMouseMove);
-
     return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
-      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
     };
   }, []);
 
-  // ─── 3. CALCULATE THE "MAGIC" GLOW ───
-  let diff = Math.abs(heading - targetHeading);
-  if (diff > 180) diff = 360 - diff;
+  // ─── PC SIMULATION TRIGGER ───
+  const simulatePC = () => {
+    setHasStarted(true);
+    setHeading(45); // Force exact Northeast
+    setIsAligned(true);
+  };
 
-  const intensity = Math.max(0, 1 - (diff / 40));
-  const isPerfect = intensity > 0.95;
-
-  const overlayGradient = `radial-gradient(circle at center, rgba(255, 220, 100, ${intensity * 0.9}) 0%, rgba(10, 10, 15, ${1 - (intensity * 0.5)}) 100%)`;
+  // ─── DYNAMIC STYLING ───
+  const bgStyle = isAligned 
+    ? "radial-gradient(circle at center, rgba(212, 175, 55, 0.4) 0%, rgba(10, 10, 15, 1) 70%)" 
+    : "radial-gradient(circle at center, rgba(30, 30, 40, 0.8) 0%, rgba(10, 10, 15, 1) 100%)";
+  
+  const compassRotation = heading ? `rotate(${-heading}deg)` : 'rotate(0deg)';
 
   return (
     <div style={{
-      height: "100%", width: "100%",
-      position: "relative", backgroundColor: "#000",
-      overflow: "hidden", userSelect: "none"
+      height: '100%', width: '100%', background: bgStyle,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      position: 'relative', overflow: 'hidden', touchAction: 'none',
+      transition: 'background 2s ease'
     }}>
       
       {/* ─── NAV ─── */}
-      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}>
-        <button onClick={(e) => { e.stopPropagation(); setTab('resonance'); }}
-          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 14, textShadow: "0px 2px 4px rgba(0,0,0,0.5)", cursor: 'pointer' }}>
+      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 20 }}>
+        <button onClick={() => setTab('resonance')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>
           ← {isHindi ? 'वापस' : 'Back'}
         </button>
       </div>
 
-      {/* ─── CAMERA FEED ─── */}
-      <video 
-        ref={videoRef}
-        autoPlay 
-        playsInline 
-        muted
-        style={{
-          position: "absolute", top: 0, left: 0,
-          width: "100%", height: "100%",
-          objectFit: "cover",
-          filter: `blur(${5 - (intensity * 5)}px) grayscale(${100 - (intensity * 100)}%)`, 
-          transition: "filter 0.5s ease"
-        }}
-      />
+      {!hasStarted ? (
+        // ─── START SCREEN (Permission Gate) ───
+        <div style={{ textAlign: 'center', padding: 30, maxWidth: 400, zIndex: 10 }}>
+          <span style={{ fontSize: 40, display: 'block', marginBottom: 20 }}>🧭</span>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: '#fff', fontWeight: 300, marginBottom: 16 }}>
+            {isHindi ? "ईशान कोण खोजें" : "Find Your Ishan Kone"}
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.6, marginBottom: 40 }}>
+            {isHindi 
+              ? "वास्तु में, उत्तर-पूर्व (ईशान कोण) ध्यान और स्पष्टता की दिशा है। अपने फोन के कंपास का उपयोग करके इसे खोजें।" 
+              : "In Vastu, the Northeast (Ishan Kone) is the direction of meditation and clarity. Let's use your compass to find it."}
+          </p>
+          
+          <button 
+            onClick={startCompass}
+            style={{ 
+              background: 'rgba(212, 175, 55, 0.2)', border: '1px solid rgba(212, 175, 55, 0.5)',
+              color: '#d4af37', padding: '14px 32px', borderRadius: 30, fontSize: 16,
+              fontFamily: "'Cormorant Garamond', serif", cursor: 'pointer', marginBottom: 20
+            }}
+          >
+            {isHindi ? "कंपास शुरू करें" : "Start Compass"}
+          </button>
 
-      {/* ─── THE MAGIC GLOW OVERLAY ─── */}
-      <div style={{
-        position: "absolute", top: 0, left: 0,
-        width: "100%", height: "100%",
-        background: overlayGradient,
-        transition: "background 0.5s ease",
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        pointerEvents: "none"
-      }}>
+          {error && <p style={{ color: '#ff6b6b', fontSize: 13, marginTop: 10 }}>{error}</p>}
 
-        <div style={{ textAlign: "center", padding: "0 20px" }}>
-          {permission === 'denied' ? (
-             <p style={{ color: "rgba(255,255,255,0.6)", fontFamily: "'Cormorant Garamond', serif", fontSize: 18 }}>
-               {isHindi ? "कैमरा एक्सेस की आवश्यकता है।" : "Camera access is required for this tool."}
-             </p>
-          ) : !isPerfect ? (
-            <>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: 'rgba(255,255,255,0.8)', fontWeight: 300, margin: '0 0 10px', textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
-                {isHindi ? "शांत कोना" : "The Quiet Corner"}
-              </h2>
-              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '18px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
-                {isHindi ? "कमरे के चारों ओर धीरे-धीरे घूमें।" : "Slowly pan around the room."}
-              </p>
-            </>
-          ) : (
-            <div style={{ animation: "fadeIn 2s ease forwards" }}>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '42px', color: '#fff', fontWeight: 300, margin: '0 0 10px', textShadow: "0px 0px 20px rgba(255, 200, 100, 0.8)" }}>
-                {isHindi ? "यहाँ बैठें।" : "Sit here."}
-              </h2>
-              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'rgba(255,255,255,0.9)', fontStyle: 'italic', textShadow: "0px 2px 10px rgba(0,0,0,0.5)" }}>
-                {isHindi ? "ऊर्जा संतुलित है।" : "The energy is balanced."}
-              </p>
-            </div>
-          )}
+          {/* PC Fallback Button */}
+          <button onClick={simulatePC} style={{ display: 'block', margin: '0 auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
+            {isHindi ? "PC पर परीक्षण करें" : "Test on PC Browser"}
+          </button>
         </div>
-      </div>
+      ) : (
+        // ─── THE LIVE COMPASS INTERFACE ───
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
+          
+          <div style={{
+            width: 280, height: 280, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.1)',
+            position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: isAligned ? '0 0 50px rgba(212, 175, 55, 0.3)' : 'none',
+            transition: 'box-shadow 2s ease'
+          }}>
+            
+            {/* Rotating Ring */}
+            <div style={{
+              width: '100%', height: '100%', position: 'absolute',
+              transform: compassRotation, transition: 'transform 0.1s linear'
+            }}>
+              {/* Markers */}
+              <span style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>N</span>
+              <span style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.4)' }}>S</span>
+              <span style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }}>E</span>
+              <span style={{ position: 'absolute', top: '50%', left: 10, transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }}>W</span>
+              
+              {/* Northeast Marker (The Goal) */}
+              <div style={{
+                position: 'absolute', top: 35, right: 35,
+                width: 12, height: 12, borderRadius: '50%',
+                background: isAligned ? '#d4af37' : 'rgba(255,255,255,0.2)',
+                boxShadow: isAligned ? '0 0 15px #d4af37' : 'none',
+                transition: 'all 0.5s ease'
+              }} />
+            </div>
 
+            {/* Static Center Indicator */}
+            <div style={{ width: 2, height: 40, background: 'rgba(255,255,255,0.8)', position: 'absolute', top: -20, borderRadius: 2 }} />
+            
+            {/* Center Core */}
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%',
+              background: isAligned ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.05)',
+              border: isAligned ? '1px solid rgba(212, 175, 55, 0.5)' : '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 2s ease'
+            }}>
+              <span style={{ fontSize: 24, opacity: isAligned ? 1 : 0.3, transition: 'opacity 2s ease' }}>✨</span>
+            </div>
+          </div>
+
+          {/* Dynamic Text Feedback */}
+          <div style={{ marginTop: 50, textAlign: 'center', height: 80 }}>
+            <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: isAligned ? '#d4af37' : '#fff', fontWeight: 300, margin: '0 0 8px', transition: 'color 1s ease' }}>
+              {isAligned 
+                ? (isHindi ? "यही आपका शांत कोना है" : "You have found your Quiet Corner") 
+                : (isHindi ? "धीरे-धीरे घूमें..." : "Turn slowly...")}
+            </h3>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0, opacity: isAligned ? 1 : 0.5, transition: 'opacity 1s ease' }}>
+              {isAligned 
+                ? (isHindi ? "यहाँ बैठें। एक गहरी साँस लें।" : "Sit here. Take a deep breath.") 
+                : (isHindi ? "उत्तर-पूर्व दिशा खोजें (45°)" : "Locating Northeast (45°)")}
+            </p>
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
