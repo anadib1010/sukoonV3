@@ -22,7 +22,7 @@ const MOCK_POSTS = [
   { id: 3, prefix: "Just wanted to share:", text: "the morning air felt really crisp today. It was nice.", time: "5h ago" },
 ];
 
-export function CommunityPage({ setTab, goBack, T, lang }) {
+export function CommunityRoom({ setTab, goBack, T, lang }) {
   const hi = lang === "Hindi";
   const [selectedPrefix, setSelectedPrefix] = useState(PREFIXES[0]);
   const [postText, setPostText] = useState("");
