@@ -10,7 +10,7 @@ export function MandalaFlow({ setTab, T, lang }) {
   const [message, setMessage] = useState('');
   const [sender, setSender] = useState('');
   
-  const [status, setStatus] = useState('idle'); // idle, recording, processing, shared
+  const [status, setStatus] = useState('idle');
 
   const isHindi = lang === "Hindi";
   const complete = pullCount >= 6;
@@ -82,7 +82,6 @@ export function MandalaFlow({ setTab, T, lang }) {
     setPullCount(0); setStatus('idle');
   };
 
-  // ─── DYNAMIC SHARE TEXT GENERATOR ───
   const getShareText = () => {
     const rName = recipient.trim() || (isHindi ? 'आपके' : 'you');
     const sName = sender.trim() ? (isHindi ? `-- ${sender.trim()} की ओर से प्यार के साथ` : `-- with love from ${sender.trim()}`) : '';
@@ -93,29 +92,29 @@ export function MandalaFlow({ setTab, T, lang }) {
     return `✨ A mandala created for ${rName} ${sName}\nMade with JSukoon`;
   };
 
-  // ─── AUTO-COPY HELPER ───
-  const copyToClipboard = async () => {
+  const copyTextInstantly = () => {
+    // This MUST happen the exact millisecond the button is clicked
     try {
-      await navigator.clipboard.writeText(getShareText());
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(getShareText());
+      }
     } catch (err) {
-      console.log("Clipboard auto-copy failed", err);
+      console.log("Clipboard copy failed", err);
     }
   };
 
-  // ─── SHARING LOGIC ───
   const shareStill = async () => {
+    copyTextInstantly(); // Force copy immediately
     setStatus('processing');
+    
     const out = document.createElement('canvas');
     out.width = size; out.height = size;
     const ctx = out.getContext('2d');
     
     ctx.drawImage(canvasRef.current, 0, 0);
-    
     const vg = ctx.createRadialGradient(size/2,size/2,size*0.3,size/2,size/2,size*0.72);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, size, size);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.65)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, size, size);
 
     ctx.textAlign = 'center';
     if (recipient.trim()) {
@@ -134,29 +133,28 @@ export function MandalaFlow({ setTab, T, lang }) {
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.fillText(fromLine, size/2, size * 0.88);
     }
-
     ctx.font = `300 ${Math.round(size*0.025)}px Georgia, serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fillText('JSukoon', size/2, size * 0.94);
     
     out.toBlob(async (blob) => {
       const file = new File([blob], 'mandala.png', { type: 'image/png' });
-      await copyToClipboard(); // Auto-copy the text to clipboard
-      
       if (navigator.share) {
         try {
-          await navigator.share({ files: [file], text: getShareText() }); // Pass text just in case the app supports it
+          await navigator.share({ files: [file], text: getShareText() });
         } catch (e) {
-          console.log("Share cancelled or failed", e);
+          console.log("Share failed", e);
         }
       }
       setStatus('shared');
-      setTimeout(() => setStatus('idle'), 4000); // Reset UI after 4 seconds
+      setTimeout(() => setStatus('idle'), 4000);
     });
   };
 
   const shareAnimation = async () => {
+    copyTextInstantly(); // Force copy immediately
     setStatus('recording');
+    
     const stream = canvasRef.current.captureStream(30);
     const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
     const recorder = new MediaRecorder(stream, { mimeType: mime });
@@ -167,19 +165,14 @@ export function MandalaFlow({ setTab, T, lang }) {
       const ext = mime.includes('mp4') ? 'mp4' : 'webm';
       const file = new File([new Blob(chunks)], `mandala.${ext}`, { type: mime });
       
-      await copyToClipboard(); // Auto-copy the text to clipboard
-      
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], text: getShareText() });
           setStatus('shared');
           setTimeout(() => setStatus('idle'), 4000);
           return;
-        } catch (err) {
-          console.log("Native share rejected the video format. Falling back to download.");
-        }
+        } catch (err) {}
       }
-      
       const a = document.createElement('a');
       a.href = URL.createObjectURL(file);
       a.download = `mandala.${ext}`;
@@ -263,7 +256,6 @@ export function MandalaFlow({ setTab, T, lang }) {
             </button>
           </div>
           
-          {/* Success Message to tell them to Paste */}
           {status === 'shared' && (
             <p style={{ color:'#4ade80', fontSize:13, textAlign:'center', margin:'4px 0 0', fontWeight:'bold', animation:'fadeIn 0.3s ease' }}>
               {isHindi ? "✓ संदेश कॉपी हो गया! बस पेस्ट करें।" : "✓ Message copied! Just hit Paste."}
