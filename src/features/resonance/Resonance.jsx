@@ -88,7 +88,7 @@ export function Resonance({ setTab, T, lang }) {
               <button 
                 onClick={() => setTab("stillness")}
                 style={{
-                  background: "none", border: "none", color: "rgba(255,255,255,0.05)", 
+                  background: "none", border: "none", color: "rgba(255,255,255,0.9)", 
                   fontSize: 10, letterSpacing: "6px", textTransform: "uppercase", cursor: "pointer", padding: "20px"
                 }}
               >
