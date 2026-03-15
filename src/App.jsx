@@ -22,6 +22,7 @@ import { About } from './features/about/About';
 import { Privacy } from './features/privacy/Privacy';
 import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
+import { CommunityRoom } from './features/games/CommunityRoom'; // Adjust path if needed
 
 // ─── GAMES & LAYERS ───
 import { TheDescent } from './features/games/TheDescent';
@@ -193,7 +194,7 @@ export default function App() {
     "home", "focus", "journal", "warmth", "bench", "more", "practice", 
     "legal", "reflection", "progress", "settings", "audio", "crisis", 
     "about", "privacy", "wishes", "descent", "vault", "resonance", "stillness",
-    "quietcorner", "soundbath", "mandala", "seedinmud"
+    "quietcorner", "soundbath", "mandala", "seedinmud", "community"
   ];
 
   // ─── GATE LOGIC ───
@@ -236,6 +237,7 @@ export default function App() {
             {tab === "bench"      && <Bench      setTab={setTab} T={T} lang={lang} />}
             {tab === "more"       && <MorePage   setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
             {tab === "practice"   && <Practice   setTab={setTab} T={T} lang={lang} />}
+            {tab === "community" && <CommunityRoom setTab={setTab} T={T} lang={lang} />}
             
             {/* Utilities & Info */}
             {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}

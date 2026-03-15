@@ -20,7 +20,7 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
   const MAIN_TOOLS = [
     { id: "focus",      emoji: "🎯", label: hi ? "केंद्रित"  : "Focus",      desc: hi ? "शांत खेल"     : "Calm games"   },
     { id: "practice",   emoji: "🧘", label: hi ? "अभ्यास"   : "Practice",   desc: hi ? "सांस"          : "Breathwork"   },
-    { id: "reflection", emoji: "🪞", label: hi ? "चिंतन"    : "Reflection", desc: hi ? "शांत विचार"   : "Quiet thought" },
+    { id: "community",  emoji: "👥", label: hi ? "समुदाय"   : "Community",  desc: hi ? "जुड़ें"         : "Connect"      },
     { id: "journal",    emoji: "📖", label: hi ? "जर्नल"    : "Journal",    desc: hi ? "लिखें, बोलें" : "Write, speak"  },
     { id: "audio",      emoji: "🎵", label: hi ? "ऑडियो"    : "Audio",      desc: hi ? "ध्वनि"         : "Sounds"        },
     { id: "wishes",     emoji: "✨", label: hi ? "इच्छा"    : "Wishes",     desc: hi ? "गैलरी"         : "Gallery"       },
