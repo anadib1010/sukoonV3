@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PARK_BENCH_QUOTES } from '../../utils/content';
+import { getReflection } from '../../utils/quoteEngine';
 import { AUDIO_URLS } from '../../utils/constants';
 
 function lerpN(a, b, t) { return a + (b - a) * t; }
@@ -19,14 +19,13 @@ const SCENES = [
   { id:'aurora',   top:'#010814', bot:'#011210', stars:0.7, moon:0.6, aurora:1.0, glow:0,   gR:0,   gG:180, gB:100 },
   { id:'aurora2',  top:'#010612', bot:'#010e08', stars:0.6, moon:0.5, aurora:0.8, glow:0,   gR:0,   gG:160, gB:80  },
   { id:'predawn',  top:'#0a0515', bot:'#180820', stars:0.3, moon:0.2, aurora:0,   glow:0.2, gR:180, gG:60,  gB:120 },
-  { id:'pinkdawn', top:'#1a0820', bot:'#3a1030', stars:0.1, moon:0,   aurora:0,   glow:0.6, gR:240, gG:80,  gB:140 },
-  { id:'sunrise',  top:'#1a0a02', bot:'#5a2008', stars:0,   moon:0,   aurora:0,   glow:1.0, gR:255, gG:100, gB:10  },
-  { id:'morning',  top:'#080402', bot:'#3a1a08', stars:0,   moon:0,   aurora:0,   glow:0.7, gR:255, gG:140, gB:40  },
+  { id:'pinkdawn', top:'#1a0820', bot:'#3a1030', stars:0.1, moon:0,    aurora:0,   glow:0.6, gR:240, gG:80,  gB:140 },
+  { id:'sunrise',  top:'#1a0a02', bot:'#5a2008', stars:0,   moon:0,    aurora:0,   glow:1.0, gR:255, gG:100, gB:10  },
+  { id:'morning',  top:'#080402', bot:'#3a1a08', stars:0,   moon:0,    aurora:0,   glow:0.7, gR:255, gG:140, gB:40  },
   { id:'nebula',   top:'#040114', bot:'#080222', stars:0.95, moon:0.5, aurora:0,   glow:0,   gR:0,   gG:0,   gB:0,   nebula:true },
 ];
 const SCENE_DUR = 240; // frames per scene (~4s at 60fps)
 const BLEND_DUR = 60;  // frames to crossfade
-
 
 // Constellations — Big Dipper and Orion only, simple and clean
 const CONSTELLATIONS = [
@@ -42,22 +41,25 @@ export function Bench({ T, lang, setTab, goBack }) {
   const canvasRef     = useRef(null);
   const animRef       = useRef(null);
   const timeRef       = useRef(0);
-  const [quoteIdx,     setQuoteIdx]     = useState(() => PARK_BENCH_QUOTES?.length ? Math.floor(Math.random()*PARK_BENCH_QUOTES.length) : 0);
+
+  // --- QUOTE ENGINE LOGIC START (MODIFIED) ---
+  const [currentQuote, setCurrentQuote] = useState(() => getReflection());
   const [quoteVisible, setQuoteVisible] = useState(true);
-  const [activeSound,  setActiveSound]  = useState(null);
-  const benchAudioRef = useRef(null);
 
   useEffect(() => {
-    if (!PARK_BENCH_QUOTES?.length) return;
     const t = setInterval(() => {
       setQuoteVisible(false);
       setTimeout(() => {
-        setQuoteIdx(p => { let n; do { n = Math.floor(Math.random()*PARK_BENCH_QUOTES.length); } while(n===p); return n; });
+        setCurrentQuote(getReflection());
         setQuoteVisible(true);
       }, 800);
     }, 12000);
     return () => clearInterval(t);
   }, []);
+  // --- QUOTE ENGINE LOGIC END ---
+
+  const [activeSound,  setActiveSound]  = useState(null);
+  const benchAudioRef = useRef(null);
 
   const killAudio = () => {
     if (benchAudioRef.current) { benchAudioRef.current.pause(); benchAudioRef.current.src=''; benchAudioRef.current=null; }
@@ -705,17 +707,17 @@ export function Bench({ T, lang, setTab, goBack }) {
         🏠
       </button>
 
-      {/* Quote */}
+      {/* Quote — Using new currentQuote state from engine */}
       <div style={{ position:'absolute', top:'28%', left:0, right:0, textAlign:'center', padding:'0 24px', zIndex:10, pointerEvents:'none' }}>
         <div style={{ opacity:quoteVisible?1:0, transition:'opacity 0.8s ease', maxWidth:400, margin:'0 auto' }}>
-          {PARK_BENCH_QUOTES?.[quoteIdx] && (
+          {currentQuote && (
             <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'clamp(16px,4.5vw,26px)', color:'rgba(255,252,238,0.92)', fontStyle:'italic', lineHeight:1.7, textShadow:'0 2px 12px rgba(0,0,0,0.95)', margin:'0 0 18px' }}>
-              "{PARK_BENCH_QUOTES[quoteIdx]}"
+              "{currentQuote}"
             </p>
           )}
           <button onClick={() => {
             setQuoteVisible(false);
-            setTimeout(() => { setQuoteIdx(p=>(p+1)%PARK_BENCH_QUOTES.length); setQuoteVisible(true); }, 600);
+            setTimeout(() => { setCurrentQuote(getReflection()); setQuoteVisible(true); }, 600);
           }} style={{ background:'rgba(255,255,255,0.09)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:99, color:'rgba(255,255,255,0.82)', padding:'7px 22px', fontSize:11, cursor:'pointer', pointerEvents:'auto', letterSpacing:'0.04em' }}>
             {hi?'थोड़ा और बैठें':'sit a little longer'}
           </button>
