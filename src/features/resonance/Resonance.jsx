@@ -12,15 +12,16 @@ export function Resonance({ setTab, T, lang }) {
     { id: "seed", icon: "🌰", title: isHindi ? "कीचड़ में बीज" : "Seed in the Mud", desc: isHindi ? "धैर्य और समय का अभ्यास" : "A practice in patience and time" },
     { id: "bowl", icon: "🥣", title: isHindi ? "ध्वनि स्नान" : "Sound Bath", desc: isHindi ? "आवृत्ति के साथ ऊर्जा को ट्यून करें" : "Tune your energy with frequency" },
     { id: "vastu", icon: "🧭", title: isHindi ? "शांत कोना" : "The Quiet Corner", desc: isHindi ? "अपने स्थान को संरेखित करें" : "Align your physical space" },
-    { id: "mandala", icon: "☸️", title: hi ? "मंडल प्रवाह" : "Mandala Flow", desc: hi ? "अपनी अराजकता में व्यवस्था खोजें" : "Find order in your chaos" },
+    // Fixed: changed 'hi' to 'isHindi' below
+    { id: "mandala", icon: "☸️", title: isHindi ? "मंडल प्रवाह" : "Mandala Flow", desc: isHindi ? "अपनी अराजकता में व्यवस्था खोजें" : "Find order in your chaos" },
   ];
 
   const renderTool = () => {
     switch(activeTool) {
-      case "seed":  return <SeedInMud   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "bowl":  return <SoundBath   setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "vastu": return <QuietCorner setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "mandala": return <MandalaFlow setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "seed":    return <SeedInMud    setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "bowl":    return <SoundBath    setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "vastu":   return <QuietCorner  setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "mandala": return <MandalaFlow  setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       default: return null;
     }
   };
@@ -86,12 +87,12 @@ export function Resonance({ setTab, T, lang }) {
               ))}
             </div>
 
-            {/* ─── THE DOOR TO LAYER 5 (Now properly inside the menu) ─── */}
+            {/* ─── THE DOOR TO LAYER 5 ─── */}
             <div style={{ marginTop: "60px", textAlign: "center", paddingBottom: "40px" }}>
               <button 
                 onClick={() => setTab("stillness")}
                 style={{
-                  background: "none", border: "none", color: "rgba(255,255,255,0.9)", 
+                  background: "none", border: "none", color: "rgba(255,255,255,0.15)", 
                   fontSize: 10, letterSpacing: "6px", textTransform: "uppercase", cursor: "pointer", padding: "20px"
                 }}
               >
