@@ -65,16 +65,13 @@ export function SandPainting({ setTab, T, lang }) {
 
     // Scatter 15 tiny "grains" of sand around the cursor
     for (let i = 0; i < 15; i++) {
-      // Randomize position slightly for a gritty, sand-like texture
       const offsetX = (Math.random() - 0.5) * 16;
       const offsetY = (Math.random() - 0.5) * 16;
       
-      // Mix of 3 golden sand colors
       const colors = ['#d4af37', '#e6c27a', '#c5a059'];
       ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
       
       ctx.beginPath();
-      // Grain size
       ctx.arc(x + offsetX, y + offsetY, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
       ctx.fill();
     }
@@ -90,12 +87,11 @@ export function SandPainting({ setTab, T, lang }) {
     const width = canvas.width;
     const height = canvas.height;
 
-    // 1. Scan the canvas to find every grain of sand
+    // Scan the canvas to find every grain of sand
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
     const newParticles = [];
 
-    // Scan every 3rd pixel to keep the animation smooth on phones
     const step = 3; 
     
     for (let y = 0; y < height; y += step) {
@@ -103,16 +99,14 @@ export function SandPainting({ setTab, T, lang }) {
         const index = (y * width + x) * 4;
         const alpha = data[index + 3];
 
-        if (alpha > 50) { // If there is sand here
+        if (alpha > 50) { 
           newParticles.push({
             x: x,
             y: y,
-            // The Wind: Blows hard to the right, with slight vertical waving
             vx: Math.random() * 4 + 2, 
             vy: (Math.random() - 0.5) * 2,
             size: Math.random() * 1.5 + 0.5,
             alpha: 1,
-            // Differing weights mean some sand blows away faster than others
             decay: Math.random() * 0.01 + 0.005 
           });
         }
@@ -120,11 +114,7 @@ export function SandPainting({ setTab, T, lang }) {
     }
 
     particlesRef.current = newParticles;
-    
-    // Wipe the solid drawing
     ctx.clearRect(0, 0, width, height);
-    
-    // Start blowing
     animateWind();
   };
 
@@ -143,12 +133,9 @@ export function SandPainting({ setTab, T, lang }) {
       if (p.alpha <= 0) return;
       activeParticles++;
 
-      // Apply wind physics
       p.x += p.vx;
       p.y += p.vy;
       p.alpha -= p.decay;
-      
-      // Wind turbulence (slight upwards/downwards drift)
       p.vy += (Math.random() - 0.5) * 0.2;
 
       ctx.beginPath();
@@ -167,7 +154,7 @@ export function SandPainting({ setTab, T, lang }) {
   return (
     <div style={{
       height: '100%', width: '100%', backgroundColor: '#000',
-      position: 'relative', overflow: 'hidden', touchAction: 'none' // Crucial to stop scrolling while drawing
+      position: 'relative', overflow: 'hidden', touchAction: 'none' 
     }}>
       
       {/* ─── CANVAS ─── */}
@@ -177,13 +164,17 @@ export function SandPainting({ setTab, T, lang }) {
         onPointerMove={draw}
         onPointerUp={stopDrawing}
         onPointerOut={stopDrawing}
-        style={{ position: 'absolute', top: 0, left: 0, zIndex: 10, cursor: 'crosshair' }}
+        style={{ 
+          position: 'absolute', top: 0, left: 0, zIndex: 10, cursor: 'crosshair',
+          // MAGIC FIX: Disables canvas clicking when not in 'draw' phase
+          pointerEvents: phase === 'draw' ? 'auto' : 'none' 
+        }}
       />
 
       {/* ─── UI / NAV ─── */}
-      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 20 }}>
+      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 30 }}>
         <button 
-          onClick={() => setTab(null)} // Returns to Stillness Menu
+          onClick={() => setTab(null)} 
           style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 14 }}
         >
           ← {isHindi ? 'वापस' : 'Back'}
@@ -217,7 +208,7 @@ export function SandPainting({ setTab, T, lang }) {
               transition: 'all 0.3s ease'
             }}
           >
-            {isHindi ? "हवा को बहने दें" : "Let the Wind Blow"}
+            {isHindi ? "हवा को बहने दें" : "Let the Wind Blow!"}
           </button>
         </div>
       )}
@@ -227,13 +218,15 @@ export function SandPainting({ setTab, T, lang }) {
         <div style={{ 
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-          zIndex: 5, animation: 'fadeIn 3s ease' 
+          zIndex: 20, // MAGIC FIX: Pulls this UI screen to the very front
+          animation: 'fadeIn 3s ease' 
         }}>
           <p style={{ color: '#d4af37', fontSize: 24, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', letterSpacing: 1 }}>
             {isHindi ? "कुछ भी हमेशा के लिए नहीं रहता।" : "Nothing lasts forever."}
           </p>
           <button 
             onClick={() => {
+              particlesRef.current = []; // Clean up old memory
               setPhase('draw');
               setHasDrawn(false);
             }}
