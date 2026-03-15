@@ -74,16 +74,30 @@ export default function App() {
     return <Onboarding onComplete={completeOnboarding} setThemeKey={setThemeKey} setLang={setLang} T={T} />;
   }
 
-  // Added all the new Resonance layer game IDs to this list
+  // Removed messageinbottle and kept the rest
   const validTabs = [
     "home", "focus", "journal", "warmth", "bench", "more", "practice", 
     "legal", "reflection", "progress", "settings", "audio", "crisis", 
     "about", "privacy", "wishes", "descent", "vault", "resonance", "stillness",
-    "quietcorner", "soundbath", "mandala", "seedinmud", "messageinbottle"
+    "quietcorner", "soundbath", "mandala", "seedinmud"
   ];
 
   return (
-    <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
+    <div 
+      style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}
+      
+      // ─── NEW: FORWARD SCROLLING FROM THE BACKGROUND ───
+      onWheel={(e) => {
+        // e.currentTarget is the background. If the user is hovering over the background, catch it.
+        if (e.target === e.currentTarget) {
+          // Find whatever screen is currently active and marked as scrollable
+          const activeScrollContainer = document.querySelector('[data-scrollable="true"]');
+          if (activeScrollContainer) {
+            activeScrollContainer.scrollTop += e.deltaY; // Scroll it!
+          }
+        }
+      }}
+    >
       <div style={{ 
         height: "100%", width: "100%", maxWidth: 600, 
         background: T.bg, color: T.text, 
@@ -112,12 +126,11 @@ export default function App() {
         {tab === "stillness"  && <Stillness  setTab={setTab} T={T} lang={lang} />}
         {tab === "resonance"  && <Resonance  setTab={setTab} T={T} lang={lang} />}
         
-        {/* ─── NEW: RESONANCE GAMES ─── */}
+        {/* ─── RESONANCE GAMES ─── */}
         {tab === "quietcorner"     && <QuietCorner     setTab={setTab} T={T} lang={lang} />}
         {tab === "soundbath"       && <SoundBath       setTab={setTab} T={T} lang={lang} />}
         {tab === "mandala"         && <MandalaFlow     setTab={setTab} T={T} lang={lang} />}
         {tab === "seedinmud"       && <SeedInMud       setTab={setTab} T={T} lang={lang} />}
-        {tab === "messageinbottle" && <MessageInBottle setTab={setTab} T={T} lang={lang} />}
 
         {/* Dynamic / Mood */}
         {tab && tab.startsWith("moodAction_") && (
