@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
+import { useLS } from '../../hooks/useLS'; // 👈 Imported your local storage hook
 
 // The 20 Curated Safe Emotions
 const EMOTIONS = [
@@ -30,7 +31,9 @@ const EMOTIONS = [
 export function CommunityRoom({ setTab, goBack, T, lang }) {
   const hi = lang === "Hindi";
   const [selectedEmotion, setSelectedEmotion] = useState(EMOTIONS[0]);
-  const [stars, setStars] = useState([]); 
+  
+  // 👈 Swapped useState for useLS so stars are saved permanently on the device!
+  const [stars, setStars] = useLS("jsukoon_sky_stars", []); 
   const skyRef = useRef(null);
 
   // Determine theme properties for glassmorphism
@@ -86,12 +89,12 @@ export function CommunityRoom({ setTab, goBack, T, lang }) {
               position: "absolute",
               left: `${star.x}%`,
               top: `${star.y}%`,
-              transform: "translate(-50%, -50%)", // Center the dot exactly on the click
+              transform: "translate(-50%, -50%)", 
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 4,
-              pointerEvents: "none", // Ensures you can click near a star to place another
+              pointerEvents: "none", 
               animation: "fadeIn 1s ease-out"
             }}
           >
