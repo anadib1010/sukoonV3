@@ -8,7 +8,9 @@ export function MandalaFlow({ setTab, T, lang }) {
   
   const isHindi = lang === "Hindi";
 
-  // ─── 1. SETUP DNA (Once per session) ───
+  // Canvas size — always square, fits the smaller dimension
+  const getSize = () => Math.min(window.innerWidth, window.innerHeight);
+
   useEffect(() => {
     setMandalaDNA({
       symmetry: Math.random() > 0.5 ? 8 : 12,
@@ -17,23 +19,31 @@ export function MandalaFlow({ setTab, T, lang }) {
     });
   }, []);
 
-  // ─── 2. INITIAL CANVAS SETUP (Run once) ───
   useEffect(() => {
     const canvas = canvasRef.current;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const size = getSize();
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
-    
-    // Pure black background
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, size, size);
   }, []);
+
+  const getCanvasCoords = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  };
 
   const handlePointerDown = (e) => {
     if (pullCount < 6) {
       setIsActive(true);
-      // Start the stroke immediately at the center
-      draw(e); 
+      drawStroke(e);
     }
   };
 
@@ -44,49 +54,40 @@ export function MandalaFlow({ setTab, T, lang }) {
     }
   };
 
-  const draw = (e) => {
-    if (!isActive || !mandalaDNA) return;
-
+  const drawStroke = (e) => {
+    if (!mandalaDNA) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
-    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    const size = canvas.width; // square — width === height
+    const center = size / 2;
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
-    const dx = clientX - centerX;
-    const dy = clientY - centerY;
+    const { x, y } = getCanvasCoords(e);
+    const dx = x - center;
+    const dy = y - center;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Ensure it stays circular (Diameter approx 300-350px on mobile)
-    const MAX_ALLOWED = Math.min(window.innerWidth, window.innerHeight) * 0.44;
+    const MAX_ALLOWED = size * 0.44;
     const drawDist = Math.min(distance, MAX_ALLOWED);
 
     const { symmetry, hueStart, curvePower } = mandalaDNA;
 
     ctx.save();
-    ctx.translate(centerX, centerY);
+    ctx.translate(center, center);
 
     for (let i = 0; i < symmetry; i++) {
       ctx.rotate((Math.PI * 2) / symmetry);
-      
       const currentHue = (hueStart + (drawDist / MAX_ALLOWED) * 50) % 360;
       ctx.strokeStyle = `hsla(${currentHue}, 80%, 60%, 0.12)`;
       ctx.shadowBlur = 10;
       ctx.shadowColor = `hsla(${currentHue}, 80%, 50%, 0.4)`;
       ctx.lineWidth = 2;
-
-      // Draw the mirrored petal
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.quadraticCurveTo(
-        drawDist * curvePower, drawDist * 0.3, 
+        drawDist * curvePower, drawDist * 0.3,
         drawDist, 0
       );
       ctx.quadraticCurveTo(
-        drawDist * curvePower, -drawDist * 0.3, 
+        drawDist * curvePower, -drawDist * 0.3,
         0, 0
       );
       ctx.stroke();
@@ -94,11 +95,19 @@ export function MandalaFlow({ setTab, T, lang }) {
     ctx.restore();
   };
 
+  const handlePointerMove = (e) => {
+    if (!isActive) return;
+    drawStroke(e);
+  };
+
   const resetGame = () => {
     const canvas = canvasRef.current;
+    const size = getSize();
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, size, size);
     setPullCount(0);
     setMandalaDNA({
       symmetry: Math.random() > 0.5 ? 8 : 12,
@@ -107,15 +116,18 @@ export function MandalaFlow({ setTab, T, lang }) {
     });
   };
 
+  const size = getSize();
+
   return (
-    <div style={{ 
-      height: '100%', width: '100%', backgroundColor: '#000', 
-      position: 'relative', overflow: 'hidden', touchAction: 'none' 
+    <div style={{
+      height: '100%', width: '100%', backgroundColor: '#000',
+      position: 'relative', overflow: 'hidden', touchAction: 'none',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      
-      {/* ─── UI ─── */}
+
+      {/* UI */}
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 20, display: 'flex', gap: 20 }}>
-        <button onClick={() => setTab('resonance')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 14, cursor: 'pointer' }}>
+        <button onClick={() => setTab('more')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 14, cursor: 'pointer' }}>
           ← {isHindi ? 'वापस' : 'Back'}
         </button>
         <button onClick={resetGame} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 12, letterSpacing: 2, cursor: 'pointer' }}>
@@ -123,41 +135,43 @@ export function MandalaFlow({ setTab, T, lang }) {
         </button>
       </div>
 
-      {/* Progress Counter */}
+      {/* Progress */}
       <div style={{
         position: 'absolute', top: 24, right: 24, zIndex: 20,
         color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', fontSize: 12
       }}>
-        {pullCount < 6 ? `${pullCount} / 6` : (isHindi ? "पूर्ण" : "LOCKED")}
+        {pullCount < 6 ? `${pullCount} / 6` : (isHindi ? "पूर्ण" : "COMPLETE")}
       </div>
 
-      {/* ─── THE CANVAS ─── */}
+      {/* Square canvas — always circular */}
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
-        onPointerMove={draw}
+        onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
         className={pullCount >= 6 ? "mandala-spin" : ""}
-        style={{ 
-          cursor: 'crosshair', 
-          width: '100%', height: '100%',
-          display: 'block'
+        style={{
+          cursor: 'crosshair',
+          width: size, height: size,
+          display: 'block',
+          touchAction: 'none',
         }}
       />
-      
+
       {pullCount === 0 && (
-        <div style={{ 
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
           pointerEvents: 'none', color: 'rgba(255,255,255,0.1)',
-          fontFamily: "'Cormorant Garamond', serif", letterSpacing: 4, textAlign: 'center'
+          fontFamily: "'Cormorant Garamond', serif",
+          letterSpacing: 4, textAlign: 'center',
         }}>
           <div style={{ fontSize: 30, marginBottom: 10 }}>⦿</div>
           {isHindi ? "केंद्र से खींचें" : "PULL FROM CENTER"}
         </div>
       )}
 
-      {/* ─── SPIN ANIMATION ─── */}
       <style>{`
         @keyframes slowSpin {
           from { transform: rotate(0deg); }
