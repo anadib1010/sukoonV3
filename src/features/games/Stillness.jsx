@@ -18,7 +18,8 @@ export function Stillness({ setTab, T, lang }) {
     switch(activeTool) {
       case "mirror": return <ShatteredThoughts setTab={() => setActiveTool(null)} T={T} lang={lang} />;
       case "star": return <TheStaringStar setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
-      case "sand": return <SandPainting setTab={() => setActiveTool(null)} T={T} lang={lang} />; // ─── ADD THIS LINE ───
+      case "sand": return <SandPainting setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
+      case "heavystone": return <TheHeavyStone setTab={() => setActiveTool(null)} T={T} lang={lang} />; // ─── ADD THIS LINE ───
       default: return null;
     }
   };
