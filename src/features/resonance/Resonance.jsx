@@ -41,15 +41,37 @@ export function Resonance({ setTab, T, lang }) {
       width: '100%', 
       backgroundColor: '#05050a',
       color: '#fff', 
-      padding: '40px 20px 80px 20px', 
+      padding: '70px 20px 80px 20px', // Increased top padding to make room for the nav bar
       boxSizing: 'border-box',
       display: 'flex', 
       flexDirection: 'column', 
       alignItems: 'center',
       overflowY: 'auto', 
-      overflowX: 'hidden'
+      overflowX: 'hidden',
+      position: 'relative'
     }}>
       
+      {/* ─── TOP NAVIGATION BAR ─── */}
+      <div style={{
+        position: 'absolute', top: 20, left: 20, right: 20, 
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        zIndex: 20
+      }}>
+        <button 
+          onClick={() => setTab('vault')} 
+          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <span>←</span> {isHindi ? 'वापस' : 'Back'}
+        </button>
+
+        <button 
+          onClick={() => setTab('home')} 
+          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          {isHindi ? 'होम' : 'Home'} <span>🏠</span>
+        </button>
+      </div>
+
       {/* ─── HEADER ─── */}
       <div style={{ textAlign: 'center', marginBottom: 40, flexShrink: 0 }}>
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, color: '#d4af37', margin: '0 0 10px' }}>
