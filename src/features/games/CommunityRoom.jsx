@@ -1,10 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
-import { useLS } from '../../hooks/useLS'; // 👈 Imported your local storage hook
+import { useLS } from '../../hooks/useLS';
 
-// The 20 Curated Safe Emotions
 const EMOTIONS = [
-  // Light & Grounding
   { id: 'peace', en: "Peace", hi: "शांति" },
   { id: 'gratitude', en: "Gratitude", hi: "आभार" },
   { id: 'hope', en: "Hope", hi: "आशा" },
@@ -15,7 +13,6 @@ const EMOTIONS = [
   { id: 'courage', en: "Courage", hi: "साहस" },
   { id: 'calm', en: "Calm", hi: "शांत" },
   { id: 'curiosity', en: "Curiosity", hi: "जिज्ञासा" },
-  // Heavy & Transitional
   { id: 'tired', en: "Tired", hi: "थका हुआ" },
   { id: 'restless', en: "Restless", hi: "बेचैन" },
   { id: 'sadness', en: "Sadness", hi: "उदासी" },
@@ -30,37 +27,32 @@ const EMOTIONS = [
 
 export function CommunityRoom({ setTab, goBack, T, lang }) {
   const hi = lang === "Hindi";
-  const [selectedEmotion, setSelectedEmotion] = useState(EMOTIONS[0]);
-  
-  // 👈 Swapped useState for useLS so stars are saved permanently on the device!
+  const [selectedId, setSelectedId] = useState(EMOTIONS[0].id);
   const [stars, setStars] = useLS("jsukoon_sky_stars", []); 
   const skyRef = useRef(null);
 
-  // Determine theme properties for glassmorphism
   const bgM = T.bg.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
   const isDark = bgM ? (parseInt(bgM[1], 16) * 0.299 + parseInt(bgM[2], 16) * 0.587 + parseInt(bgM[3], 16) * 0.114) < 128 : true;
+  
   const glass = {
-    background: isDark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.60)",
-    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-    borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.5)",
+    background: isDark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.80)",
+    backdropFilter: "blur(15px)", WebkitBackdropFilter: "blur(15px)",
+    borderTop: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.05)",
   };
 
-  // Place a star where the user clicks
   const handleSkyClick = (e) => {
     if (!skyRef.current) return;
-    
-    // Get the exact dimensions of the sky area
     const rect = skyRef.current.getBoundingClientRect();
-    
-    // Calculate percentage coordinates so it scales on different devices
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    const emotionObj = EMOTIONS.find(emp => emp.id === selectedId);
 
     const newStar = {
       id: Date.now(),
       x,
       y,
-      text: hi ? selectedEmotion.hi : selectedEmotion.en
+      text: hi ? emotionObj.hi : emotionObj.en
     };
     
     setStars([...stars, newStar]);
@@ -70,115 +62,83 @@ export function CommunityRoom({ setTab, goBack, T, lang }) {
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
       <PageNav onBack={goBack || (() => setTab("more"))} onHome={() => setTab("home")} backLabel={hi ? "वापस" : "Back"} T={T} lang={lang} />
 
-      {/* ── THE SKY CANVAS ── */}
+      {/* ── SKY CANVAS ── */}
       <div 
         ref={skyRef}
         onClick={handleSkyClick}
-        style={{ 
-          flex: 1, 
-          position: "relative", 
-          cursor: "crosshair",
-          overflow: "hidden" 
-        }}
+        style={{ flex: 1, position: "relative", cursor: "crosshair", overflow: "hidden" }}
       >
-        {/* Render all the stars */}
         {stars.map(star => (
-          <div 
-            key={star.id} 
-            style={{
-              position: "absolute",
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              transform: "translate(-50%, -50%)", 
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              pointerEvents: "none", 
-              animation: "fadeIn 1s ease-out"
-            }}
-          >
-            {/* The glowing dot */}
+          <div key={star.id} style={{
+            position: "absolute", left: `${star.x}%`, top: `${star.y}%`,
+            transform: "translate(-50%, -50%)", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 4, pointerEvents: "none", animation: "starFade 1.2s ease-out"
+          }}>
             <div style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
+              width: 5, height: 5, borderRadius: "50%",
               backgroundColor: isDark ? "#fff" : T.accent,
-              boxShadow: isDark ? "0 0 10px 2px rgba(255,255,255,0.6)" : `0 0 10px 2px ${T.accent}66`
+              boxShadow: isDark ? "0 0 12px 2px rgba(255,255,255,0.8)" : `0 0 10px 2px ${T.accent}44`
             }} />
-            
-            {/* The emotion word */}
             <span style={{
-              fontSize: 11,
-              color: isDark ? "rgba(255,255,255,0.8)" : T.text,
-              fontFamily: "'Cormorant Garamond', serif",
-              letterSpacing: 0.5,
-              whiteSpace: "nowrap"
+              fontSize: 10, color: isDark ? "rgba(255,255,255,0.7)" : T.text,
+              fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap"
             }}>
               {star.text}
             </span>
           </div>
         ))}
 
-        {/* Empty state hint - fades out when there are stars */}
         {stars.length === 0 && (
           <div style={{
-            position: "absolute",
-            top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-            textAlign: "center", pointerEvents: "none", opacity: 0.5
+            position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            textAlign: "center", opacity: 0.4, width: "80%"
           }}>
-            <p style={{ margin: 0, fontSize: 16, color: T.text, fontFamily: "'Cormorant Garamond', serif" }}>
-              {hi ? "अपनी भावना को आकाश में छोड़ने के लिए टैप करें" : "Tap to leave your emotion in the sky"}
+            <p style={{ margin: 0, fontSize: 16, color: T.text, fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+              {hi ? "आकाश को छूकर अपनी भावना छोड़ें" : "Touch the sky to release your emotion"}
             </p>
           </div>
         )}
       </div>
 
-      {/* ── EMOTION PICKER (BOTTOM BAR) ── */}
-      <div style={{ ...glass, padding: "20px 0 30px", zIndex: 10 }}>
-        <p style={{ margin: "0 0 12px 24px", fontSize: 12, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>
-          {hi ? "आप क्या महसूस कर रहे हैं?" : "What are you feeling?"}
-        </p>
+      {/* ── DROPDOWN SELECTOR ── */}
+      <div style={{ ...glass, padding: "20px 24px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <label style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 1.5 }}>
+          {hi ? "वर्तमान भाव चुनें" : "Select Current Feeling"}
+        </label>
         
-        {/* Horizontal scroll list */}
-        <div style={{ 
-          display: "flex", gap: 8, overflowX: "auto", 
-          padding: "0 24px", paddingBottom: 8, scrollbarWidth: "none" 
-        }}>
-          {EMOTIONS.map(emotion => {
-            const isSelected = selectedEmotion.id === emotion.id;
-            return (
-              <button
-                key={emotion.id}
-                onClick={() => setSelectedEmotion(emotion)}
-                style={{
-                  padding: "10px 18px",
-                  borderRadius: 24,
-                  whiteSpace: "nowrap",
-                  fontSize: 14,
-                  cursor: "pointer",
-                  background: isSelected ? T.accent : "transparent",
-                  border: isSelected ? `1px solid ${T.accent}` : (isDark ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(0,0,0,0.2)"),
-                  color: isSelected ? "#fff" : T.text,
-                  transition: "all 0.2s ease"
-                }}
-              >
-                {hi ? emotion.hi : emotion.en}
-              </button>
-            );
-          })}
-        </div>
+        <select 
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px 16px",
+            borderRadius: "12px",
+            border: isDark ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(0,0,0,0.1)",
+            background: isDark ? "rgba(0,0,0,0.2)" : "#fff",
+            color: T.text,
+            fontSize: "16px", // Keeps iOS from zooming in on focus
+            outline: "none",
+            appearance: "none", // Removes default arrow for custom look
+            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(T.muted)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 12px center",
+            backgroundSize: "16px"
+          }}
+        >
+          {EMOTIONS.map(e => (
+            <option key={e.id} value={e.id} style={{ background: isDark ? "#222" : "#fff", color: "#000" }}>
+              {hi ? e.hi : e.en}
+            </option>
+          ))}
+        </select>
       </div>
       
-      {/* Simple fade-in animation for the stars */}
-      <style>
-        {`
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -40%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
-          }
-        `}
-      </style>
+      <style>{`
+        @keyframes starFade {
+          from { opacity: 0; transform: translate(-50%, -20%); }
+          to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+      `}</style>
     </div>
   );
 }
