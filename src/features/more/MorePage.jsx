@@ -125,7 +125,7 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
           background: 'none', border: 'none',
           width: '100%', padding: '24px 0 8px',
           cursor: 'pointer',
-          color: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.9)',
+          color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)',
           fontFamily: "'Cormorant Garamond', serif",
           fontStyle: 'italic',
           fontSize: 13,
