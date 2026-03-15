@@ -35,7 +35,7 @@ import { SoundBath } from './features/games/SoundBath';
 import { MandalaFlow } from './features/games/MandalaFlow';
 import { SeedInMud } from './features/games/SeedInMud';
 
-// ─── YAKSHA GATE COMPONENT ───
+// ─── YAKSHA GATE COMPONENT (CENTERED & REFINED) ───
 function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
@@ -52,33 +52,99 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
   };
 
   return (
-    <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, textAlign: "center", background: "#050508" }}>
-      <button onClick={onCancel} style={{ position: 'absolute', top: 20, left: 20, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+    <div style={{ 
+      height: "100%", width: "100%", 
+      display: "flex", flexDirection: "column", 
+      alignItems: "center", justifyContent: "center", 
+      padding: 40, textAlign: "center", 
+      background: "#050508",
+      position: "relative"
+    }}>
+      {/* Back Button */}
+      <button 
+        onClick={onCancel} 
+        style={{ 
+          position: 'absolute', top: 30, left: 30, 
+          background: 'none', border: 'none', 
+          color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+          fontSize: 14, fontFamily: "'Cormorant Garamond', serif"
+        }}
+      >
         ← {isHindi ? "वापस" : "Back"}
       </button>
       
-      <div style={{ fontSize: 40, marginBottom: 20, opacity: 0.6 }}>⚖️</div>
-      <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: '#fff', fontWeight: 300, marginBottom: 40, lineHeight: 1.5 }}>
-        {isHindi ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"' : '"Do you have the key to the next level, the Quieter Place?"'}
+      {/* Icon */}
+      <div style={{ fontSize: 32, marginBottom: 20, opacity: 0.6 }}>⚖️</div>
+      
+      {/* Question */}
+      <h2 style={{ 
+        fontFamily: "'Cormorant Garamond', serif", 
+        fontSize: 24, color: '#fff', 
+        fontWeight: 300, marginBottom: 50, 
+        lineHeight: 1.6, maxWidth: 320 
+      }}>
+        {isHindi 
+          ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"' 
+          : '"Do you have the key to the next level, the Quieter Place?"'}
       </h2>
 
-      <div style={{ transform: error ? 'translateX(10px)' : 'none', transition: 'transform 0.1s' }}>
+      {/* Input Group */}
+      <div style={{ 
+        width: '100%',
+        transform: error ? 'translateX(10px)' : 'none', 
+        transition: 'transform 0.1s',
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
+      }}>
         <input 
           autoFocus
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={isHindi ? "कोड डालें" : "ENTER CODE"}
-          style={{ background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#d4af37', textAlign: 'center', fontSize: 20, letterSpacing: 4, outline: 'none', width: '80%', marginBottom: 30 }}
+          placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"}
+          style={{ 
+            background: 'transparent', border: 'none', 
+            borderBottom: '1px solid rgba(212, 175, 55, 0.4)', 
+            color: '#d4af37', textAlign: 'center', 
+            fontSize: 20, letterSpacing: 6, 
+            outline: 'none', width: '240px', 
+            paddingBottom: 10, marginBottom: 25
+          }}
         />
+
+        {/* Proceed Button */}
+        <button 
+          onClick={handleCheck} 
+          style={{ 
+            background: 'transparent', border: '1px solid #d4af37', 
+            color: '#d4af37', padding: '12px 45px', 
+            borderRadius: 30, fontSize: 13, 
+            letterSpacing: 2, cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          {isHindi ? "प्रवेश करें" : "PROCEED"}
+        </button>
+
+        {/* Debug Key - Directly below Proceed with 0.8 opacity */}
+        <div style={{ 
+          marginTop: 15, 
+          opacity: 0.8, 
+          fontSize: 12, 
+          color: '#ffffff', 
+          letterSpacing: 2,
+          fontFamily: 'monospace',
+          fontWeight: 'bold'
+        }}>
+          {MASTER_KEY}
+        </div>
       </div>
 
-      <button onClick={handleCheck} style={{ background: 'transparent', border: '1px solid #d4af37', color: '#d4af37', padding: '10px 40px', borderRadius: 30, fontSize: 12, letterSpacing: 2, cursor: 'pointer' }}>
-        {isHindi ? "प्रवेश करें" : "PROCEED"}
-      </button>
-
-      <div style={{ position: 'absolute', bottom: 40, opacity: 0.15, fontSize: 10, color: '#fff' }}>
-        DEBUG KEY: {MASTER_KEY}
-      </div>
+      <style>{`
+        input::placeholder {
+          font-size: 10px;
+          letter-spacing: 2px;
+          color: rgba(255,255,255,0.2);
+        }
+      `}</style>
     </div>
   );
 }
