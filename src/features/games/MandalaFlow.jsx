@@ -6,7 +6,6 @@ export function MandalaFlow({ setTab, T, lang }) {
   const [pullCount, setPullCount] = useState(0);
   const [mandalaDNA, setMandalaDNA] = useState(null);
   
-  // Restored all three text states
   const [recipient, setRecipient] = useState('');
   const [message, setMessage] = useState('');
   const [sender, setSender] = useState('');
@@ -83,6 +82,17 @@ export function MandalaFlow({ setTab, T, lang }) {
     setPullCount(0); setStatus('idle');
   };
 
+  // ─── DYNAMIC SHARE TEXT GENERATOR ───
+  const getShareText = () => {
+    const rName = recipient.trim() || (isHindi ? 'आपके' : 'you');
+    const sName = sender.trim() || (isHindi ? 'मेरी' : 'me');
+    
+    if (isHindi) {
+      return `✨ एक मंडला, ${rName} लिए -- ${sName} की ओर से प्यार के साथ\nJSukoon पर बनाया गया`;
+    }
+    return `✨ A mandala created for ${rName} -- with love from ${sName}\nMade with JSukoon`;
+  };
+
   // ─── SHARING LOGIC ───
   const shareStill = async () => {
     setStatus('processing');
@@ -90,17 +100,14 @@ export function MandalaFlow({ setTab, T, lang }) {
     out.width = size; out.height = size;
     const ctx = out.getContext('2d');
     
-    // Draw original mandala
     ctx.drawImage(canvasRef.current, 0, 0);
     
-    // Add dark vignette so text is readable
     const vg = ctx.createRadialGradient(size/2,size/2,size*0.3,size/2,size/2,size*0.72);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(1, 'rgba(0,0,0,0.65)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, size, size);
 
-    // Render Text Variables
     ctx.textAlign = 'center';
     if (recipient.trim()) {
       ctx.font = `300 ${Math.round(size*0.06)}px Georgia, serif`;
@@ -119,16 +126,16 @@ export function MandalaFlow({ setTab, T, lang }) {
       ctx.fillText(fromLine, size/2, size * 0.88);
     }
 
-    // Watermark
     ctx.font = `300 ${Math.round(size*0.025)}px Georgia, serif`;
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.fillText('JSukoon', size/4, size * 0.94);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('JSukoon', size/2, size * 0.94);
     
     out.toBlob(async (blob) => {
       const file = new File([blob], 'mandala.png', { type: 'image/png' });
       if (navigator.share) {
         try {
-          await navigator.share({ files: [file] });
+          // ADDED: text property is now passed directly to the share sheet!
+          await navigator.share({ files: [file], text: getShareText() });
         } catch (e) {
           console.log("Share cancelled or failed", e);
         }
@@ -140,7 +147,6 @@ export function MandalaFlow({ setTab, T, lang }) {
   const shareAnimation = async () => {
     setStatus('recording');
     const stream = canvasRef.current.captureStream(30);
-    // Use MP4 if supported, otherwise webm
     const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
     const recorder = new MediaRecorder(stream, { mimeType: mime });
     const chunks = [];
@@ -150,10 +156,10 @@ export function MandalaFlow({ setTab, T, lang }) {
       const ext = mime.includes('mp4') ? 'mp4' : 'webm';
       const file = new File([new Blob(chunks)], `mandala.${ext}`, { type: mime });
       
-      // Attempt to share through mobile share sheet
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file] });
+          // ADDED: text property is now passed directly to the share sheet!
+          await navigator.share({ files: [file], text: getShareText() });
           setStatus('shared');
           return;
         } catch (err) {
@@ -161,7 +167,6 @@ export function MandalaFlow({ setTab, T, lang }) {
         }
       }
       
-      // Fallback: If share fails, force download so user can manually share it
       const a = document.createElement('a');
       a.href = URL.createObjectURL(file);
       a.download = `mandala.${ext}`;
