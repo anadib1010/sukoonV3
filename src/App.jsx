@@ -35,6 +35,54 @@ import { SoundBath } from './features/games/SoundBath';
 import { MandalaFlow } from './features/games/MandalaFlow';
 import { SeedInMud } from './features/games/SeedInMud';
 
+// ─── YAKSHA GATE COMPONENT ───
+function YakshaGate({ lang, T, onUnlock, onCancel }) {
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(false);
+  const MASTER_KEY = "SUKOON2026";
+  const isHindi = lang === "Hindi";
+
+  const handleCheck = () => {
+    if (input.toUpperCase() === MASTER_KEY) {
+      onUnlock();
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 500);
+    }
+  };
+
+  return (
+    <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, textAlign: "center", background: "#050508" }}>
+      <button onClick={onCancel} style={{ position: 'absolute', top: 20, left: 20, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+        ← {isHindi ? "वापस" : "Back"}
+      </button>
+      
+      <div style={{ fontSize: 40, marginBottom: 20, opacity: 0.6 }}>⚖️</div>
+      <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: '#fff', fontWeight: 300, marginBottom: 40, lineHeight: 1.5 }}>
+        {isHindi ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"' : '"Do you have the key to the next level, the Quieter Place?"'}
+      </h2>
+
+      <div style={{ transform: error ? 'translateX(10px)' : 'none', transition: 'transform 0.1s' }}>
+        <input 
+          autoFocus
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={isHindi ? "कोड डालें" : "ENTER CODE"}
+          style={{ background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#d4af37', textAlign: 'center', fontSize: 20, letterSpacing: 4, outline: 'none', width: '80%', marginBottom: 30 }}
+        />
+      </div>
+
+      <button onClick={handleCheck} style={{ background: 'transparent', border: '1px solid #d4af37', color: '#d4af37', padding: '10px 40px', borderRadius: 30, fontSize: 12, letterSpacing: 2, cursor: 'pointer' }}>
+        {isHindi ? "प्रवेश करें" : "PROCEED"}
+      </button>
+
+      <div style={{ position: 'absolute', bottom: 40, opacity: 0.15, fontSize: 10, color: '#fff' }}>
+        DEBUG KEY: {MASTER_KEY}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     return localStorage.getItem("jsukoon_onboarded") === "true";
@@ -46,6 +94,7 @@ export default function App() {
   
   const [tab, setTab] = useState("home");
   const [mood, setMood] = useState(null);
+  const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
   const getTheme = () => {
     if (themeSource === "manual") return THEMES[themeKey] || THEMES.Void;
@@ -74,7 +123,6 @@ export default function App() {
     return <Onboarding onComplete={completeOnboarding} setThemeKey={setThemeKey} setLang={setLang} T={T} />;
   }
 
-  // Removed messageinbottle and kept the rest
   const validTabs = [
     "home", "focus", "journal", "warmth", "bench", "more", "practice", 
     "legal", "reflection", "progress", "settings", "audio", "crisis", 
@@ -82,19 +130,17 @@ export default function App() {
     "quietcorner", "soundbath", "mandala", "seedinmud"
   ];
 
+  // ─── GATE LOGIC ───
+  const deepLayers = ["vault", "resonance", "stillness", "quietcorner", "soundbath", "mandala", "seedinmud"];
+  const isTryingToEnterDeepLayer = deepLayers.includes(tab);
+
   return (
     <div 
       style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}
-      
-      // ─── NEW: FORWARD SCROLLING FROM THE BACKGROUND ───
       onWheel={(e) => {
-        // e.currentTarget is the background. If the user is hovering over the background, catch it.
         if (e.target === e.currentTarget) {
-          // Find whatever screen is currently active and marked as scrollable
           const activeScrollContainer = document.querySelector('[data-scrollable="true"]');
-          if (activeScrollContainer) {
-            activeScrollContainer.scrollTop += e.deltaY; // Scroll it!
-          }
+          if (activeScrollContainer) activeScrollContainer.scrollTop += e.deltaY;
         }
       }}
     >
@@ -106,47 +152,59 @@ export default function App() {
         boxShadow: "0 0 50px rgba(0,0,0,0.55)" 
       }}>
         
-        {/* Core Navigation */}
-        {tab === "home"       && <Home       setTab={setTab} T={T} lang={lang} />}
-        {tab === "focus"      && <Focus      setTab={setTab} T={T} lang={lang} />}
-        {tab === "journal"    && <Journal    setTab={setTab} T={T} lang={lang} />}
-        {tab === "warmth"     && <WarmthPage setTab={setTab} T={T} lang={lang} />}
-        {tab === "bench"      && <Bench      setTab={setTab} T={T} lang={lang} />}
-        {tab === "more"       && <MorePage   setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
-        {tab === "practice"   && <Practice   setTab={setTab} T={T} lang={lang} />}
-        
-        {/* Utilities & Info */}
-        {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
-        {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
-        {tab === "progress"   && <Progress   setTab={setTab} T={T} lang={lang} />}
-        
-        {/* Deep Layers */}
-        {tab === "descent"    && <TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />}
-        {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
-        {tab === "stillness"  && <Stillness  setTab={setTab} T={T} lang={lang} />}
-        {tab === "resonance"  && <Resonance  setTab={setTab} T={T} lang={lang} />}
-        
-        {/* ─── RESONANCE GAMES ─── */}
-        {tab === "quietcorner"     && <QuietCorner     setTab={setTab} T={T} lang={lang} />}
-        {tab === "soundbath"       && <SoundBath       setTab={setTab} T={T} lang={lang} />}
-        {tab === "mandala"         && <MandalaFlow     setTab={setTab} T={T} lang={lang} />}
-        {tab === "seedinmud"       && <SeedInMud       setTab={setTab} T={T} lang={lang} />}
+        {/* Check if user needs to face the Yaksha Gate first */}
+        {isTryingToEnterDeepLayer && !vaultUnlocked ? (
+          <YakshaGate 
+            lang={lang} 
+            T={T} 
+            onUnlock={() => setVaultUnlocked(true)} 
+            onCancel={() => setTab("practice")} 
+          />
+        ) : (
+          <>
+            {/* Core Navigation */}
+            {tab === "home"       && <Home      setTab={setTab} T={T} lang={lang} />}
+            {tab === "focus"      && <Focus     setTab={setTab} T={T} lang={lang} />}
+            {tab === "journal"    && <Journal    setTab={setTab} T={T} lang={lang} />}
+            {tab === "warmth"     && <WarmthPage setTab={setTab} T={T} lang={lang} />}
+            {tab === "bench"      && <Bench      setTab={setTab} T={T} lang={lang} />}
+            {tab === "more"       && <MorePage   setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
+            {tab === "practice"   && <Practice   setTab={setTab} T={T} lang={lang} />}
+            
+            {/* Utilities & Info */}
+            {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
+            {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
+            {tab === "progress"   && <Progress   setTab={setTab} T={T} lang={lang} />}
+            
+            {/* Deep Layers */}
+            {tab === "descent"    && <TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />}
+            {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
+            {tab === "stillness"  && <Stillness  setTab={setTab} T={T} lang={lang} />}
+            {tab === "resonance"  && <Resonance  setTab={setTab} T={T} lang={lang} />}
+            
+            {/* RESONANCE GAMES */}
+            {tab === "quietcorner"  && <QuietCorner   setTab={setTab} T={T} lang={lang} />}
+            {tab === "soundbath"    && <SoundBath     setTab={setTab} T={T} lang={lang} />}
+            {tab === "mandala"      && <MandalaFlow   setTab={setTab} T={T} lang={lang} />}
+            {tab === "seedinmud"    && <SeedInMud     setTab={setTab} T={T} lang={lang} />}
 
-        {/* Dynamic / Mood */}
-        {tab && tab.startsWith("moodAction_") && (
-          <MoodAction selectedMood={tab.split("_")[1]} goBack={() => setTab("more")} setTab={setTab} T={T} lang={lang} />
+            {/* Dynamic / Mood */}
+            {tab && tab.startsWith("moodAction_") && (
+              <MoodAction selectedMood={tab.split("_")[1]} goBack={() => setTab("more")} setTab={setTab} T={T} lang={lang} />
+            )}
+            
+            {tab === "settings" && (
+              <Settings setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />
+            )}
+            {tab === "audio"   && <AudioPage     setTab={setTab} T={T} lang={lang} />}
+            {tab === "crisis"  && <Crisis        setTab={setTab} T={T} lang={lang} />}
+            {tab === "about"   && <About         setTab={setTab} T={T} lang={lang} />}
+            {tab === "privacy" && <Privacy       setTab={setTab} T={T} lang={lang} />}
+            {tab === "wishes"  && <WishesGallery setTab={setTab} T={T} lang={lang} />}
+          </>
         )}
-        
-        {tab === "settings" && (
-          <Settings setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />
-        )}
-        {tab === "audio"   && <AudioPage     setTab={setTab} T={T} lang={lang} />}
-        {tab === "crisis"  && <Crisis        setTab={setTab} T={T} lang={lang} />}
-        {tab === "about"   && <About         setTab={setTab} T={T} lang={lang} />}
-        {tab === "privacy" && <Privacy       setTab={setTab} T={T} lang={lang} />}
-        {tab === "wishes"  && <WishesGallery setTab={setTab} T={T} lang={lang} />}
 
-        {/* FALLBACK (Only shows if tab is truly invalid) */}
+        {/* FALLBACK */}
         {!validTabs.includes(tab) && !tab.startsWith("moodAction_") && (
           <div className="fade-in" style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
             <span style={{ fontSize: 48, marginBottom: 16 }}>🚧</span>
@@ -155,7 +213,6 @@ export default function App() {
             </button>
           </div>
         )}
-        
       </div>
     </div>
   );
