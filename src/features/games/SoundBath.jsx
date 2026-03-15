@@ -5,7 +5,7 @@ export function SoundBath({ setTab, T, lang }) {
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [resonanceLevel, setResonanceLevel] = useState(0); 
-  const [selectedFreq, setSelectedFreq] = useState(216); // Starting frequency
+  const [selectedFreq, setSelectedFreq] = useState(108); 
   
   const bowlRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -13,8 +13,9 @@ export function SoundBath({ setTab, T, lang }) {
   const gainNodeRef = useRef(null);
   const lastAngleRef = useRef(null);
 
-  // ─── MAGIC SOUND MENU OPTIONS ───
   const FREQUENCIES = [
+    { name: isHindi ? "ब्रह्मांडीय नाद (108 Hz)" : "Cosmic Hum (108 Hz)", value: 108 },
+    { name: isHindi ? "आधार ऊर्जा (174 Hz)" : "Earth Foundation (174 Hz)", value: 174 },
     { name: isHindi ? "गहराव (216 Hz)" : "Deep Grounding (216 Hz)", value: 216 },
     { name: isHindi ? "मुक्ति (396 Hz)" : "Release Fear (396 Hz)", value: 396 },
     { name: isHindi ? "शांति (432 Hz)" : "Healing Calm (432 Hz)", value: 432 },
@@ -99,11 +100,9 @@ export function SoundBath({ setTab, T, lang }) {
     }
   }, [isPlaying, resonanceLevel]);
 
-  // ─── CHANGE THE SOUND LIVE ───
   const changeFrequency = (e) => {
     const newFreq = Number(e.target.value);
     setSelectedFreq(newFreq);
-    // If the music is already playing, change the note instantly!
     if (oscillatorRef.current && audioCtxRef.current) {
       oscillatorRef.current.frequency.setTargetAtTime(newFreq, audioCtxRef.current.currentTime, 0.1);
     }
@@ -125,21 +124,32 @@ export function SoundBath({ setTab, T, lang }) {
     >
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}>
         <button onClick={(e) => { e.stopPropagation(); setTab('resonance'); }}
-          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
+          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>
           ← {isHindi ? 'वापस' : 'Back'}
         </button>
       </div>
 
       <div style={{
-        position: 'absolute', top: '15%', textAlign: 'center',
+        position: 'absolute', top: '12%', textAlign: 'center', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center',
         opacity: resonanceLevel > 50 ? 0 : 1, transition: 'opacity 2s ease', pointerEvents: 'none'
       }}>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: 'rgba(255,255,255,0.8)', fontWeight: 300, margin: '0 0 10px' }}>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: 'rgba(255,255,255,0.9)', fontWeight: 300, margin: '0 0 8px', letterSpacing: '1px' }}>
           {isHindi ? "ध्वनि स्नान" : "Sound Bath"}
         </h2>
-        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '16px', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
+        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '16px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', margin: '0 0 16px' }}>
           {isHindi ? "कटोरे के किनारे के चारों ओर खोजें।" : "Trace in circles along the rim."}
         </p>
+        
+        {/* ─── HEADPHONE BADGE ─── */}
+        <div style={{
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+          padding: '6px 16px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px'
+        }}>
+          <span style={{ fontSize: '14px' }}>🎧</span>
+          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '14px', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.5px' }}>
+            {isHindi ? "हेडफोन या इयरफ़ोन का उपयोग करें" : "Use Headphones or Earphones"}
+          </span>
+        </div>
       </div>
 
       <div 
@@ -151,7 +161,7 @@ export function SoundBath({ setTab, T, lang }) {
           boxShadow: `0 0 ${20 + (resonanceLevel * 2)}px ${bowlColor}, inset 0 0 ${10 + resonanceLevel}px ${bowlColor}`,
           display: "flex", alignItems: "center", justifyContent: "center",
           transition: "box-shadow 0.1s ease, border-color 0.1s ease", cursor: "grab",
-          marginBottom: "40px" // Pushes it up a little bit to make room for the menu
+          marginBottom: "40px", marginTop: "20px"
         }}
       >
         <div style={{
@@ -161,7 +171,6 @@ export function SoundBath({ setTab, T, lang }) {
         }} />
       </div>
 
-      {/* ─── THE DROPDOWN MENU ─── */}
       <div style={{ zIndex: 20 }}>
         <select 
           value={selectedFreq} 
@@ -175,7 +184,9 @@ export function SoundBath({ setTab, T, lang }) {
             fontFamily: "'Cormorant Garamond', serif",
             fontSize: "16px",
             cursor: "pointer",
-            outline: "none"
+            outline: "none",
+            appearance: "none",
+            textAlign: "center"
           }}
         >
           {FREQUENCIES.map((freq) => (
