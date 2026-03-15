@@ -98,14 +98,14 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
         letterSpacing: 1.5,
         fontFamily: 'monospace' 
       }}>
-        KEY: <span style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>{MASTER_KEY}</span>
+        KEY: <span style={{ borderBottom: '1px solid rgba(255,255,255,0.8)' }}>{MASTER_KEY}</span>
       </div>
 
       <style>{`
         input::placeholder {
           font-size: 10px;
           letter-spacing: 2px;
-          color: rgba(255,255,255,0.2);
+          color: rgba(94, 74, 74, 0.2);
         }
       `}</style>
     </div>
