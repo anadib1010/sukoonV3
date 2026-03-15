@@ -300,7 +300,7 @@ export function MandalaFlow({ setTab, T, lang }) {
           {shared && (
             <p style={{ fontSize:11, color:'rgba(255,255,255,0.4)', textAlign:'center', margin:0, lineHeight:1.7 }}>
               {isMobile
-                ? (isHindi ? '📱 WhatsApp या Instagram चुनें।' : '📱 Choose WhatsApp or Instagram from the share sheet..')
+                ? (isHindi ? '📱 WhatsApp या Instagram चुनें।' : '📱 Choose WhatsApp or Instagram from the share sheet.')
                 : (isHindi ? '💻 फ़ाइल डाउनलोड हो गई।' : '💻 Image downloaded — share it anywhere.')}
             </p>
           )}
