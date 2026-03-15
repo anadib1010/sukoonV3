@@ -8,18 +8,20 @@ export function Stillness({ setTab, T, lang }) {
   const [activeTool, setActiveTool] = useState(null);
   const hi = lang === "Hindi";
 
+  // ─── ADDED THE HEAVY STONE TO THE LIST HERE ───
   const TOOLS = [
-    { id: "mirror", icon: "🪞", title: hi ? "बिखरे हुए विचार" : "Shattered Thoughts", desc: hi ? "अहंकार को पीछे छोड़ दें" : "Leave the ego behind" },
-    { id: "star",   icon: "✨", title: hi ? "स्थिर सितारा" : "The Staring Star", desc: hi ? "बिना हिले ध्यान केंद्रित करें" : "Focus without wavering" },
-    { id: "sand",   icon: "⏳", title: hi ? "रेत की पेंटिंग" : "Sand Painting", desc: hi ? "अनित्यता को स्वीकार करें" : "Accept impermanence" }
+    { id: "mirror",     icon: "🪞", title: hi ? "बिखरे हुए विचार" : "Shattered Thoughts", desc: hi ? "अहंकार को पीछे छोड़ दें" : "Leave the ego behind" },
+    { id: "star",       icon: "✨", title: hi ? "स्थिर सितारा" : "The Staring Star", desc: hi ? "बिना हिले ध्यान केंद्रित करें" : "Focus without wavering" },
+    { id: "heavystone", icon: "🪨", title: hi ? "भारी पत्थर" : "The Heavy Stone", desc: hi ? "नियंत्रण को जाने दें" : "Surrender your burdens" },
+    { id: "sand",       icon: "⏳", title: hi ? "रेत की पेंटिंग" : "Sand Painting", desc: hi ? "अनित्यता को स्वीकार करें" : "Accept impermanence" }
   ];
 
   const renderTool = () => {
     switch(activeTool) {
-      case "mirror": return <ShatteredThoughts setTab={() => setActiveTool(null)} T={T} lang={lang} />;
-      case "star": return <TheStaringStar setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
-      case "sand": return <SandPainting setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
-      case "heavystone": return <TheHeavyStone setTab={() => setActiveTool(null)} T={T} lang={lang} />; // ─── ADD THIS LINE ───
+      case "mirror":     return <ShatteredThoughts setTab={() => setActiveTool(null)} T={T} lang={lang} />;
+      case "star":       return <TheStaringStar    setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
+      case "heavystone": return <TheHeavyStone     setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
+      case "sand":       return <SandPainting      setTab={() => setActiveTool(null)} T={T} lang={lang} />; 
       default: return null;
     }
   };
