@@ -3,7 +3,7 @@ import React from 'react';
 export function Resonance({ setTab, T, lang }) {
   const isHindi = lang === "Hindi";
 
-  // ─── THE 5 RESONANCE GAMES ───
+  // ─── THE 4 CORE RESONANCE GAMES ───
   const resonanceGames = [
     {
       id: 'quietcorner',
@@ -27,30 +27,31 @@ export function Resonance({ setTab, T, lang }) {
       icon: "✨"
     },
     {
-      id: 'seedinmud', // Note: Make sure this matches the exact ID in your App.jsx
+      id: 'seedinmud', 
       title: isHindi ? "कीचड़ में बीज" : "Seed in the Mud",
       subtitle: isHindi ? "धैर्य और श्वास" : "Trust & Patience",
       desc: isHindi ? "दिव्य समय और धैर्य का अभ्यास करें।" : "A deep breathing practice to teach the concept of divine timing.",
       icon: "🌱"
-    },
-    {
-      id: 'messageinbottle',
-      title: isHindi ? "बोतल में संदेश" : "Message in a Bottle",
-      subtitle: isHindi ? "कर्म और एकता" : "Karma & Oneness",
-      desc: isHindi ? "ब्रह्मांड में एक सकारात्मक विचार भेजें और देखें कि क्या लौटता है।" : "Release a positive thought into the universe and see what returns.",
-      icon: "🕊️"
     }
   ];
 
   return (
     <div style={{
-      minHeight: '100%', width: '100%', backgroundColor: '#05050a',
-      color: '#fff', padding: '40px 20px', boxSizing: 'border-box',
-      display: 'flex', flexDirection: 'column', alignItems: 'center'
+      height: '100%', 
+      width: '100%', 
+      backgroundColor: '#05050a',
+      color: '#fff', 
+      padding: '40px 20px 80px 20px', 
+      boxSizing: 'border-box',
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center',
+      overflowY: 'auto', 
+      overflowX: 'hidden'
     }}>
       
       {/* ─── HEADER ─── */}
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+      <div style={{ textAlign: 'center', marginBottom: 40, flexShrink: 0 }}>
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, color: '#d4af37', margin: '0 0 10px' }}>
           {isHindi ? "अनुनाद" : "Resonance"}
         </h1>
@@ -62,7 +63,7 @@ export function Resonance({ setTab, T, lang }) {
       </div>
 
       {/* ─── GAME LIST ─── */}
-      <div style={{ width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0 }}>
         {resonanceGames.map((game) => (
           <div 
             key={game.id}
@@ -77,12 +78,10 @@ export function Resonance({ setTab, T, lang }) {
             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
           >
-            {/* Icon */}
             <div style={{ fontSize: 32, background: 'rgba(0,0,0,0.3)', width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               {game.icon}
             </div>
             
-            {/* Text Content */}
             <div style={{ flex: 1 }}>
               <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, margin: '0 0 4px', color: '#fff' }}>
                 {game.title}
@@ -95,7 +94,6 @@ export function Resonance({ setTab, T, lang }) {
               </p>
             </div>
             
-            {/* Arrow */}
             <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 20 }}>
               ›
             </div>
