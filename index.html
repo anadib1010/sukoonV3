@@ -3,8 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>JSukoon</title>
+    
+    <style>
+      /* 1. Fix the 100vw bug by removing default browser margins */
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow-x: hidden; /* Kills horizontal scrolling */
+        background-color: #080808; /* Prevents white flashes during load */
+      }
+
+      /* 2. Hide scrollbars but keep scrolling functionality */
+      ::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+      }
+      * {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
