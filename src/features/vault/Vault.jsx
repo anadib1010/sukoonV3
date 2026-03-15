@@ -220,7 +220,7 @@ export function Vault({ setTab, T, lang }) {
             style={{
               background: "none", 
               border: "none", 
-              color: "rgba(255,255,255,0.15)", 
+              color: "rgba(255,255,255,0.9)", 
               fontSize: 12, 
               letterSpacing: "4px", 
               textTransform: "uppercase", 
