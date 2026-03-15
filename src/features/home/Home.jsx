@@ -24,7 +24,7 @@ export function Home({ setTab, T, lang }) {
     backdropFilter: "blur(25px)",
     WebkitBackdropFilter: "blur(25px)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "32px", // Slightly tighter border radius for smaller size
+    borderRadius: "32px", 
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -32,8 +32,8 @@ export function Home({ setTab, T, lang }) {
     aspectRatio: "1 / 1",
     cursor: "pointer",
     transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-    padding: "16px", // Reduced padding
-    boxShadow: "0 10px 30px rgba(0,0,0,0.15)", // Softer shadow
+    padding: "16px", 
+    boxShadow: "0 10px 30px rgba(0,0,0,0.15)", 
     textAlign: "center",
     boxSizing: "border-box",
     width: "100%",
@@ -42,7 +42,7 @@ export function Home({ setTab, T, lang }) {
 
   const titleStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(14px, 3.5vw, 18px)", // Scaled down slightly
+    fontSize: "clamp(14px, 3.5vw, 18px)", 
     fontWeight: 500,
     marginBottom: "4px",
     letterSpacing: "0.4px",
@@ -52,12 +52,12 @@ export function Home({ setTab, T, lang }) {
 
   const subTextStyle = {
     fontFamily: "'Cormorant Garamond', serif",
-    fontSize: "clamp(11px, 2.5vw, 13px)", // Scaled down slightly
+    fontSize: "clamp(11px, 2.5vw, 13px)", 
     opacity: 0.72,
     lineHeight: 1.3,
     letterSpacing: "0.5px",
     fontWeight: 400,
-    marginTop: "2px", // Tighter margin
+    marginTop: "2px", 
     fontStyle: "italic",
     wordBreak: "break-word",
   };
@@ -68,7 +68,7 @@ export function Home({ setTab, T, lang }) {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "space-between", // Pushes header up and footer down naturally
+      justifyContent: "space-between", 
       background: T.bg,
       overflowX: "hidden",
       boxSizing: "border-box",
@@ -86,7 +86,7 @@ export function Home({ setTab, T, lang }) {
           onTouchEnd={handlePressEnd}
           style={{
             fontFamily: "'Cormorant Garamond', serif",
-            fontSize: "clamp(40px, 10vw, 56px)", // Slightly smaller max size
+            fontSize: "clamp(40px, 10vw, 56px)", 
             color: T.text,
             fontWeight: 300,
             margin: "0 0 2px",
@@ -138,9 +138,9 @@ export function Home({ setTab, T, lang }) {
         <div style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-          gap: "12px", // Tighter gap
+          gap: "12px", 
           width: "100%",
-          maxWidth: "380px", // Reduced from 420px to force the 1/1 aspect ratio to be shorter
+          maxWidth: "380px", 
           boxSizing: "border-box",
         }}>
 
@@ -192,12 +192,35 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       {/* ─── FOOTER ─── */}
-      <div style={{ padding: "4vh 0", textAlign: "center", width: "100%" }}>
-        <button onClick={() => setTab("legal")} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.3 }}>
-          <span style={{ color: T.muted, fontSize: 10, letterSpacing: "2px", textTransform: "uppercase" }}>
-            {hi ? "अस्वीकरण" : "Disclaimer"}
-          </span>
-        </button>
+      <div style={{ padding: "4vh 20px", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
+        <p style={{ 
+          margin: 0, 
+          fontSize: "12px", 
+          color: T.muted, 
+          opacity: 0.6, 
+          lineHeight: 1.4, 
+          fontFamily: "'Cormorant Garamond', serif",
+          letterSpacing: "0.5px"
+        }}>
+          <button 
+            onClick={() => setTab("legal")} 
+            style={{ 
+              background: "none", 
+              border: "none", 
+              cursor: "pointer", 
+              padding: 0, 
+              margin: 0, 
+              color: T.textSoft, 
+              textDecoration: "underline", 
+              fontSize: "inherit", 
+              fontFamily: "inherit" 
+            }}
+          >
+            {hi ? "कानूनी अस्वीकरण" : "Legal Disclaimer"}
+          </button>
+          {" - "}
+          {hi ? "यह कोई चिकित्सा या मनोवैज्ञानिक सहायता ऐप नहीं है।" : "This is not a medical or psychological help app."}
+        </p>
       </div>
 
     </div>
