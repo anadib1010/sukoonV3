@@ -236,7 +236,7 @@ export function TheUnsentLetter({ setTab, T, lang }) {
             {isHindi ? "तार कट गया है।" : "The cord is cut."}
           </p>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, fontFamily: "'Cormorant Garamond', serif", marginTop: 10 }}>
-            {isHindi ? "ऋण क्षमा कर दिया गया है।" : "The debt is forgiven."}
+            {isHindi ? "बोझ मुक्त हो गया है।" : "The burden is released."}
           </p>
         </div>
       )}
