@@ -103,7 +103,7 @@ export default function App() {
         background: T.bg, color: T.text, 
         transition: "background 0.8s ease, color 0.8s ease", 
         overflowX: "hidden", overflowY: "hidden", position: "relative",
-        boxShadow: "0 0 50px rgba(0,0,0,0.5)" 
+        boxShadow: "0 0 50px rgba(0,0,0,0.55)" 
       }}>
         
         {/* Core Navigation */}
