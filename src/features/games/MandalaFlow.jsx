@@ -85,12 +85,21 @@ export function MandalaFlow({ setTab, T, lang }) {
   // ─── DYNAMIC SHARE TEXT GENERATOR ───
   const getShareText = () => {
     const rName = recipient.trim() || (isHindi ? 'आपके' : 'you');
-    const sName = sender.trim() || (isHindi ? 'मेरी' : 'me');
+    const sName = sender.trim() ? (isHindi ? `-- ${sender.trim()} की ओर से प्यार के साथ` : `-- with love from ${sender.trim()}`) : '';
     
     if (isHindi) {
-      return `✨ एक मंडला, ${rName} लिए -- ${sName} की ओर से प्यार के साथ\nJSukoon पर बनाया गया`;
+      return `✨ एक मंडला, ${rName} लिए ${sName}\nJSukoon पर बनाया गया`;
     }
-    return `✨ A mandala created for ${rName} -- with love from ${sName}\nMade with JSukoon`;
+    return `✨ A mandala created for ${rName} ${sName}\nMade with JSukoon`;
+  };
+
+  // ─── AUTO-COPY HELPER ───
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(getShareText());
+    } catch (err) {
+      console.log("Clipboard auto-copy failed", err);
+    }
   };
 
   // ─── SHARING LOGIC ───
@@ -132,15 +141,17 @@ export function MandalaFlow({ setTab, T, lang }) {
     
     out.toBlob(async (blob) => {
       const file = new File([blob], 'mandala.png', { type: 'image/png' });
+      await copyToClipboard(); // Auto-copy the text to clipboard
+      
       if (navigator.share) {
         try {
-          // ADDED: text property is now passed directly to the share sheet!
-          await navigator.share({ files: [file], text: getShareText() });
+          await navigator.share({ files: [file], text: getShareText() }); // Pass text just in case the app supports it
         } catch (e) {
           console.log("Share cancelled or failed", e);
         }
       }
       setStatus('shared');
+      setTimeout(() => setStatus('idle'), 4000); // Reset UI after 4 seconds
     });
   };
 
@@ -156,11 +167,13 @@ export function MandalaFlow({ setTab, T, lang }) {
       const ext = mime.includes('mp4') ? 'mp4' : 'webm';
       const file = new File([new Blob(chunks)], `mandala.${ext}`, { type: mime });
       
+      await copyToClipboard(); // Auto-copy the text to clipboard
+      
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          // ADDED: text property is now passed directly to the share sheet!
           await navigator.share({ files: [file], text: getShareText() });
           setStatus('shared');
+          setTimeout(() => setStatus('idle'), 4000);
           return;
         } catch (err) {
           console.log("Native share rejected the video format. Falling back to download.");
@@ -172,6 +185,7 @@ export function MandalaFlow({ setTab, T, lang }) {
       a.download = `mandala.${ext}`;
       a.click();
       setStatus('shared');
+      setTimeout(() => setStatus('idle'), 4000);
     };
     
     recorder.start();
@@ -241,19 +255,27 @@ export function MandalaFlow({ setTab, T, lang }) {
           />
 
           <div style={{ display:'flex', gap:10, marginTop:4 }}>
-            <button onClick={shareStill} style={{ flex:1, padding:14, borderRadius:8, background:'#111', color:'#fff', border:'1px solid #333', cursor:'pointer' }}>
+            <button onClick={shareStill} disabled={status !== 'idle' && status !== 'shared'} style={{ flex:1, padding:14, borderRadius:8, background:'#111', color:'#fff', border:'1px solid #333', cursor:'pointer' }}>
               🖼️ {isHindi ? "PNG साझा करें" : "Share PNG"}
             </button>
-            <button onClick={shareAnimation} style={{ flex:1, padding:14, borderRadius:8, background:'#fff', color:'#000', fontWeight:'bold', cursor:'pointer' }}>
+            <button onClick={shareAnimation} disabled={status !== 'idle' && status !== 'shared'} style={{ flex:1, padding:14, borderRadius:8, background:'#fff', color:'#000', fontWeight:'bold', cursor:'pointer' }}>
               🌀 {status === 'recording' ? '...' : (isHindi ? "GIF कैप्चर करें और साझा करें" : "Capture gif & share")}
             </button>
           </div>
+          
+          {/* Success Message to tell them to Paste */}
+          {status === 'shared' && (
+            <p style={{ color:'#4ade80', fontSize:13, textAlign:'center', margin:'4px 0 0', fontWeight:'bold', animation:'fadeIn 0.3s ease' }}>
+              {isHindi ? "✓ संदेश कॉपी हो गया! बस पेस्ट करें।" : "✓ Message copied! Just hit Paste."}
+            </p>
+          )}
         </div>
       )}
 
       <style>{`
         @keyframes slowSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .mandala-spin { animation: slowSpin 40s linear infinite; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   );
