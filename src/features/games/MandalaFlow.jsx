@@ -169,13 +169,24 @@ export function MandalaFlow({ setTab, T, lang }) {
       ? `✨ एक मंडला, ${recipient.trim()||'आपके'} लिए\nJSukoon पर बनाया गया`
       : `✨ A mandala created for ${recipient.trim()||'you'}\nMade with JSukoon`;
 
+    // ─── NEW: INSTANT CLIPBOARD BACKUP ───
+    // This saves the text so PC users can easily paste it if WhatsApp drops it
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch (err) {
+      console.log("Clipboard copy failed", err);
+    }
+
     if (navigator.share && navigator.canShare?.({ files:[file] })) {
       try {
         await navigator.share({ files:[file], text });
         setShared(true); setGenerating(false); return;
       } catch(e) { if (e.name === 'AbortError') { setGenerating(false); return; } }
     }
-    // Fallback — download
+    
+    // Fallback — download (Usually triggers on PC)
     const a = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
     a.download = `mandala-for-${safeR}.png`;
