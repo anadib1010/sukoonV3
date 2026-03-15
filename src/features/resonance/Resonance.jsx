@@ -101,6 +101,29 @@ export function Resonance({ setTab, T, lang }) {
         ))}
       </div>
 
+      {/* ─── NEXT LAYER BUTTON ─── */}
+      <div style={{ marginTop: 50, marginBottom: 20, flexShrink: 0 }}>
+        <button 
+          onClick={() => setTab('stillness')}
+          style={{
+            background: 'transparent',
+            border: '1px solid rgba(212, 175, 55, 0.5)',
+            color: '#d4af37',
+            padding: '14px 40px',
+            borderRadius: 30,
+            fontSize: 18,
+            fontFamily: "'Cormorant Garamond', serif",
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            letterSpacing: 1
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)'}
+          onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+        >
+          {isHindi ? "अंतिम स्तर: स्थिरता की ओर बढ़ें" : "Enter the Final Layer: Stillness"}
+        </button>
+      </div>
+
     </div>
   );
 }
