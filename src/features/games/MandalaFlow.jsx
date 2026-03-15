@@ -149,10 +149,13 @@ export function MandalaFlow({ setTab, T, lang }) {
     ctx.fillText(fromLine, size/2, size * 0.88);
     ctx.shadowBlur  = 0;
 
-    // 6. JSukoon watermark bottom
-    ctx.font      = `300 ${Math.round(size*0.026)}px Georgia, serif`;
-    ctx.fillStyle = 'rgba(255,255,255,0.28)';
-    ctx.fillText('JSukoon', size/2, size * 0.94);
+    // 6. JSukoon branding — visible but not intrusive
+    ctx.font      = `300 ${Math.round(size*0.032)}px Georgia, serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur  = 8;
+    ctx.fillText(isHindi ? 'JSukoon पर बनाया गया' : 'Made with JSukoon', size/2, size * 0.94);
+    ctx.shadowBlur  = 0;
 
     out.toBlob(blob => resolve(blob), 'image/png');
   });
