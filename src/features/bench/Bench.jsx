@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-import { getReflection } from '../../utils/quoteEngine';
-
+import { PARK_BENCH_QUOTES } from '../../utils/content';
 import { AUDIO_URLS } from '../../utils/constants';
-
-
 
 function lerpN(a, b, t) { return a + (b - a) * t; }
 
