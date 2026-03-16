@@ -5,8 +5,8 @@ export function Sleep({ setTab, T, lang }) {
 
   // Strict Zero-Light Aesthetics
   const trueBlack = "#000000";
-  const dimAmber = "rgba(184, 93, 25, 0.75)"; 
-  const faintBorder = "rgba(184, 93, 25, 0.15)";
+  const dimAmber = "rgba(184, 93, 25, 0.85)"; 
+  const faintBorder = "rgba(184, 93, 25, 0.25)";
 
   const SLEEP_FEATURES = [
     { 
@@ -48,20 +48,20 @@ export function Sleep({ setTab, T, lang }) {
     }}>
       
       {/* Custom Minimal Nav - No bright buttons */}
-      <div style={{ padding: "24px 20px", opacity: 0.6 }}>
+      <div style={{ padding: "24px 20px", opacity: 0.8 }}>
         <button 
           onClick={() => setTab('home')} 
-          style={{ background: 'none', border: 'none', color: dimAmber, fontSize: 14, cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', color: dimAmber, fontSize: 16, cursor: 'pointer' }}
         >
           ← {hi ? 'वापस' : 'Back'}
         </button>
       </div>
 
       <div style={{ padding: "0 24px 60px" }}>
-        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 300, margin: "0 0 8px 0" }}>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, margin: "0 0 12px 0" }}>
           {hi ? "नींद" : "Sleep"}
         </h1>
-        <p style={{ fontSize: 13, opacity: 0.6, margin: "0 0 40px 0", lineHeight: 1.5 }}>
+        <p style={{ fontSize: 16, opacity: 0.9, margin: "0 0 40px 0", lineHeight: 1.6 }}>
           {hi 
             ? "यहाँ प्रकाश न्यूनतम है। एक अभ्यास चुनें और अपने फोन की चमक कम कर दें।" 
             : "Light is strictly minimized here. Turn down your phone brightness and select a practice."}
@@ -76,14 +76,14 @@ export function Sleep({ setTab, T, lang }) {
               style={{
                 textAlign: "left", background: "transparent",
                 border: `1px solid ${faintBorder}`,
-                borderRadius: 12, padding: "18px",
+                borderRadius: 12, padding: "20px",
                 cursor: "pointer", transition: "background 0.2s"
               }}
             >
-              <div style={{ fontSize: 18, fontFamily: "'Cormorant Garamond', serif", marginBottom: 6, color: dimAmber }}>
+              <div style={{ fontSize: 22, fontFamily: "'Cormorant Garamond', serif", marginBottom: 8, color: dimAmber }}>
                 {hi ? feature.nameH : feature.name}
               </div>
-              <div style={{ fontSize: 12, opacity: 0.5, color: dimAmber, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 15, color: dimAmber, opacity: 0.9, lineHeight: 1.5 }}>
                 {hi ? feature.descH : feature.desc}
               </div>
             </button>
