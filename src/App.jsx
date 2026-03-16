@@ -5,6 +5,7 @@ import { useLS } from './hooks/useLS';
 import { THEMES } from './utils/theme';
 import { creditSession } from './utils/activity';
 
+// Testing auto-deploy
 // ─── INSTANT LOAD ALL ROOMS ───
 import { Onboarding } from './features/onboarding/Onboarding';
 import { Settings } from './features/settings/Settings';
