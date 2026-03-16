@@ -22,7 +22,8 @@ import { About } from './features/about/About';
 import { Privacy } from './features/privacy/Privacy';
 import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
-import { CommunityRoom } from './features/games/CommunityRoom'; 
+import { CommunityRoom } from './features/games/CommunityRoom';
+import { Sleep } from './features/sleep/Sleep'; 
 
 // ─── GAMES & LAYERS ───
 import { TheDescent } from './features/games/TheDescent';
@@ -201,11 +202,13 @@ export default function App() {
     return <Onboarding onComplete={completeOnboarding} setThemeKey={setThemeKey} setLang={setLang} T={T} />;
   }
 
+  // Updated to include all new Sleep feature tabs
   const validTabs = [
     "home", "focus", "journal", "warmth", "bench", "more", "practice", 
     "legal", "reflection", "progress", "settings", "audio", "crisis", 
     "about", "privacy", "wishes", "descent", "vault", "resonance", "stillness",
-    "quietcorner", "soundbath", "mandala", "seedinmud", "community"
+    "quietcorner", "soundbath", "mandala", "seedinmud", "community",
+    "sleep", "sleep_scrambler", "sleep_ember", "sleep_scan", "sleep_beat", "sleep_fire"
   ];
 
   // ─── GATE LOGIC ───
@@ -242,13 +245,14 @@ export default function App() {
           <>
             {/* Core Navigation */}
             {tab === "home"       && <Home      setTab={setTab} T={T} lang={lang} />}
+            {tab === "sleep"      && <Sleep     setTab={setTab} T={T} lang={lang} />} {/* Added Sleep Route */}
             {tab === "focus"      && <Focus     setTab={setTab} T={T} lang={lang} />}
             {tab === "journal"    && <Journal   setTab={setTab} T={T} lang={lang} />}
             {tab === "warmth"     && <WarmthPage setTab={setTab} T={T} lang={lang} />}
             {tab === "bench"      && <Bench     setTab={setTab} T={T} lang={lang} />}
             {tab === "more"       && <MorePage  setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
             {tab === "practice"   && <Practice  setTab={setTab} T={T} lang={lang} />}
-            {tab === "community" && <CommunityRoom setTab={setTab} T={T} lang={lang} />}
+            {tab === "community"  && <CommunityRoom setTab={setTab} T={T} lang={lang} />}
             
             {/* Utilities & Info */}
             {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
