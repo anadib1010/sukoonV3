@@ -250,7 +250,7 @@ export function Home({ setTab, T, lang }) {
           background: "transparent",
           border: "none",
           color: T.text,
-          opacity: 0.4,
+          opacity: 0.15,
           fontSize: 14,
           fontFamily: "'Cormorant Garamond', serif",
           display: "flex",
