@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react'; // Added Analytics Import
+import { track } from '@vercel/analytics'; // VERCEL TRACKING: Imported the custom track function
 import { useLS } from './hooks/useLS';
 import { THEMES } from './utils/theme';
 import { creditSession } from './utils/activity';
@@ -45,8 +46,14 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const MASTER_KEY = "SUKOON2026";
   const isHindi = lang === "Hindi";
 
+  // VERCEL TRACKING: Track when someone sees the gate
+  useEffect(() => {
+    track('Encountered Yaksha Gate');
+  }, []);
+
   const handleCheck = () => {
     if (input.toUpperCase() === MASTER_KEY) {
+      track('Unlocked Deep Layers'); // VERCEL TRACKING: Track successful code entry
       onUnlock();
     } else {
       setError(true);
@@ -171,6 +178,13 @@ export default function App() {
   const [mood, setMood] = useState(null);
   const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
+  // VERCEL TRACKING: Track every time a user switches tabs/features
+  useEffect(() => {
+    if (hasOnboarded) {
+      track('View Feature', { featureName: tab });
+    }
+  }, [tab, hasOnboarded]);
+
   const getTheme = () => {
     if (themeSource === "manual") return THEMES[themeKey] || THEMES.Void;
     if (mood && THEMES[mood]) return THEMES[mood];
@@ -192,6 +206,7 @@ export default function App() {
   const completeOnboarding = () => {
     try {
       localStorage.setItem("jsukoon_onboarded", "true");
+      track('Onboarding Complete'); // VERCEL TRACKING: Track when onboarding is finished
     } catch (error) {
       console.warn("Could not save onboarding state due to browser privacy settings.");
     }
