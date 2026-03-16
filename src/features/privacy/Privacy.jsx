@@ -81,8 +81,8 @@ export function Privacy({ setTab, goBack, T, lang }) {
 
         <Section 
           icon="🚫" 
-          title="No Tracking" 
-          titleH="कोई ट्रैकिंग नहीं"
+          title="No Ad Tracking" 
+          titleH="कोई विज्ञापन ट्रैकिंग नहीं"
           desc="JSukoon does not use third-party tracking cookies or sell your data to advertisers."
           descH="JSukoon थर्ड-पार्टी ट्रैकिंग कुकीज़ का उपयोग नहीं करता है या आपका डेटा विज्ञापनदाताओं को नहीं बेचता है।"
         />
