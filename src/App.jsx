@@ -22,7 +22,7 @@ import { About } from './features/about/About';
 import { Privacy } from './features/privacy/Privacy';
 import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
-import { CommunityRoom } from './features/games/CommunityRoom'; // Adjust path if needed
+import { CommunityRoom } from './features/games/CommunityRoom'; 
 
 // ─── GAMES & LAYERS ───
 import { TheDescent } from './features/games/TheDescent';
@@ -151,8 +151,14 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
 }
 
 export default function App() {
+  // --- BUG FIX: Added try/catch safety net for initial load ---
   const [hasOnboarded, setHasOnboarded] = useState(() => {
-    return localStorage.getItem("jsukoon_onboarded") === "true";
+    try {
+      return localStorage.getItem("jsukoon_onboarded") === "true";
+    } catch (error) {
+      console.warn("Storage blocked by browser, defaulting to onboarding");
+      return false; // If WhatsApp blocks storage, just show them the welcome screen
+    }
   });
 
   const [lang, setLang] = useLS("jsukoon_lang", "English");
@@ -181,8 +187,13 @@ export default function App() {
     return () => clearInterval(browseTimer);
   }, []);
 
+  // --- BUG FIX: Added try/catch safety net for saving onboarding state ---
   const completeOnboarding = () => {
-    localStorage.setItem("jsukoon_onboarded", "true");
+    try {
+      localStorage.setItem("jsukoon_onboarded", "true");
+    } catch (error) {
+      console.warn("Could not save onboarding state due to browser privacy settings.");
+    }
     setHasOnboarded(true);
   };
 
@@ -232,23 +243,23 @@ export default function App() {
             {/* Core Navigation */}
             {tab === "home"       && <Home      setTab={setTab} T={T} lang={lang} />}
             {tab === "focus"      && <Focus     setTab={setTab} T={T} lang={lang} />}
-            {tab === "journal"    && <Journal    setTab={setTab} T={T} lang={lang} />}
+            {tab === "journal"    && <Journal   setTab={setTab} T={T} lang={lang} />}
             {tab === "warmth"     && <WarmthPage setTab={setTab} T={T} lang={lang} />}
-            {tab === "bench"      && <Bench      setTab={setTab} T={T} lang={lang} />}
-            {tab === "more"       && <MorePage   setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
-            {tab === "practice"   && <Practice   setTab={setTab} T={T} lang={lang} />}
+            {tab === "bench"      && <Bench     setTab={setTab} T={T} lang={lang} />}
+            {tab === "more"       && <MorePage  setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />}
+            {tab === "practice"   && <Practice  setTab={setTab} T={T} lang={lang} />}
             {tab === "community" && <CommunityRoom setTab={setTab} T={T} lang={lang} />}
             
             {/* Utilities & Info */}
             {tab === "legal"      && <LegalDisclaimer setTab={setTab} T={T} lang={lang} />}
             {tab === "reflection" && <Reflection setTab={setTab} T={T} lang={lang} />}
-            {tab === "progress"   && <Progress   setTab={setTab} T={T} lang={lang} />}
+            {tab === "progress"   && <Progress  setTab={setTab} T={T} lang={lang} />}
             
             {/* Deep Layers */}
             {tab === "descent"    && <TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />}
-            {tab === "vault"      && <Vault      setTab={setTab} T={T} lang={lang} />}
-            {tab === "stillness"  && <Stillness  setTab={setTab} T={T} lang={lang} />}
-            {tab === "resonance"  && <Resonance  setTab={setTab} T={T} lang={lang} />}
+            {tab === "vault"      && <Vault     setTab={setTab} T={T} lang={lang} />}
+            {tab === "stillness"  && <Stillness setTab={setTab} T={T} lang={lang} />}
+            {tab === "resonance"  && <Resonance setTab={setTab} T={T} lang={lang} />}
             
             {/* RESONANCE GAMES */}
             {tab === "quietcorner"  && <QuietCorner   setTab={setTab} T={T} lang={lang} />}
