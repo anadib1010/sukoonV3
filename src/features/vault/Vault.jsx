@@ -81,7 +81,7 @@ function MysticParticleCanvas() {
   return <canvas ref={canvasRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 0, pointerEvents: 'none' }} />;
 }
 
-// ─── GLASSMORPHISM BUTTON ───
+// ─── GLASSMORPHISM BUTTON (SLEEKER VERSION) ───
 const GlassButton = ({ emoji, label, onClick, isVisible }) => (
   <button 
     onClick={onClick}
@@ -89,14 +89,14 @@ const GlassButton = ({ emoji, label, onClick, isVisible }) => (
       width: "100%", 
       display: 'flex', 
       alignItems: 'center', 
-      gap: '18px',
-      padding: '20px 24px',
-      marginBottom: '16px',
+      gap: '16px',
+      padding: '12px 18px', // Reduced padding for shorter height
+      marginBottom: '10px',  // Tighter spacing between buttons
       background: 'rgba(255, 255, 255, 0.04)', 
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       border: '1px solid rgba(255, 255, 255, 0.08)', 
-      borderRadius: '24px',
+      borderRadius: '20px',
       cursor: isVisible ? 'pointer' : 'default',
       textAlign: 'left',
       boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
@@ -108,18 +108,18 @@ const GlassButton = ({ emoji, label, onClick, isVisible }) => (
     }}
   >
     <div style={{ 
-      width: '50px', height: '50px', borderRadius: '16px', 
+      width: '40px', height: '40px', borderRadius: '12px', // Shrunk emoji box
       background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' // Smaller emoji
     }}>
       {emoji}
     </div>
     <div style={{ flex: 1 }}>
-      <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: '400', color: '#ffffff', margin: '0', letterSpacing: '0.5px' }}>
+      <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '18px', fontWeight: '400', color: '#ffffff', margin: '0', letterSpacing: '0.5px' }}>
         {label}
       </p>
     </div>
-    <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.2)' }}>→</span>
+    <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.2)' }}>→</span>
   </button>
 );
 
@@ -195,7 +195,6 @@ export function Vault({ setTab, T, lang }) {
   return (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      // Deep mystic amber-black gradient background
       background: "radial-gradient(circle at center 30%, #2a0a00 0%, #050201 100%)",
       overflow: "hidden", position: "relative"
     }}>
@@ -204,27 +203,49 @@ export function Vault({ setTab, T, lang }) {
       <MysticParticleCanvas />
 
       {/* Nav */}
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, zIndex: 2, position: 'relative' }}>
+      <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", gap: 16, zIndex: 2, position: 'relative' }}>
         <button onClick={() => setTab("more")} style={{ background: "none", border: "none", fontSize: 20, color: "#fff", cursor: "pointer", opacity: 0.6 }}>←</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 60px", display: "flex", flexDirection: "column", zIndex: 2, position: 'relative' }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 40px", display: "flex", flexDirection: "column", zIndex: 2, position: 'relative' }}>
 
         {/* Title */}
-        <div style={{ textAlign: "center", marginBottom: 8, marginTop: 8 }}>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(36px, 10vw, 52px)", fontWeight: 300, color: "#ffffff", margin: "0 0 4px", letterSpacing: 2, lineHeight: 1 }}>
-            The quieter place
+        <div style={{ textAlign: "center", marginBottom: 4, marginTop: 4 }}>
+          <h1 style={{ 
+            fontFamily: "'Cormorant Garamond', serif", 
+            fontSize: "clamp(20px, 6vw, 26px)", // Shrunk to match home page
+            textTransform: "uppercase", // All caps
+            letterSpacing: "4px", // Added tracking for a premium look
+            fontWeight: 400, 
+            color: "#ffffff", 
+            margin: "0 0 4px", 
+            lineHeight: 1.2 
+          }}>
+            THE QUIETER PLACE
           </h1>
-          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(18px, 5vw, 22px)", color: "rgba(255,255,255,0.6)", margin: 0, letterSpacing: 1 }}>
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16px", color: "rgba(255,255,255,0.6)", margin: 0, letterSpacing: 2 }}>
             अंतर्मन
           </p>
         </div>
 
-        <div style={{ width: 28, height: 1, background: "#ff7e00", margin: "20px auto 32px", opacity: 0.5 }} />
+        {/* Thinner, tighter rule */}
+        <div style={{ width: 28, height: 1, background: "#ff7e00", margin: "12px auto 16px", opacity: 0.5 }} />
 
-        {/* Greeting */}
+        {/* Greeting - Reduced bottom margin */}
         {greeting && (
-          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: "clamp(15px, 4vw, 18px)", color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 1.75, marginBottom: 36, whiteSpace: "pre-line", opacity: showGreet ? 1 : 0, transition: "opacity 1.5s ease", minHeight: 60 }}>
+          <p style={{ 
+            fontFamily: "'Cormorant Garamond', serif", 
+            fontStyle: "italic", 
+            fontSize: "15px", 
+            color: "rgba(255,255,255,0.7)", 
+            textAlign: "center", 
+            lineHeight: 1.6, 
+            marginBottom: 20, // Slashed gap here
+            whiteSpace: "pre-line", 
+            opacity: showGreet ? 1 : 0, 
+            transition: "opacity 1.5s ease", 
+            minHeight: 48 
+          }}>
             {hi ? greeting.hi : greeting.en}
           </p>
         )}
@@ -250,16 +271,16 @@ export function Vault({ setTab, T, lang }) {
         </div>
 
         {/* The Door to Resonance */}
-        <div style={{ marginTop: "40px", textAlign: "center", paddingBottom: "30px" }}>
+        <div style={{ marginTop: "24px", textAlign: "center", paddingBottom: "20px" }}>
           <button 
             onClick={() => setTab("resonance")}
             style={{
-              background: "none", border: "none", color: "rgba(255,255,255,0.5)", 
-              fontSize: 12, letterSpacing: "4px", textTransform: "uppercase", 
-              cursor: "pointer", padding: "20px", transition: "color 0.3s ease"
+              background: "none", border: "none", color: "rgba(255,255,255,0.4)", 
+              fontSize: 11, letterSpacing: "4px", textTransform: "uppercase", 
+              cursor: "pointer", padding: "16px", transition: "color 0.3s ease"
             }}
             onMouseOver={(e) => e.target.style.color = "#ffdb58"}
-            onMouseOut={(e) => e.target.style.color = "rgba(255,255,255,0.5)"}
+            onMouseOut={(e) => e.target.style.color = "rgba(255,255,255,0.4)"}
           >
             {hi ? "गहरा उतरें" : "Descend Further"}
           </button>
