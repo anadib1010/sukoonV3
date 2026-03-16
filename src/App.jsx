@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react'; // Added Analytics Import
 import { useLS } from './hooks/useLS';
 import { THEMES } from './utils/theme';
 import { creditSession } from './utils/activity';
@@ -158,7 +159,7 @@ export default function App() {
       return localStorage.getItem("jsukoon_onboarded") === "true";
     } catch (error) {
       console.warn("Storage blocked by browser, defaulting to onboarding");
-      return false; // If WhatsApp blocks storage, just show them the welcome screen
+      return false; 
     }
   });
 
@@ -188,7 +189,6 @@ export default function App() {
     return () => clearInterval(browseTimer);
   }, []);
 
-  // --- BUG FIX: Added try/catch safety net for saving onboarding state ---
   const completeOnboarding = () => {
     try {
       localStorage.setItem("jsukoon_onboarded", "true");
@@ -202,7 +202,6 @@ export default function App() {
     return <Onboarding onComplete={completeOnboarding} setThemeKey={setThemeKey} setLang={setLang} T={T} />;
   }
 
-  // Updated to include all new Sleep feature tabs
   const validTabs = [
     "home", "focus", "journal", "warmth", "bench", "more", "practice", 
     "legal", "reflection", "progress", "settings", "audio", "crisis", 
@@ -245,7 +244,7 @@ export default function App() {
           <>
             {/* Core Navigation */}
             {tab === "home"       && <Home      setTab={setTab} T={T} lang={lang} />}
-            {tab === "sleep"      && <Sleep     setTab={setTab} T={T} lang={lang} />} {/* Added Sleep Route */}
+            {tab === "sleep"      && <Sleep     setTab={setTab} T={T} lang={lang} />}
             {tab === "focus"      && <Focus     setTab={setTab} T={T} lang={lang} />}
             {tab === "journal"    && <Journal   setTab={setTab} T={T} lang={lang} />}
             {tab === "warmth"     && <WarmthPage setTab={setTab} T={T} lang={lang} />}
@@ -296,6 +295,9 @@ export default function App() {
             </button>
           </div>
         )}
+
+        {/* VERCEL ANALYTICS COMPONENT */}
+        <Analytics />
       </div>
     </div>
   );
