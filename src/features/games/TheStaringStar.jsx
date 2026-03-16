@@ -7,19 +7,18 @@ export function TheStaringStar({ setTab, T, lang }) {
   const [phase, setPhase] = useState('intro');
   const [permissionError, setPermissionError] = useState(false);
   
-  // Refs for high-performance animation loop (bypassing React state for 60fps)
+  // Refs for high-performance animation loop
   const starRef = useRef(null);
   const textRef = useRef(null);
   const animationRef = useRef(null);
   
   // Game variables
-  const brightness = useRef(10); // Starts dim (10%)
+  const brightness = useRef(10); 
   const movement = useRef(0);
   const lastAngles = useRef({ beta: null, gamma: null });
 
   // ─── SENSOR LOGIC ───
   const startGazing = async () => {
-    // Request permission for iOS 13+ devices
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const permission = await DeviceOrientationEvent.requestPermission();
@@ -33,12 +32,8 @@ export function TheStaringStar({ setTab, T, lang }) {
     }
     
     setPhase('active');
-    
-    // Listen to mobile gyro
     window.addEventListener('deviceorientation', handleOrientation);
-    // Listen to PC mouse for testing
     window.addEventListener('mousemove', handleMouseMove);
-    
     gameLoop();
   };
 
@@ -52,24 +47,18 @@ export function TheStaringStar({ setTab, T, lang }) {
     return () => stopGazing();
   }, []);
 
-  // Mobile Gyro Handler
   const handleOrientation = (event) => {
     const { beta, gamma } = event;
     if (lastAngles.current.beta === null) {
       lastAngles.current = { beta, gamma };
       return;
     }
-    
-    // Calculate how much the phone tilted since the last frame
     const deltaBeta = Math.abs(beta - lastAngles.current.beta);
     const deltaGamma = Math.abs(gamma - lastAngles.current.gamma);
-    
-    // Add to current movement pool
     movement.current += (deltaBeta + deltaGamma);
     lastAngles.current = { beta, gamma };
   };
 
-  // PC Testing Handler (Moving the mouse shakes the star)
   const handleMouseMove = (e) => {
     const speed = Math.abs(e.movementX) + Math.abs(e.movementY);
     movement.current += speed * 0.1; 
@@ -79,24 +68,17 @@ export function TheStaringStar({ setTab, T, lang }) {
   const gameLoop = () => {
     if (phase === 'clarity') return;
 
-    // 1. Calculate Wobble vs Stillness
     if (movement.current > 0.5) {
-      // Hands are shaking: dim the star quickly
       brightness.current = Math.max(5, brightness.current - movement.current * 0.5);
     } else {
-      // Hands are completely still: slowly brighten the star
       brightness.current = Math.min(100, brightness.current + 0.15);
     }
 
-    // Decay the movement so it resets if they hold still again
     movement.current *= 0.8; 
 
-    // 2. Update the DOM directly for absolute smoothness
     if (starRef.current) {
       const b = brightness.current;
-      // Scale from 0.5 to 1.5 based on brightness
       const scale = 0.5 + (b / 100); 
-      // Glow gets massive as it gets brighter
       const glow = b * 1.5; 
       
       starRef.current.style.transform = `scale(${scale})`;
@@ -105,11 +87,9 @@ export function TheStaringStar({ setTab, T, lang }) {
     }
 
     if (textRef.current) {
-      // Fade out the instruction text as the star gets brighter
       textRef.current.style.opacity = Math.max(0, 1 - (brightness.current / 30));
     }
 
-    // 3. Win Condition (Clarity)
     if (brightness.current >= 100) {
       stopGazing();
       setPhase('clarity');
@@ -126,7 +106,6 @@ export function TheStaringStar({ setTab, T, lang }) {
       position: 'relative', overflow: 'hidden', color: '#fff'
     }}>
       
-      {/* ─── NAV ─── */}
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 20 }}>
         <button 
           onClick={() => setTab('stillness')} 
@@ -136,7 +115,6 @@ export function TheStaringStar({ setTab, T, lang }) {
         </button>
       </div>
 
-      {/* ─── PHASE 1: INTRO ─── */}
       {phase === 'intro' && (
         <div style={{ textAlign: 'center', width: '80%', maxWidth: 400, animation: 'fadeIn 2s ease' }}>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 300, marginBottom: 20, textTransform: "uppercase", letterSpacing: "2px" }}>
@@ -144,8 +122,8 @@ export function TheStaringStar({ setTab, T, lang }) {
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.6, marginBottom: 40, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
             {isHindi 
-              ? "अपने फोन को दोनों हाथों में लें। बीच में चमकते हुए बिंदु पर ध्यान केंद्रित करें। यदि आपके हाथ कांपते हैं, तो प्रकाश धुंधला हो जाएगा। पूर्ण स्थिरता खोजें, और बिंदु चमकने लगेगा।"
-              : "Hold your device in both hands. Focus your attention on the single point of light. If your hands waver, the light dims. Find absolute physical stillness, and clarity will follow."}
+              ? "अपने फोन को दोनों हाथों में लें। बीच में चमकते हुए बिंदु पर ध्यान केंद्रित करें। यदि आपके हाथ कांपते हैं, तो प्रकाश धुंधला हो जाएगा। एक गहरी, संतुलित स्थिरता खोजें, और बिंदु चमकने लगेगा।"
+              : "Hold your device in both hands. Focus your attention on the single point of light. If your hands waver, the light dims. Find a deep, steady stillness, and clarity will follow."}
           </p>
           
           {permissionError && (
@@ -167,18 +145,14 @@ export function TheStaringStar({ setTab, T, lang }) {
         </div>
       )}
 
-      {/* ─── PHASE 2: ACTIVE GAZING ─── */}
       {phase === 'active' && (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          
-          {/* Fading Instructions */}
           <div ref={textRef} style={{ position: 'absolute', top: '20%', textAlign: 'center', transition: 'opacity 0.1s linear' }}>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, letterSpacing: 2, textTransform: 'uppercase' }}>
-              {isHindi ? "स्थिर रहें" : "Hold Still"}
+              {isHindi ? "स्थिर रहें" : "Hold Steady"}
             </p>
           </div>
 
-          {/* The Star */}
           <div 
             ref={starRef}
             style={{
@@ -192,7 +166,6 @@ export function TheStaringStar({ setTab, T, lang }) {
         </div>
       )}
 
-      {/* ─── PHASE 3: CLARITY (WIN) ─── */}
       {phase === 'clarity' && (
         <div style={{ 
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column', 
@@ -203,7 +176,7 @@ export function TheStaringStar({ setTab, T, lang }) {
             color: '#000', fontSize: 24, fontFamily: "'Cormorant Garamond', serif", 
             letterSpacing: 2, animation: 'textFadeIn 6s forwards', opacity: 0, textTransform: "uppercase"
           }}>
-            {isHindi ? "पूर्ण स्थिरता प्राप्त हुई।" : "Absolute stillness found."}
+            {isHindi ? "गहरी स्थिरता प्राप्त हुई।" : "Deep stillness found."}
           </p>
         </div>
       )}
