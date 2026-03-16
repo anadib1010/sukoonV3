@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 export function TheStaringStar({ setTab, T, lang }) {
   const isHindi = lang === "Hindi";
   
-  // ─── PHASES: 'intro' -> 'active' -> 'samadhi' (win) ───
+  // ─── PHASES: 'intro' -> 'active' -> 'clarity' (win) ───
   const [phase, setPhase] = useState('intro');
   const [permissionError, setPermissionError] = useState(false);
   
@@ -77,7 +77,7 @@ export function TheStaringStar({ setTab, T, lang }) {
 
   // ─── THE PHYSICS LOOP ───
   const gameLoop = () => {
-    if (phase === 'samadhi') return;
+    if (phase === 'clarity') return;
 
     // 1. Calculate Wobble vs Stillness
     if (movement.current > 0.5) {
@@ -109,10 +109,10 @@ export function TheStaringStar({ setTab, T, lang }) {
       textRef.current.style.opacity = Math.max(0, 1 - (brightness.current / 30));
     }
 
-    // 3. Win Condition (Samadhi)
+    // 3. Win Condition (Clarity)
     if (brightness.current >= 100) {
       stopGazing();
-      setPhase('samadhi');
+      setPhase('clarity');
       return;
     }
 
@@ -139,13 +139,13 @@ export function TheStaringStar({ setTab, T, lang }) {
       {/* ─── PHASE 1: INTRO ─── */}
       {phase === 'intro' && (
         <div style={{ textAlign: 'center', width: '80%', maxWidth: 400, animation: 'fadeIn 2s ease' }}>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 300, marginBottom: 20 }}>
-            {isHindi ? "त्राटक" : "Trataka"}
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 300, marginBottom: 20, textTransform: "uppercase", letterSpacing: "2px" }}>
+            {isHindi ? "स्थिरता बिंदु" : "The Stillness Point"}
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.6, marginBottom: 40, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
             {isHindi 
-              ? "अपने फोन को दोनों हाथों में लें। बीच में चमकते हुए तारे पर ध्यान केंद्रित करें और बिल्कुल स्थिर रहें। यदि आपके हाथ कांपते हैं, तो तारा धुंधला हो जाएगा। पूर्ण स्थिरता खोजें।"
-              : "Hold your device in both hands. Focus on the star and remain perfectly still. If your hands waver, the star will dim. Find absolute stillness."}
+              ? "अपने फोन को दोनों हाथों में लें। बीच में चमकते हुए बिंदु पर ध्यान केंद्रित करें। यदि आपके हाथ कांपते हैं, तो प्रकाश धुंधला हो जाएगा। पूर्ण स्थिरता खोजें, और बिंदु चमकने लगेगा।"
+              : "Hold your device in both hands. Focus your attention on the single point of light. If your hands waver, the light dims. Find absolute physical stillness, and clarity will follow."}
           </p>
           
           {permissionError && (
@@ -192,8 +192,8 @@ export function TheStaringStar({ setTab, T, lang }) {
         </div>
       )}
 
-      {/* ─── PHASE 3: SAMADHI (WIN) ─── */}
-      {phase === 'samadhi' && (
+      {/* ─── PHASE 3: CLARITY (WIN) ─── */}
+      {phase === 'clarity' && (
         <div style={{ 
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column', 
           alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
@@ -201,9 +201,9 @@ export function TheStaringStar({ setTab, T, lang }) {
         }}>
           <p style={{ 
             color: '#000', fontSize: 24, fontFamily: "'Cormorant Garamond', serif", 
-            letterSpacing: 2, animation: 'textFadeIn 6s forwards', opacity: 0
+            letterSpacing: 2, animation: 'textFadeIn 6s forwards', opacity: 0, textTransform: "uppercase"
           }}>
-            {isHindi ? "माया मिट जाती है।" : "The illusion fades."}
+            {isHindi ? "पूर्ण स्थिरता प्राप्त हुई।" : "Absolute stillness found."}
           </p>
         </div>
       )}
