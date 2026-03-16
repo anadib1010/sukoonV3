@@ -226,7 +226,7 @@ export function Journal({ setTab, T, lang }) {
                   autoFocus 
                   value={entry} 
                   onChange={(e) => setEntry(e.target.value)} 
-                  placeholder={hi ? "स्वतंत्र रूप से लिखें या माइक का उपयोग करें..." : "Write freely or use the mic..."} 
+                  placeholder={hi ? "स्वतंत्र रूप से लिखें या बोलें। फिर अपने विचारों पर शांत प्रतिबिंब के लिए AI गाइड से पूछें।" : "Write or speak freely. Then ask the AI Guide for a calm reflection on your thoughts."} 
                   style={{ flex: 1, background: "transparent", border: "none", color: T.text, fontFamily: "'Cormorant Garamond', serif", fontSize: "20px", outline: "none", resize: "none", lineHeight: "1.6", paddingBottom: "40px" }} 
                 />
                 <button 
