@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'; // Added useState here!
+import React, { useRef, useState } from 'react';
 import { getReflection } from '../../utils/quoteEngine';
 
 export function Home({ setTab, T, lang }) {
@@ -71,6 +71,7 @@ export function Home({ setTab, T, lang }) {
 
   return (
     <div style={{
+      position: "relative", // Added so the Sleep button anchors to this container
       height: "100%",
       display: "flex",
       flexDirection: "column",
@@ -238,6 +239,29 @@ export function Home({ setTab, T, lang }) {
           {hi ? "यह कोई चिकित्सा या मनोवैज्ञानिक सहायता ऐप नहीं है।" : "This is not a medical or psychological help app."}
         </p>
       </div>
+
+      {/* ─── QUIET SLEEP ROOM GATEWAY ─── */}
+      <button 
+        onClick={() => setTab("sleep")}
+        style={{
+          position: "absolute",
+          bottom: 24,
+          right: 24,
+          background: "transparent",
+          border: "none",
+          color: T.text,
+          opacity: 0.4,
+          fontSize: 14,
+          fontFamily: "'Cormorant Garamond', serif",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          cursor: "pointer",
+          zIndex: 10
+        }}
+      >
+        <span>🌙</span> {hi ? "नींद" : "Sleep"}
+      </button>
 
     </div>
   );
