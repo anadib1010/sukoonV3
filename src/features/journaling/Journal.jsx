@@ -247,6 +247,24 @@ export function Journal({ setTab, T, lang }) {
                 </button>
               </div>
 
+              {/* --- PRIVACY DISCLAIMER ADDED HERE --- */}
+              <div style={{ 
+                opacity: 0.5, 
+                fontSize: '0.85rem', 
+                textAlign: 'center', 
+                marginBottom: '20px', 
+                padding: '0 10px', 
+                lineHeight: '1.5',
+                fontStyle: 'italic'
+              }}>
+                <p style={{ margin: '0 0 8px 0' }}>
+                  “This is a private space. Your words remain on your device and are not stored or read by us.
+                </p>
+                <p style={{ margin: 0 }}>
+                  To help improve Sukoon, we use anonymous usage analytics. This only tells us general activity, such as how many people opened a feature. It never identifies you and never records what you write.”
+                </p>
+              </div>
+
               {(isThinking || aiResponse) && (
                 <div className="fade-in" style={{ padding: "20px", borderRadius: "20px", background: `${T.accent}15`, border: `1px solid ${T.accent}40`, marginBottom: "20px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>

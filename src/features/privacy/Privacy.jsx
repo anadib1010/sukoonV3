@@ -37,6 +37,31 @@ export function Privacy({ setTab, goBack, T, lang }) {
           </p>
         </div>
 
+        {/* --- NEW HIGHLIGHTED PRIVACY & ANALYTICS DISCLAIMER --- */}
+        <div style={{ 
+          opacity: 1.0, 
+          marginBottom: '32px', 
+          lineHeight: '1.6',
+          padding: '20px',
+          borderLeft: `3px solid ${T.accent}`, // Creates the colored highlight line
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '0 12px 12px 0'
+        }}>
+          <h3 style={{ marginBottom: '12px', fontWeight: '600', color: T.text, fontSize: 18, fontFamily: "'Cormorant Garamond',serif" }}>
+            {hi ? "आपकी गोपनीयता और एनालिटिक्स" : "Your Privacy & Analytics"}
+          </h3>
+          <p style={{ marginBottom: '10px', color: T.textSoft, fontSize: 15 }}>
+            {hi 
+              ? "यह एक निजी स्थान है। आपके शब्द आपके डिवाइस पर ही रहते हैं और हमारे द्वारा न तो सहेजे जाते हैं और न ही पढ़े जाते हैं।" 
+              : "This is a private space. Your words remain on your device and are not stored or read by us."}
+          </p>
+          <p style={{ color: T.textSoft, fontSize: 15, margin: 0 }}>
+            {hi 
+              ? "सुकून को बेहतर बनाने में मदद के लिए, हम अनाम उपयोग एनालिटिक्स का उपयोग करते हैं। यह हमें केवल सामान्य गतिविधि बताता है, जैसे कि कितने लोगों ने कोई सुविधा खोली। यह कभी भी आपकी पहचान नहीं करता है और आपके द्वारा लिखी गई बातों को कभी रिकॉर्ड नहीं करता है।" 
+              : "To help improve Sukoon, we use anonymous usage analytics. This only tells us general activity, such as how many people opened a feature. It never identifies you and never records what you write."}
+          </p>
+        </div>
+
         {/* Sections */}
         <Section 
           icon="📱" 
