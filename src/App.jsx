@@ -26,7 +26,8 @@ import { Privacy } from './features/privacy/Privacy';
 import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
 import { CommunityRoom } from './features/games/CommunityRoom';
-import { Sleep } from './features/sleep/Sleep'; 
+import { Sleep } from './features/sleep/Sleep';
+import { DeepRhythm } from './features/sleep/DeepRhythm'; 
 
 // ─── SLEEP ROOM ACTIVITIES ───
 import { DreamScrambler } from './features/sleep/DreamScrambler';
@@ -145,6 +146,7 @@ function AppContent() {
             <Route path="/sleep_ember" element={<DimmingEmber setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_scan" element={<HeavyScan setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_fire" element={<MidnightFire setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_beat" element={<DeepRhythm setTab={setTab} T={T} lang={lang} />} />
             {/* Note: /sleep_beat is omitted as you mentioned it was an audio-only tool for the future */}
 
             <Route path="/focus" element={<Focus setTab={setTab} T={T} lang={lang} />} />
