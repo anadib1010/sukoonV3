@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 export function DimmingEmber({ setTab, T, lang }) {
   const hi = lang === "Hindi";
-  const [phase, setPhase] = useState('intro'); // intro, breathe
-  const [breathState, setBreathState] = useState('inhale'); // inhale (4), hold (7), exhale (8)
+  const [phase, setPhase] = useState('intro');
+  const [breathState, setBreathState] = useState('inhale');
   const [cycle, setCycle] = useState(0);
 
   const trueBlack = "#000000";
@@ -11,17 +11,13 @@ export function DimmingEmber({ setTab, T, lang }) {
 
   useEffect(() => {
     if (phase !== 'breathe') return;
-
     let timer;
     if (breathState === 'inhale') {
       timer = setTimeout(() => setBreathState('hold'), 4000);
     } else if (breathState === 'hold') {
       timer = setTimeout(() => setBreathState('exhale'), 7000);
     } else if (breathState === 'exhale') {
-      timer = setTimeout(() => {
-        setCycle(c => c + 1);
-        setBreathState('inhale');
-      }, 8000);
+      timer = setTimeout(() => { setCycle(c => c + 1); setBreathState('inhale'); }, 8000);
     }
     return () => clearTimeout(timer);
   }, [breathState, phase]);
@@ -32,7 +28,6 @@ export function DimmingEmber({ setTab, T, lang }) {
     if (breathState === 'exhale') return hi ? "छोड़ें (8)" : "Exhale (8)";
   };
 
-  // The ember gets dimmer with every cycle
   const emberOpacity = Math.max(0.1, 0.85 - (cycle * 0.1));
 
   return (
@@ -60,22 +55,24 @@ export function DimmingEmber({ setTab, T, lang }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* The Breathing Ember */}
           <div style={{
-            width: 100, height: 100, borderRadius: '50%',
-            backgroundColor: dimAmber,
-            opacity: emberOpacity,
+            width: 100, height: 100, borderRadius: '50%', backgroundColor: dimAmber, opacity: emberOpacity,
             boxShadow: `0 0 40px 10px rgba(184, 93, 25, ${emberOpacity * 0.5})`,
             transform: breathState === 'inhale' ? 'scale(1.5)' : breathState === 'hold' ? 'scale(1.5)' : 'scale(0.8)',
             transition: breathState === 'inhale' ? 'transform 4s ease-out' : breathState === 'hold' ? 'transform 7s linear' : 'transform 8s ease-in-out',
             marginBottom: 60
           }} />
-
           <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: dimAmber, letterSpacing: 2, transition: 'opacity 0.5s' }}>
             {getInstruction()}
           </p>
         </div>
       )}
+
+      {/* ─── DISCLAIMER ─── */}
+      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
+        {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
+      </div>
+
     </div>
   );
 }

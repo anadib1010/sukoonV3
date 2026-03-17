@@ -12,7 +12,6 @@ export function MidnightFire({ setTab, T, lang }) {
   const handleBurn = () => {
     if (!thought.trim()) return;
     setIsBurning(true);
-    // Reset after the burn animation completes
     setTimeout(() => {
       setThought("");
       setIsBurning(false);
@@ -29,7 +28,6 @@ export function MidnightFire({ setTab, T, lang }) {
       </div>
 
       <div style={{ width: '85%', maxWidth: 400, textAlign: 'center' }}>
-        
         {!isBurning ? (
           <div style={{ animation: 'fadeIn 2s ease' }}>
             <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: dimAmber, fontWeight: 300, marginBottom: 16 }}>
@@ -74,7 +72,11 @@ export function MidnightFire({ setTab, T, lang }) {
             {thought}
           </p>
         )}
+      </div>
 
+      {/* ─── DISCLAIMER ─── */}
+      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
+        {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
       </div>
 
       <style>{`

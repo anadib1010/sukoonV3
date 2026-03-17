@@ -57,7 +57,7 @@ export function Sleep({ setTab, T, lang }) {
         </button>
       </div>
 
-      <div style={{ padding: "0 24px 60px" }}>
+      <div style={{ padding: "0 24px 20px", flex: 1 }}>
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, margin: "0 0 12px 0" }}>
           {hi ? "नींद" : "Sleep"}
         </h1>
@@ -90,6 +90,12 @@ export function Sleep({ setTab, T, lang }) {
           ))}
         </div>
       </div>
+
+      {/* ─── DISCLAIMER ─── */}
+      <div style={{ padding: "20px", textAlign: "center", opacity: 0.4, fontSize: "11px", letterSpacing: "0.5px" }}>
+        {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
+      </div>
+
     </div>
   );
 }

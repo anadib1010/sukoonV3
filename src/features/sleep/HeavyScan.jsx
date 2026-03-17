@@ -22,9 +22,7 @@ export function HeavyScan({ setTab, T, lang }) {
 
   useEffect(() => {
     if (step >= SCAN_SCRIPT.length - 1) return;
-    const timer = setTimeout(() => {
-      setStep(s => s + 1);
-    }, 10000); // 10 seconds per prompt
+    const timer = setTimeout(() => { setStep(s => s + 1); }, 10000); 
     return () => clearTimeout(timer);
   }, [step]);
 
@@ -47,6 +45,11 @@ export function HeavyScan({ setTab, T, lang }) {
       >
         {hi ? SCAN_SCRIPT[step].hi : SCAN_SCRIPT[step].en}
       </p>
+
+      {/* ─── DISCLAIMER ─── */}
+      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
+        {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
+      </div>
 
       <style>{`
         @keyframes amberFade {

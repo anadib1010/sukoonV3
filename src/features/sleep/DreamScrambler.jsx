@@ -21,7 +21,6 @@ export function DreamScrambler({ setTab, T, lang }) {
   const dimAmber = "rgba(184, 93, 25, 0.7)";
 
   useEffect(() => {
-    // Shuffles to a random prompt every 8 seconds to allow for fade in/out
     const timer = setInterval(() => {
       setIndex(Math.floor(Math.random() * PROMPTS.length));
     }, 8000);
@@ -52,6 +51,11 @@ export function DreamScrambler({ setTab, T, lang }) {
         >
           {hi ? PROMPTS[index].hi : PROMPTS[index].en}
         </h2>
+      </div>
+
+      {/* ─── DISCLAIMER ─── */}
+      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
+        {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
       </div>
 
       <style>{`
