@@ -92,7 +92,7 @@ export function Sleep({ setTab, T, lang }) {
       </div>
 
       {/* ─── DISCLAIMER ─── */}
-      <div style={{ padding: "20px", textAlign: "center", opacity: 0.4, fontSize: "11px", letterSpacing: "0.5px" }}>
+      <div style={{ padding: "20px", textAlign: "center", opacity: 0.6, fontSize: "11px", letterSpacing: "0.5px" }}>
         {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
       </div>
 
