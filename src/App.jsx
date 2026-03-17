@@ -28,6 +28,12 @@ import MoodAction from './MoodAction';
 import { CommunityRoom } from './features/games/CommunityRoom';
 import { Sleep } from './features/sleep/Sleep'; 
 
+// ─── SLEEP ROOM ACTIVITIES ───
+import { DreamScrambler } from './features/sleep/DreamScrambler';
+import { DimmingEmber } from './features/sleep/DimmingEmber';
+import { HeavyScan } from './features/sleep/HeavyScan';
+import { MidnightFire } from './features/sleep/MidnightFire';
+
 // ─── GAMES & LAYERS ───
 import { TheDescent } from './features/games/TheDescent';
 import { Vault } from './features/vault/Vault';
@@ -133,6 +139,14 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep" element={<Sleep setTab={setTab} T={T} lang={lang} />} />
+            
+            {/* ─── NEW SLEEP ROUTES ─── */}
+            <Route path="/sleep_scrambler" element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_ember" element={<DimmingEmber setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_scan" element={<HeavyScan setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_fire" element={<MidnightFire setTab={setTab} T={T} lang={lang} />} />
+            {/* Note: /sleep_beat is omitted as you mentioned it was an audio-only tool for the future */}
+
             <Route path="/focus" element={<Focus setTab={setTab} T={T} lang={lang} />} />
             <Route path="/journal" element={<Journal setTab={setTab} T={T} lang={lang} />} />
             <Route path="/warmth" element={<WarmthPage setTab={setTab} T={T} lang={lang} />} />
