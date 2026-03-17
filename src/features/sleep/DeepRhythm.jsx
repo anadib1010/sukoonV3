@@ -6,7 +6,7 @@ export function DeepRhythm({ setTab, T, lang }) {
   
   const audioCtxRef = useRef(null);
   const gainNodeRef = useRef(null);
-  const wakeLockRef = useRef(null); // Reference for the screen lock
+  const wakeLockRef = useRef(null); 
 
   const trueBlack = "#000000";
   const dimAmber = "rgba(184, 93, 25, 0.85)";
@@ -32,13 +32,34 @@ export function DeepRhythm({ setTab, T, lang }) {
       }
     }
 
-    // Cleanup when leaving the page
     return () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
       }
     };
+  }, [isPlaying]);
+
+  // ─── 30-MINUTE AUTO FADE OUT ───
+  useEffect(() => {
+    let timeoutId;
+    
+    if (isPlaying) {
+      // Set a timer for 30 minutes (1,800,000 milliseconds)
+      timeoutId = setTimeout(() => {
+        // Trigger a very slow, 10-second fade out so it doesn't jolt them awake
+        if (gainNodeRef.current && audioCtxRef.current) {
+          gainNodeRef.current.gain.setTargetAtTime(0, audioCtxRef.current.currentTime, 5);
+          
+          setTimeout(() => {
+            if (audioCtxRef.current) audioCtxRef.current.suspend();
+            setIsPlaying(false); // This updates the UI and releases the wake lock
+          }, 10000);
+        }
+      }, 1800000); 
+    }
+
+    return () => clearTimeout(timeoutId);
   }, [isPlaying]);
 
   // ─── AUDIO ENGINE ───
@@ -108,8 +129,13 @@ export function DeepRhythm({ setTab, T, lang }) {
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: dimAmber, fontWeight: 300, marginBottom: 16 }}>
           {hi ? "गहरी लय" : "Deep Rhythm"}
         </h2>
-        <p style={{ color: dimAmber, opacity: 0.5, fontSize: 16, marginBottom: 60, fontStyle: 'italic', fontFamily: "'Cormorant Garamond', serif", padding: '0 20px' }}>
+        <p style={{ color: dimAmber, opacity: 0.5, fontSize: 16, marginBottom: 12, fontStyle: 'italic', fontFamily: "'Cormorant Garamond', serif", padding: '0 20px' }}>
           {hi ? "एक धीमी गूंज जो रात में घुल जाती है।" : "A slow, steady hum that fades into the night."}
+        </p>
+        
+        {/* NEW: Explicitly stating the 30-minute duration */}
+        <p style={{ color: dimAmber, opacity: 0.3, fontSize: 13, marginBottom: 50, letterSpacing: 1 }}>
+          {hi ? "30 मिनट के बाद स्वतः बंद हो जाएगा" : "Auto-fades after 30 minutes"}
         </p>
 
         <div style={{ position: 'relative', width: 120, height: 120, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
