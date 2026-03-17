@@ -74,7 +74,7 @@ export function Resonance({ setTab, T, lang }) {
 
       {/* ─── HEADER ─── */}
       <div style={{ textAlign: 'center', marginBottom: 40, flexShrink: 0 }}>
-        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, color: '#d4af37', margin: '0 0 10px' }}>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, color: '#376ed4', margin: '0 0 10px' }}>
           {isHindi ? "अनुनाद" : "Resonance"}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, fontStyle: 'italic', maxWidth: 300, margin: '0 auto' }}>
