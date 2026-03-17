@@ -18,7 +18,7 @@ export function DreamScrambler({ setTab, T, lang }) {
   const [index, setIndex] = useState(0);
 
   const trueBlack = "#000000";
-  const dimAmber = "rgba(184, 93, 25, 0.7)";
+  const dimAmber = "rgba(184, 93, 25, 0.8)";
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -37,7 +37,7 @@ export function DreamScrambler({ setTab, T, lang }) {
       </div>
 
       <div style={{ textAlign: 'center', padding: '0 40px' }}>
-        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: dimAmber, opacity: 0.4, marginBottom: 40, letterSpacing: 1 }}>
+        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: dimAmber, opacity: 0.7, marginBottom: 40, letterSpacing: 1 }}>
           {hi ? "इस छवि की कल्पना करें। फिर इसे जाने दें।" : "Picture this image. Then let it go."}
         </p>
         
