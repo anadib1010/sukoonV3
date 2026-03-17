@@ -134,7 +134,7 @@ export function TheStaringStar({ setTab, T, lang }) {
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.6, marginBottom: 24, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
             {isHindi 
               ? "अपने फोन को दोनों हाथों में लें। बीच में चमकते हुए बिंदु पर ध्यान केंद्रित करें। यदि आपके हाथ कांपते हैं, तो प्रकाश धुंधला हो जाएगा। एक गहरी, संतुलित स्थिरता खोजें, और बिंदु चमकने लगेगा।"
-              : "Hold your device in both hands. Focus your attention on the single point of light. If your hands waver, the light dims. Find a deep, steady stillness, and clarity will follow."}
+              : "Hold your mobile device in both hands. Focus your attention on the single point of light. If your hands waver, the light dims. Find a deep, steady stillness, and clarity will follow."}
           </p>
 
           {/* ─── DROP DOWN SELECTOR ─── */}
