@@ -33,7 +33,7 @@ export function MidnightFire({ setTab, T, lang }) {
             <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: dimAmber, fontWeight: 300, marginBottom: 16 }}>
               {hi ? "आधी रात की आग" : "Midnight Fire"}
             </h2>
-            <p style={{ color: dimAmber, opacity: 0.6, fontSize: 15, lineHeight: 1.6, marginBottom: 30, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
+            <p style={{ color: dimAmber, opacity: 0.9, fontSize: 18, lineHeight: 1.6, marginBottom: 30, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
               {hi 
                 ? "जो विचार आपको जगाए हुए हैं, उन्हें यहां रखें। फिर उन्हें अंधेरे में जलने दें।" 
                 : "Leave the thoughts keeping you awake here. Then let them burn away in the dark."}
