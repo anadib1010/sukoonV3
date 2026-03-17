@@ -139,7 +139,7 @@ export function Resonance({ setTab, T, lang }) {
             transition: 'all 0.3s ease',
             letterSpacing: 1
           }}
-          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(184, 223, 55, 0.1)'}
+          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(55, 153, 223, 0.1)'}
           onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
         >
           {isHindi ? "अंतिम स्तर: स्थिरता की ओर बढ़ें" : "Enter the Final Layer: Stillness"}
