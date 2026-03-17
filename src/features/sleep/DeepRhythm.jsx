@@ -129,7 +129,7 @@ export function DeepRhythm({ setTab, T, lang }) {
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: dimAmber, fontWeight: 300, marginBottom: 16 }}>
           {hi ? "गहरी लय" : "Deep Rhythm"}
         </h2>
-        <p style={{ color: dimAmber, opacity: 0.5, fontSize: 16, marginBottom: 12, fontStyle: 'italic', fontFamily: "'Cormorant Garamond', serif", padding: '0 20px' }}>
+        <p style={{ color: dimAmber, opacity: 0.6, fontSize: 16, marginBottom: 12, fontStyle: 'italic', fontFamily: "'Cormorant Garamond', serif", padding: '0 20px' }}>
           {hi ? "एक धीमी गूंज जो रात में घुल जाती है।" : "A slow, steady hum that fades into the night."}
         </p>
         
@@ -152,7 +152,7 @@ export function DeepRhythm({ setTab, T, lang }) {
               width: 80, height: 80, borderRadius: '50%',
               background: 'transparent', border: `1px solid ${dimAmber}`, color: dimAmber,
               fontSize: 14, letterSpacing: 2, cursor: 'pointer', zIndex: 10, transition: 'all 0.3s',
-              boxShadow: isPlaying ? `0 0 30px rgba(184, 93, 25, 0.2)` : 'none'
+              boxShadow: isPlaying ? `0 0 30px rgba(184, 93, 25, 0.6)` : 'none'
             }}
           >
             {isPlaying ? (hi ? "रोकें" : "PAUSE") : (hi ? "सुनें" : "PLAY")}
@@ -160,7 +160,7 @@ export function DeepRhythm({ setTab, T, lang }) {
         </div>
       </div>
 
-      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
+      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.6, fontSize: '11px', color: dimAmber }}>
         {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
       </div>
 
