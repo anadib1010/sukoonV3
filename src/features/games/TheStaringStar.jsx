@@ -5,6 +5,7 @@ export function TheStaringStar({ setTab, T, lang }) {
   
   // ─── PHASES: 'intro' -> 'active' -> 'clarity' (win) ───
   const [phase, setPhase] = useState('intro');
+  const [difficulty, setDifficulty] = useState('medium'); 
   const [permissionError, setPermissionError] = useState(false);
   
   // Refs for high-performance animation loop
@@ -16,6 +17,14 @@ export function TheStaringStar({ setTab, T, lang }) {
   const brightness = useRef(10); 
   const movement = useRef(0);
   const lastAngles = useRef({ beta: null, gamma: null });
+
+  // ─── DIFFICULTY CONFIGURATION ───
+  const levels = {
+    easy:    { threshold: 1.2, recovery: 0.30, label: isHindi ? "आसान" : "Easy", desc: isHindi ? "शुरुआत करने के लिए एक आसान स्तर।" : "A gentle starting point." },
+    medium:  { threshold: 0.6, recovery: 0.15, label: isHindi ? "मध्यम" : "Medium", desc: isHindi ? "एकाग्रता के लिए एक संतुलित चुनौती।" : "A balanced challenge for your focus." },
+    hard:    { threshold: 0.3, recovery: 0.08, label: isHindi ? "कठिन" : "Hard", desc: isHindi ? "गहरी शारीरिक स्थिरता की आवश्यकता है।" : "Requires deep physical stillness." },
+    extreme: { threshold: 0.1, recovery: 0.04, label: isHindi ? "अत्यंत कठिन" : "Extreme", desc: isHindi ? "पूर्ण स्थिरता की आवश्यकता है। हर गति मायने रखती है।" : "Absolute stillness required. Every movement matters." }
+  };
 
   // ─── SENSOR LOGIC ───
   const startGazing = async () => {
@@ -68,10 +77,12 @@ export function TheStaringStar({ setTab, T, lang }) {
   const gameLoop = () => {
     if (phase === 'clarity') return;
 
-    if (movement.current > 0.5) {
+    const currentLevel = levels[difficulty];
+
+    if (movement.current > currentLevel.threshold) {
       brightness.current = Math.max(5, brightness.current - movement.current * 0.5);
     } else {
-      brightness.current = Math.min(100, brightness.current + 0.15);
+      brightness.current = Math.min(100, brightness.current + currentLevel.recovery);
     }
 
     movement.current *= 0.8; 
@@ -120,11 +131,46 @@ export function TheStaringStar({ setTab, T, lang }) {
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 300, marginBottom: 20, textTransform: "uppercase", letterSpacing: "2px" }}>
             {isHindi ? "स्थिरता बिंदु" : "The Stillness Point"}
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.6, marginBottom: 40, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.6, marginBottom: 24, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
             {isHindi 
               ? "अपने फोन को दोनों हाथों में लें। बीच में चमकते हुए बिंदु पर ध्यान केंद्रित करें। यदि आपके हाथ कांपते हैं, तो प्रकाश धुंधला हो जाएगा। एक गहरी, संतुलित स्थिरता खोजें, और बिंदु चमकने लगेगा।"
               : "Hold your device in both hands. Focus your attention on the single point of light. If your hands waver, the light dims. Find a deep, steady stillness, and clarity will follow."}
           </p>
+
+          {/* ─── DROP DOWN SELECTOR ─── */}
+          <div style={{ marginBottom: 20, position: 'relative' }}>
+            <select 
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 20px', borderRadius: '15px',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff', fontSize: '14px', outline: 'none', appearance: 'none',
+                textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit'
+              }}
+            >
+              {Object.keys(levels).map(lvl => (
+                <option key={lvl} value={lvl} style={{ background: '#111' }}>
+                  {levels[lvl].label}
+                </option>
+              ))}
+            </select>
+            <div style={{ marginTop: '12px', fontSize: '13px', color: '#ff7e00', opacity: 0.8, minHeight: '36px', lineHeight: 1.4 }}>
+              {levels[difficulty].desc}
+            </div>
+          </div>
+
+          {/* ─── EDUCATIONAL TEXT (NON-CLINICAL) ─── */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', marginBottom: 30, textAlign: 'left', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h4 style={{ fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', margin: '0 0 8px' }}>
+              {isHindi ? "यह कैसे काम करता है" : "How it works"}
+            </h4>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.5', margin: 0 }}>
+              {isHindi 
+                ? "उच्च स्तर प्रकाश को गति के प्रति अधिक संवेदनशील बनाते हैं। कठिन स्तरों पर अभ्यास करने से आप अपनी शारीरिक स्थिरता और एकाग्रता को चुनौती देते हैं।"
+                : "Higher levels make the light more sensitive to movement. By practicing at harder levels, you challenge your ability to remain completely still and focused."}
+            </p>
+          </div>
           
           {permissionError && (
             <p style={{ color: '#ff8a8a', fontSize: 14, marginBottom: 20 }}>
