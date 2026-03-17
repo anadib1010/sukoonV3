@@ -97,7 +97,7 @@ export function Resonance({ setTab, T, lang }) {
               display: 'flex', alignItems: 'center', gap: 20,
               transition: 'background 0.3s ease, transform 0.2s ease'
             }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)'}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(55, 160, 212, 0.1)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
           >
             <div style={{ fontSize: 32, background: 'rgba(0,0,0,0.3)', width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -129,8 +129,8 @@ export function Resonance({ setTab, T, lang }) {
           onClick={() => setTab('stillness')}
           style={{
             background: 'transparent',
-            border: '1px solid rgba(212, 175, 55, 0.5)',
-            color: '#d4af37',
+            border: '1px solid rgba((55, 153, 223, 0.5)',
+            color: '#377ed4',
             padding: '14px 40px',
             borderRadius: 30,
             fontSize: 18,
