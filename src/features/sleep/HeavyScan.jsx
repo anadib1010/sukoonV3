@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const SCAN_SCRIPT = [
   { en: "Close your eyes.", hi: "अपनी आँखें बंद करें।" },
@@ -17,22 +17,48 @@ export function HeavyScan({ setTab, T, lang }) {
   const hi = lang === "Hindi";
   const [step, setStep] = useState(0);
   const [isActive, setIsActive] = useState(false);
+  
+  const wakeLockRef = useRef(null);
 
   const trueBlack = "#000000";
   const dimAmber = "rgba(184, 93, 25, 0.85)";
 
+  // ─── SCREEN WAKE LOCK ───
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if (isActive && 'wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.error("Wake Lock failed:", err);
+        }
+      }
+    };
+
+    if (isActive) {
+      requestWakeLock();
+    } else {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    }
+
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [isActive]);
+
   // ─── AUDIO ENGINE (TEXT TO SPEECH) ───
   const speak = (text) => {
     if (!window.speechSynthesis || !text) return;
-    
-    // Clear any currently playing speech
     window.speechSynthesis.cancel(); 
     
     const utterance = new SpeechSynthesisUtterance(text);
-    // Set language accent based on user selection
     utterance.lang = hi ? 'hi-IN' : 'en-US';
-    
-    // Slow down the rate and slightly lower the pitch for a calmer voice
     utterance.rate = 0.7; 
     utterance.pitch = 0.8; 
     
@@ -44,19 +70,17 @@ export function HeavyScan({ setTab, T, lang }) {
     setStep(0);
   };
 
-  // ─── PROGRESSION LOOP ───
   useEffect(() => {
     if (!isActive) return;
     if (step >= SCAN_SCRIPT.length - 1) {
-      // End of script
+      // Release wake lock when finished
+      setIsActive(false); 
       return; 
     }
 
-    // Speak the current step
     const currentText = hi ? SCAN_SCRIPT[step].hi : SCAN_SCRIPT[step].en;
     speak(currentText);
 
-    // Wait 12 seconds before moving to the next line
     const timer = setTimeout(() => {
       setStep(s => s + 1);
     }, 12000); 
@@ -64,12 +88,9 @@ export function HeavyScan({ setTab, T, lang }) {
     return () => clearTimeout(timer);
   }, [step, isActive, hi]);
 
-  // Stop talking immediately if they hit "Back" and leave the page
   useEffect(() => {
     return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
     };
   }, []);
 
@@ -116,7 +137,6 @@ export function HeavyScan({ setTab, T, lang }) {
         </p>
       )}
 
-      {/* ─── DISCLAIMER ─── */}
       <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
         {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
       </div>

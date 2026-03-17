@@ -4,52 +4,74 @@ export function DeepRhythm({ setTab, T, lang }) {
   const hi = lang === "Hindi";
   const [isPlaying, setIsPlaying] = useState(false);
   
-  // References to hold our audio engine
   const audioCtxRef = useRef(null);
   const gainNodeRef = useRef(null);
+  const wakeLockRef = useRef(null); // Reference for the screen lock
 
   const trueBlack = "#000000";
   const dimAmber = "rgba(184, 93, 25, 0.85)";
 
+  // ─── SCREEN WAKE LOCK ───
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if (isPlaying && 'wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.error("Wake Lock failed:", err);
+        }
+      }
+    };
+
+    if (isPlaying) {
+      requestWakeLock();
+    } else {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    }
+
+    // Cleanup when leaving the page
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [isPlaying]);
+
   // ─── AUDIO ENGINE ───
   const toggleAudio = () => {
     if (!isPlaying) {
-      // Start or Resume Audio
       if (!audioCtxRef.current) {
-        // Initialize the Web Audio API
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         audioCtxRef.current = ctx;
 
-        // Create the deep base sound (a low 85Hz sine wave)
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.value = 85; 
 
-        // Create a volume control (Gain Node)
         const gainNode = ctx.createGain();
-        gainNode.gain.value = 0; // Start quiet so it doesn't pop
+        gainNode.gain.value = 0; 
         gainNodeRef.current = gainNode;
 
-        // Create a slow pulse (LFO) to make the hum rhythmically rise and fall
         const lfo = ctx.createOscillator();
         lfo.type = 'sine';
-        lfo.frequency.value = 0.15; // Very slow pulse
+        lfo.frequency.value = 0.15; 
 
         const lfoGain = ctx.createGain();
-        lfoGain.gain.value = 0.4; // How deep the pulse goes
+        lfoGain.gain.value = 0.4; 
 
-        // Connect the wires
         lfo.connect(lfoGain);
         lfoGain.connect(gainNode.gain);
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
 
-        // Start playing
         osc.start();
         lfo.start();
       }
       
-      // Fade the sound in gently
       audioCtxRef.current.resume();
       if (gainNodeRef.current) {
         gainNodeRef.current.gain.setTargetAtTime(0.5, audioCtxRef.current.currentTime, 2);
@@ -57,9 +79,7 @@ export function DeepRhythm({ setTab, T, lang }) {
       setIsPlaying(true);
 
     } else {
-      // Pause Audio gently
       if (gainNodeRef.current && audioCtxRef.current) {
-        // Fade out quickly to avoid a clicking noise
         gainNodeRef.current.gain.setTargetAtTime(0, audioCtxRef.current.currentTime, 0.5);
         setTimeout(() => {
           if (audioCtxRef.current) audioCtxRef.current.suspend();
@@ -69,12 +89,9 @@ export function DeepRhythm({ setTab, T, lang }) {
     }
   };
 
-  // Clean up the audio if the user leaves the page while it's playing
   useEffect(() => {
     return () => {
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close();
-      }
+      if (audioCtxRef.current) audioCtxRef.current.close();
     };
   }, []);
 
@@ -96,7 +113,6 @@ export function DeepRhythm({ setTab, T, lang }) {
         </p>
 
         <div style={{ position: 'relative', width: 120, height: 120, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Visual Slow Pulse */}
           {isPlaying && (
             <>
               <div style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', border: `1px solid ${dimAmber}`, animation: 'ripple 6.6s infinite linear' }} />
@@ -118,8 +134,7 @@ export function DeepRhythm({ setTab, T, lang }) {
         </div>
       </div>
 
-      {/* ─── DISCLAIMER ─── */}
-      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.6, fontSize: '11px', color: dimAmber }}>
+      <div style={{ position: 'absolute', bottom: 20, width: '100%', textAlign: 'center', opacity: 0.3, fontSize: '11px', color: dimAmber }}>
         {hi ? "यह एक साधारण ऐप है और कोई चिकित्सा या मनोवैज्ञानिक सलाह ऐप नहीं है।" : "This is a simple app and not a medical or psychological advice app."}
       </div>
 
