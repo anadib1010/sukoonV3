@@ -29,9 +29,9 @@ export function Sleep({ setTab, T, lang }) {
     },
     { 
       id: 'sleep_beat', 
-      name: 'Heartbeat Entrainment', nameH: 'हृदय की लय', 
-      desc: 'Deep brown noise and descending delta pulses (Audio only).', 
-      descH: 'गहरी ध्वनि और डेल्टा तरंगें (केवल ऑडियो)।' 
+      name: 'Deep Rhythm', nameH: 'गहरी लय', 
+      desc: 'A slow, steady acoustic hum that gradually fades into the night.', 
+      descH: 'एक धीमी, गहरी ध्वनि जो धीरे-धीरे रात में विलीन हो जाती है।' 
     },
     { 
       id: 'sleep_fire', 
