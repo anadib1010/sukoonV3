@@ -10,34 +10,39 @@ export function MidnightFire({ setTab, T, lang }) {
   const dimAmber = "rgba(184, 93, 25, 0.85)";
   const faintBorder = "rgba(184, 93, 25, 0.25)";
 
+  // THE PROFESSIONAL HANDSHAKE
   const handleBurn = async () => {
-  if (!thought.trim()) return;
-  
-  // 1. Start the Magic Animation immediately!
-  setIsBurning(true);
+    if (!thought.trim()) return;
 
-  // 2. The Invisible Handshake (Sending it to Mumbai)
-  // We don't tell the user "Saving...", we just do it quietly
-  try {
-    const { error } = await supabase
-      .from('burnt_thoughts')
-      .insert([{ content: thought }]);
-      
-    if (error) console.error("Bridge Error:", error.message);
-  } catch (err) {
-    console.error("System Error:", err);
-  }
+    // 1. Start the Magic Animation immediately!
+    setIsBurning(true);
 
-  // 3. Wait for the fire to finish, then clear the screen
-  setTimeout(() => {
-    setThought("");
-    setIsBurning(false);
-  }, 6500); 
-};
+    // 2. The Invisible Handshake (Sending it to Mumbai)
+    try {
+      const { error } = await supabase
+        .from('burnt_thoughts') // Make sure your table name is exactly this in Supabase
+        .insert([{ content: thought }]);
+
+      if (error) {
+        console.error("Bridge Error:", error.message);
+      } else {
+        console.log("Thought successfully reached Mumbai! 🔥");
+      }
+    } catch (err) {
+      console.error("System Error:", err);
+    }
+
+    // 3. Wait for the fire to finish (6.5 seconds), then clear the screen
+    setTimeout(() => {
+      setThought("");
+      setIsBurning(false);
+    }, 6500);
+  };
 
   return (
     <div style={{ height: '100%', width: '100%', backgroundColor: trueBlack, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
       
+      {/* ─── BACK BUTTON ─── */}
       <div style={{ position: 'absolute', top: 20, left: 20 }}>
         <button onClick={() => setTab('sleep')} style={{ background: 'none', border: 'none', color: dimAmber, opacity: 0.6, cursor: 'pointer', fontSize: 16 }}>
           ← {hi ? 'वापस' : 'Back'}
@@ -72,6 +77,7 @@ export function MidnightFire({ setTab, T, lang }) {
 
             <button 
               onClick={handleBurn}
+              disabled={!thought.trim()}
               style={{
                 marginTop: 24, background: 'transparent', border: `1px solid ${dimAmber}`,
                 color: dimAmber, padding: '10px 40px', borderRadius: 30,
@@ -87,9 +93,8 @@ export function MidnightFire({ setTab, T, lang }) {
             fontFamily: "'Cormorant Garamond', serif", fontSize: 26, color: dimAmber,
             lineHeight: 1.5, wordWrap: 'break-word'
           }}>
-            {/* Break the thought into individual letters for the particle effect */}
+            {/* Particle Effect: Breaking text into characters */}
             {thought.split('').map((char, index) => {
-              // Generate a random horizontal drift and a random delay for each letter
               const randomX = (Math.random() - 0.5) * 80; 
               const randomDelay = Math.random() * 1.5; 
               
@@ -99,7 +104,7 @@ export function MidnightFire({ setTab, T, lang }) {
                   style={{
                     display: 'inline-block',
                     whiteSpace: 'pre-wrap',
-                    '--rx': `${randomX}px`, // Pass the random X drift to CSS
+                    '--rx': `${randomX}px`, 
                     animation: `burnLetter 5s ease-in forwards`,
                     animationDelay: `${randomDelay}s`
                   }}
@@ -131,13 +136,11 @@ export function MidnightFire({ setTab, T, lang }) {
             filter: blur(0px); 
           }
           20% { 
-            /* Turns bright ochre/orange like an ember catching fire */
             color: #ff8c00; 
             transform: translate(0, -5px) scale(1.1); 
             filter: blur(1px); 
           }
           100% { 
-            /* Floats up, drifts sideways, fades to ash, and disappears */
             opacity: 0; 
             color: #2a0f05; 
             transform: translate(var(--rx), -150px) scale(0.4); 
