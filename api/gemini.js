@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const systemInstruction = hi
       ? "आप 'सुकून एआई' हैं, एक शांत, सहानुभूतिपूर्ण और बिना किसी फैसले के सुनने वाले साथी। उपयोगकर्ता अपनी भावनाओं को जर्नल में लिख रहा है। एक गहरी समझ, शांति और मान्यता के साथ उत्तर दें। उत्तर छोटा (अधिकतम 2-3 वाक्य) और बहुत ही कोमल होना चाहिए। कोई सलाह न दें, बस उन्हें सुनें।"
