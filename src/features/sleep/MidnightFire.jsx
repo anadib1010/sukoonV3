@@ -10,27 +10,26 @@ export function MidnightFire({ setTab, T, lang }) {
   const dimAmber = "rgba(184, 93, 25, 0.85)";
   const faintBorder = "rgba(184, 93, 25, 0.25)";
 
-  // THE PROFESSIONAL HANDSHAKE WITH HAPTIC FEEDBACK
+  // THE "CALM TECHNOLOGY" SENSORY HANDSHAKE
   const handleBurn = async () => {
     if (!thought.trim()) return;
 
-    // A. Setup the Sound (Vite looks in the /public folder automatically)
+    // A. Setup the "Gentle" Sound
     const audio = new Audio('/whoosh.mp3');
-    audio.volume = 0.3; // A soft, gentle whisper
+    audio.volume = 0.2; // 20% volume - very soft, like a whisper
 
     // 1. Start the Magic Animation!
     setIsBurning(true);
 
-    // 2. TOUCH: The Haptic Vibration
+    // 2. SOFT TOUCH: A tiny "tick" instead of a "thump"
     if (navigator.vibrate) {
-      navigator.vibrate(100); 
+      navigator.vibrate(40); // 40ms is very short and feels premium
     }
     
-    // 3. SOUND: Play the Whoosh
-    // We use .catch() just in case the browser blocks it
+    // 3. GENTLE SOUND: Play the soft Whoosh
     audio.play().catch(() => console.log("Sound ready for next time!"));
 
-    // 4. MEMORY: The Invisible Handshake to Mumbai
+    // 4. MEMORY: The Invisible Handshake to Mumbai (Supabase)
     try {
       const { error } = await supabase
         .from('burnt_thoughts') 
