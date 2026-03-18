@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
 import { useLS } from '../../hooks/useLS';
 import { readEmotionalCtx, clearEmotionalCtx } from '../../utils/context';
+import { supabase } from '../../supabase';
 
 export function Journal({ setTab, T, lang }) {
   const hi = lang === "Hindi";
@@ -111,13 +112,34 @@ export function Journal({ setTab, T, lang }) {
     if (contextData) { clearEmotionalCtx(); setContextData(null); }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!entry.trim()) return;
+
+    // 1. Pack the box for Mumbai (making sure it matches our 'content' column)
+    const packageForCloud = {
+      content: entry
+    };
+
+    // 2. Send it across the bridge!
+    const { error } = await supabase
+      .from('entries')
+      .insert([packageForCloud]);
+
+    // 3. Check if the delivery failed
+    if (error) {
+      console.error("Bridge Error:", error);
+      alert(hi ? "क्लाउड में सहेजा नहीं जा सका।" : "Could not save to the cloud.");
+      return; 
+    }
+
+    // 4. If delivery was successful, save it to the local backpack too
     const newRecord = {
       id: Date.now(), type: "Journal", text: entry, ai: aiResponse,
       date: new Date().toLocaleDateString(hi ? 'hi-IN' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
     };
     setHistory([newRecord, ...history]);
+    
+    // 5. Clean up the room
     if (isRecording) toggleRecording();
     window.speechSynthesis.cancel();
     if (contextData) { clearEmotionalCtx(); setContextData(null); }
