@@ -57,8 +57,9 @@ export function Journal({ setTab, T, lang }) {
   const fetchCloudHistory = async () => {
     setIsLoadingCloud(true);
     try {
+      // 🔗 THE FIX: Changed 'entries' to 'journal_entries'
       const { data, error } = await supabase
-        .from('entries')
+        .from('journal_entries')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -203,8 +204,9 @@ export function Journal({ setTab, T, lang }) {
       content: entry 
     };
 
+    // 🔗 THE FIX: Changed 'entries' to 'journal_entries'
     const { error } = await supabase
-      .from('entries')
+      .from('journal_entries')
       .insert([packageForCloud]);
 
     if (error) {
@@ -443,7 +445,7 @@ export function Journal({ setTab, T, lang }) {
                 </button>
               </div>
 
-              {/* PRIVACY DISCLAIMER (Expanded for Clarity) */}
+              {/* PRIVACY DISCLAIMER */}
               <div style={{ 
                 opacity: 0.5, 
                 fontSize: '0.85rem', 
