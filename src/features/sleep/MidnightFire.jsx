@@ -10,33 +10,42 @@ export function MidnightFire({ setTab, T, lang }) {
   const dimAmber = "rgba(184, 93, 25, 0.85)";
   const faintBorder = "rgba(184, 93, 25, 0.25)";
 
-  // THE PROFESSIONAL HANDSHAKE
+  // THE PROFESSIONAL HANDSHAKE WITH HAPTIC FEEDBACK
   const handleBurn = async () => {
     if (!thought.trim()) return;
 
-    // 1. Start the Magic Animation immediately!
+    // A. Setup the Sound (Vite looks in the /public folder automatically)
+    const audio = new Audio('/whoosh.mp3');
+    audio.volume = 0.3; // A soft, gentle whisper
+
+    // 1. Start the Magic Animation!
     setIsBurning(true);
 
-    // 2. The Invisible Handshake (Sending it to Mumbai)
+    // 2. TOUCH: The Haptic Vibration
+    if (navigator.vibrate) {
+      navigator.vibrate(100); 
+    }
+    
+    // 3. SOUND: Play the Whoosh
+    // We use .catch() just in case the browser blocks it
+    audio.play().catch(() => console.log("Sound ready for next time!"));
+
+    // 4. MEMORY: The Invisible Handshake to Mumbai
     try {
       const { error } = await supabase
-        .from('burnt_thoughts') // Make sure your table name is exactly this in Supabase
+        .from('burnt_thoughts') 
         .insert([{ content: thought }]);
 
-      if (error) {
-        console.error("Bridge Error:", error.message);
-      } else {
-        console.log("Thought successfully reached Mumbai! 🔥");
-      }
+      if (error) console.error("Database Bridge Error:", error.message);
     } catch (err) {
       console.error("System Error:", err);
     }
 
-    // 3. Wait for the fire to finish (6.5 seconds), then clear the screen
+    // 5. CLEANUP: Clear the screen after the fire finishes
     setTimeout(() => {
       setThought("");
       setIsBurning(false);
-    }, 6500);
+    }, 6500); 
   };
 
   return (
