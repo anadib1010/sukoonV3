@@ -1,23 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
-import { useLS } from '../../hooks/useLS';
 import { readEmotionalCtx, clearEmotionalCtx } from '../../utils/context';
 import { supabase } from '../../supabase';
 
 export function Journal({ setTab, T, lang }) {
   const hi = lang === "Hindi";
-  
-  const [activeTab, setActiveTab] = useState("write"); 
+ 
+  const [activeTab, setActiveTab] = useState("write");
   const [isComposing, setIsComposing] = useState(false);
   const [entry, setEntry] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [isThinking, setIsThinking] = useState(false);
-  const [history, setHistory] = useLS("jsukoon_master_history", []);
-  
+
+  // ─── CLOUD HISTORY STATE ───
+  const [cloudHistory, setCloudHistory] = useState([]);
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
+ 
   // ─── VOICE STATE ───
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef(null);
-  
+ 
   // ─── THE BRIDGE MEMORY ───
   const [contextData, setContextData] = useState(null);
 
@@ -31,10 +33,34 @@ export function Journal({ setTab, T, lang }) {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true; 
+      recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
     }
   }, []);
+
+  // ─── CLOUD FETCH LOGIC (WITH TRACKING DEVICE) ───
+  const fetchCloudHistory = async () => {
+    setIsLoadingCloud(true);
+    try {
+      const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // 🚨 THE TRACKING DEVICE
+      console.log("Backpack from Mumbai contains:", data);
+      if (error) {
+        console.error("Supabase Guard Error:", error.message);
+      }
+
+      if (error) throw error;
+      setCloudHistory(data || []);
+    } catch (err) {
+      console.error("Cloud Fetch Error:", err.message);
+    } finally {
+      setIsLoadingCloud(false);
+    }
+  };
 
   // ─── VOICE RECORDING (SPEECH TO TEXT) ───
   const toggleRecording = () => {
@@ -49,7 +75,7 @@ export function Journal({ setTab, T, lang }) {
     } else {
       try {
         recognitionRef.current.lang = hi ? 'hi-IN' : 'en-US';
-        
+       
         recognitionRef.current.onresult = (event) => {
           let finalTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -61,7 +87,7 @@ export function Journal({ setTab, T, lang }) {
             setEntry((prev) => prev + finalTranscript);
           }
         };
-        
+       
         recognitionRef.current.onerror = (event) => {
           console.error("Speech Recognition Error:", event.error);
           setIsRecording(false);
@@ -71,7 +97,7 @@ export function Journal({ setTab, T, lang }) {
         };
 
         recognitionRef.current.onend = () => setIsRecording(false);
-        
+       
         recognitionRef.current.start();
         setIsRecording(true);
       } catch (e) {
@@ -85,11 +111,11 @@ export function Journal({ setTab, T, lang }) {
   // ─── AI VOICE (TEXT TO SPEECH) ───
   const speakText = (text) => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); 
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = hi ? 'hi-IN' : 'en-US';
       utterance.rate = 0.9;  
-      utterance.pitch = 0.95; 
+      utterance.pitch = 0.95;
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -108,56 +134,53 @@ export function Journal({ setTab, T, lang }) {
   const handleDiscard = () => {
     setEntry(""); setAiResponse(""); setIsComposing(false);
     if (isRecording) toggleRecording();
-    window.speechSynthesis.cancel(); 
+    window.speechSynthesis.cancel();
     if (contextData) { clearEmotionalCtx(); setContextData(null); }
   };
 
   const handleSave = async () => {
     if (!entry.trim()) return;
 
-    // 1. Pack the box for Mumbai (making sure it matches our 'content' column)
+    // 1. Pack the box for Mumbai
     const packageForCloud = {
       content: entry
     };
 
-    // 2. Send it across the bridge!
+    // 2. Send it across the bridge
     const { error } = await supabase
       .from('entries')
       .insert([packageForCloud]);
 
-    // 3. Check if the delivery failed
+    // 3. Check if delivery failed
     if (error) {
       console.error("Bridge Error:", error);
       alert(hi ? "क्लाउड में सहेजा नहीं जा सका।" : "Could not save to the cloud.");
-      return; 
+      return;
     }
-
-    // 4. If delivery was successful, save it to the local backpack too
-    const newRecord = {
-      id: Date.now(), type: "Journal", text: entry, ai: aiResponse,
-      date: new Date().toLocaleDateString(hi ? 'hi-IN' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-    };
-    setHistory([newRecord, ...history]);
-    
-    // 5. Clean up the room
+   
+    // 4. Clean up
     if (isRecording) toggleRecording();
     window.speechSynthesis.cancel();
     if (contextData) { clearEmotionalCtx(); setContextData(null); }
-    setEntry(""); setAiResponse(""); setIsComposing(false); setActiveTab("history");
+    setEntry(""); setAiResponse(""); setIsComposing(false); 
+    
+    // 5. Switch tab and fetch new data
+    setActiveTab("history");
+    fetchCloudHistory();
   };
 
   const askGemini = async () => {
     if (!entry.trim()) return;
-    if (isRecording) toggleRecording(); 
+    if (isRecording) toggleRecording();
     setIsThinking(true);
-    
+   
     // iOS Safari Audio Unlock
     if ('speechSynthesis' in window) {
       const unlockUtterance = new SpeechSynthesisUtterance('');
-      unlockUtterance.volume = 0; 
+      unlockUtterance.volume = 0;
       window.speechSynthesis.speak(unlockUtterance);
     }
-    
+   
     try {
       // We securely call our own Vercel backend instead of exposing the API key
       const response = await fetch('/api/gemini', {
@@ -175,14 +198,14 @@ export function Journal({ setTab, T, lang }) {
       }
 
       setAiResponse(data.response);
-      speakText(data.response); 
+      speakText(data.response);
 
     } catch (error) {
       console.error("Bridge Error:", error);
-      const fallbackText = hi 
-        ? "मुझे क्षमा करें, मैं अभी आपसे जुड़ नहीं पा रहा हूँ। कृपया अपनी प्रविष्टि सहेजें।" 
+      const fallbackText = hi
+        ? "मुझे क्षमा करें, मैं अभी आपसे जुड़ नहीं पा रहा हूँ। कृपया अपनी प्रविष्टि सहेजें।"
         : "I'm sorry, I'm having trouble connecting to the universe right now. Please save your entry.";
-      
+     
       setAiResponse(fallbackText);
       speakText(fallbackText);
     } finally {
@@ -193,11 +216,11 @@ export function Journal({ setTab, T, lang }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, color: T.text }}>
       <PageNav onBack={() => setTab("home")} onHome={() => setTab("home")} T={T} lang={lang} />
-      
+     
       {!isComposing && (
         <div style={{ display: "flex", justifyContent: "center", gap: "30px", padding: "20px 0" }}>
           <button onClick={() => setActiveTab("write")} style={{ background: "none", border: "none", color: activeTab === "write" ? T.accent : T.muted, fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", cursor: "pointer", borderBottom: activeTab === "write" ? `1px solid ${T.accent}` : "none" }}>{hi ? "लिखें" : "Write"}</button>
-          <button onClick={() => setActiveTab("history")} style={{ background: "none", border: "none", color: activeTab === "history" ? T.accent : T.muted, fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", cursor: "pointer", borderBottom: activeTab === "history" ? `1px solid ${T.accent}` : "none" }}>{hi ? "इतिहास" : "History"}</button>
+          <button onClick={() => { setActiveTab("history"); fetchCloudHistory(); }} style={{ background: "none", border: "none", color: activeTab === "history" ? T.accent : T.muted, fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", cursor: "pointer", borderBottom: activeTab === "history" ? `1px solid ${T.accent}` : "none" }}>{hi ? "इतिहास" : "History"}</button>
         </div>
       )}
 
@@ -211,17 +234,17 @@ export function Journal({ setTab, T, lang }) {
                   {hi ? "आपने हाल ही में कुछ जलाया था। जर्नल को पता है। आज का विषय वहीं से शुरू होगा।" : "You burnt something recently. The Journal knows. Today's prompt will meet you there."}
                 </p>
               )}
-              
+             
               <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "320px", marginTop: "10px" }}>
-                <button 
-                  onClick={() => setIsComposing(true)} 
+                <button
+                  onClick={() => setIsComposing(true)}
                   style={{ width: "100%", padding: "16px", borderRadius: "40px", background: T.accent, border: "none", color: T.bg, fontFamily: "'Cormorant Garamond', serif", fontSize: "20px", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}
                 >
                   <span style={{ fontSize: "22px" }}>✍️</span> {hi ? "लिखना शुरू करें" : "Write an entry"}
                 </button>
 
-                <button 
-                  onClick={() => { setIsComposing(true); setTimeout(toggleRecording, 300); }} 
+                <button
+                  onClick={() => { setIsComposing(true); setTimeout(toggleRecording, 300); }}
                   style={{ width: "100%", padding: "16px", borderRadius: "40px", background: `${T.accent}15`, border: `1px solid ${T.accent}50`, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "20px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.3s" }}
                 >
                   <span style={{ fontSize: "22px" }}>🎙️</span> {hi ? "बोलना शुरू करें" : "Record an entry"}
@@ -244,21 +267,21 @@ export function Journal({ setTab, T, lang }) {
 
               {/* TEXT AREA WITH EMBEDDED MIC BUTTON */}
               <div style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, minHeight: "200px", marginBottom: "20px" }}>
-                <textarea 
-                  autoFocus 
-                  value={entry} 
-                  onChange={(e) => setEntry(e.target.value)} 
-                  placeholder={hi ? "स्वतंत्र रूप से लिखें या बोलें। फिर अपने विचारों पर शांत प्रतिबिंब के लिए AI गाइड से पूछें।" : "Write or speak freely. Then ask the AI Guide for a calm reflection on your thoughts."} 
-                  style={{ flex: 1, background: "transparent", border: "none", color: T.text, fontFamily: "'Cormorant Garamond', serif", fontSize: "20px", outline: "none", resize: "none", lineHeight: "1.6", paddingBottom: "40px" }} 
+                <textarea
+                  autoFocus
+                  value={entry}
+                  onChange={(e) => setEntry(e.target.value)}
+                  placeholder={hi ? "स्वतंत्र रूप से लिखें या बोलें। फिर अपने विचारों पर शांत प्रतिबिंब के लिए AI गाइड से पूछें।" : "Write or speak freely. Then ask the AI Guide for a calm reflection on your thoughts."}
+                  style={{ flex: 1, background: "transparent", border: "none", color: T.text, fontFamily: "'Cormorant Garamond', serif", fontSize: "20px", outline: "none", resize: "none", lineHeight: "1.6", paddingBottom: "40px" }}
                 />
-                <button 
+                <button
                   onClick={toggleRecording}
-                  style={{ 
-                    position: "absolute", bottom: "10px", right: "10px", 
-                    width: "48px", height: "48px", borderRadius: "50%", 
-                    background: isRecording ? "rgba(255, 78, 0, 0.1)" : `${T.accent}15`, 
-                    border: `1px solid ${isRecording ? "#ff4e00" : T.accent}`, 
-                    display: "flex", alignItems: "center", justifyContent: "center", 
+                  style={{
+                    position: "absolute", bottom: "10px", right: "10px",
+                    width: "48px", height: "48px", borderRadius: "50%",
+                    background: isRecording ? "rgba(255, 78, 0, 0.1)" : `${T.accent}15`,
+                    border: `1px solid ${isRecording ? "#ff4e00" : T.accent}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
                     cursor: "pointer", transition: "all 0.3s ease",
                     boxShadow: isRecording ? "0 0 15px rgba(255, 78, 0, 0.4)" : "none"
                   }}
@@ -270,12 +293,12 @@ export function Journal({ setTab, T, lang }) {
               </div>
 
               {/* --- PRIVACY DISCLAIMER ADDED HERE --- */}
-              <div style={{ 
-                opacity: 0.5, 
-                fontSize: '0.85rem', 
-                textAlign: 'center', 
-                marginBottom: '20px', 
-                padding: '0 10px', 
+              <div style={{
+                opacity: 0.5,
+                fontSize: '0.85rem',
+                textAlign: 'center',
+                marginBottom: '20px',
+                padding: '0 10px',
                 lineHeight: '1.5',
                 fontStyle: 'italic'
               }}>
@@ -310,20 +333,27 @@ export function Journal({ setTab, T, lang }) {
           )
         ) : (
           <div className="fade-in">
-            {history.length === 0 ? (
-              <p style={{ textAlign: "center", opacity: 0.5, marginTop: "40px" }}>{hi ? "अभी कोई इतिहास नहीं है।" : "No history recorded yet."}</p>
+            {/* ─── CLOUD MEMORIES SECTION ─── */}
+            <h3 style={{ fontSize: '12px', opacity: 0.5, marginBottom: '20px', letterSpacing: '2px', textAlign: 'center' }}>
+              {hi ? "क्लाउड यादें" : "CLOUD MEMORIES"}
+            </h3>
+            
+            {isLoadingCloud ? (
+              <p style={{ textAlign: "center", opacity: 0.5 }}>{hi ? "खोज रहे हैं..." : "Gathering reflections..."}</p>
+            ) : cloudHistory.length === 0 ? (
+              <p style={{ textAlign: "center", opacity: 0.3, marginBottom: "40px" }}>{hi ? "क्लाउड में कुछ नहीं मिला।" : "No cloud entries found."}</p>
             ) : (
-              history.map(item => (
-                <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${T.accent}20`, borderRadius: "24px", padding: "20px", marginBottom: "16px" }}>
+              cloudHistory.map(item => (
+                <div key={item.id} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${T.accent}40`, borderRadius: "24px", padding: "20px", marginBottom: "16px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "10px", letterSpacing: "1px", textTransform: "uppercase", color: item.type === "Journal" ? T.textSoft : T.accent }}>{item.type === "Journal" ? (hi ? "जर्नल" : "Journal") : (hi ? "प्रार्थना" : "Prayer/Wish")}</span>
-                    <span style={{ fontSize: "10px", opacity: 0.4 }}>{item.date}</span>
+                    <span style={{ fontSize: "10px", letterSpacing: "1px", textTransform: "uppercase", color: T.accent }}>{hi ? "जर्नल" : "Journal"}</span>
+                    <span style={{ fontSize: "10px", opacity: 0.4 }}>{new Date(item.created_at).toLocaleDateString()}</span>
                   </div>
-                  <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", lineHeight: "1.5", margin: 0, fontStyle: item.type === "Wish/Prayer" ? "italic" : "normal" }}>{item.text}</p>
-                  {item.ai && (
-                    <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: `1px solid ${T.borderWarm}` }}>
+                  <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", lineHeight: "1.5", margin: 0 }}>{item.content}</p>
+                  {item.reflection && (
+                    <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: `1px solid ${T.accent}30` }}>
                       <span style={{ fontSize: "10px", opacity: 0.5, display: "block", marginBottom: "4px" }}>AI:</span>
-                      <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16px", fontStyle: "italic", margin: 0, color: T.accent }}>{item.ai}</p>
+                      <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16px", fontStyle: "italic", margin: 0, color: T.accent }}>{item.reflection}</p>
                     </div>
                   )}
                 </div>
