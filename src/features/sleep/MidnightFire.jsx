@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from "../../supabase";
 
 export function MidnightFire({ setTab, T, lang }) {
   const hi = lang === "Hindi";
@@ -9,16 +10,30 @@ export function MidnightFire({ setTab, T, lang }) {
   const dimAmber = "rgba(184, 93, 25, 0.85)";
   const faintBorder = "rgba(184, 93, 25, 0.25)";
 
-  const handleBurn = () => {
-    if (!thought.trim()) return;
-    setIsBurning(true);
-    
-    // We wait 6.5 seconds before resetting so the 5-second animation finishes completely
-    setTimeout(() => {
-      setThought("");
-      setIsBurning(false);
-    }, 6500); 
-  };
+  const handleBurn = async () => {
+  if (!thought.trim()) return;
+  
+  // 1. Start the Magic Animation immediately!
+  setIsBurning(true);
+
+  // 2. The Invisible Handshake (Sending it to Mumbai)
+  // We don't tell the user "Saving...", we just do it quietly
+  try {
+    const { error } = await supabase
+      .from('burnt_thoughts')
+      .insert([{ content: thought }]);
+      
+    if (error) console.error("Bridge Error:", error.message);
+  } catch (err) {
+    console.error("System Error:", err);
+  }
+
+  // 3. Wait for the fire to finish, then clear the screen
+  setTimeout(() => {
+    setThought("");
+    setIsBurning(false);
+  }, 6500); 
+};
 
   return (
     <div style={{ height: '100%', width: '100%', backgroundColor: trueBlack, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
