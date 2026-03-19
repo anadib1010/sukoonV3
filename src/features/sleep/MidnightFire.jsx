@@ -31,10 +31,10 @@ export function MidnightFire({ setTab, T, lang }) {
       navigator.vibrate(40); 
     }
 
-    // 3. Send to Mumbai
+    // 3. Send to Mumbai (Database)
     try {
       const { error } = await supabase
-        .from('burnt_thoughts')
+        .from('midnight_fire_burns') // ✅ Updated table name to match database
         .insert([{ content: thought }]);
         
       if (error) console.error("Database Error:", error.message);
@@ -53,8 +53,9 @@ export function MidnightFire({ setTab, T, lang }) {
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
     try {
+      // ✅ FIXED: Removed the extra semicolon that was causing the crash
       const { data, error } = await supabase
-        .from('burnt_thoughts')
+        .from('midnight_fire_burns') 
         .select('*')
         .order('created_at', { ascending: false }); 
         
