@@ -23,15 +23,29 @@ export function Reflection({ setTab, T, lang }) {
     if (!thought.trim()) return;
     setAnimating(type);
 
-    // 1. Write to your custom context file!
+    // 1. Write to your custom context file
     writeEmotionalCtx(type, thought, { timestamp: Date.now() });
 
-    // 2. 🔗 THE BRIDGE: Send the thought to the correct Supabase table!
+    // 2. 🔗 THE BRIDGE: Send the thought to Supabase
     const tableName = type === "burn" ? 'reflection_burns' : 'quiet_wishes';
+    
     try {
+      // 🕵️‍♂️ Step A: Get the current user's ID badge
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error("No user found! Are you logged in?");
+        return;
+      }
+
+      // 🕵️‍♂️ Step B: Explicitly stamp the user_id onto the data
       const { error } = await supabase
         .from(tableName) 
-        .insert([{ content: thought }]);
+        .insert([{ 
+          content: thought,
+          user_id: user.id 
+        }]);
+
       if (error) console.error("Database Bridge Error:", error.message);
     } catch (err) {
       console.error("System Error:", err);
@@ -60,9 +74,19 @@ export function Reflection({ setTab, T, lang }) {
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
     try {
+      // 🕵️‍♂️ Get user ID to ensure we fetch only our own data
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const [burnResponse, wishResponse] = await Promise.all([
-        supabase.from('reflection_burns').select('*').order('created_at', { ascending: false }),
-        supabase.from('quiet_wishes').select('*').order('created_at', { ascending: false })
+        supabase.from('reflection_burns')
+          .select('*')
+          .eq('user_id', user.id) // Filter by your ID
+          .order('created_at', { ascending: false }),
+        supabase.from('quiet_wishes')
+          .select('*')
+          .eq('user_id', user.id) // Filter by your ID
+          .order('created_at', { ascending: false })
       ]);
 
       if (!burnResponse.error) setBurntHistory(burnResponse.data || []);
