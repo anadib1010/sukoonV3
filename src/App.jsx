@@ -69,20 +69,91 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
   };
 
   return (
-    <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center", background: "#050508", position: "relative" }}>
-      <button onClick={onCancel} style={{ position: 'absolute', top: 30, left: 30, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 14, fontFamily: "'Cormorant Garamond', serif" }}>
+    <div style={{ 
+      // ✅ THE FIX: We use 100dvh for "Dynamic Viewport Height" (handles mobile bars)
+      height: "100dvh", 
+      width: "100%", 
+      display: "flex", 
+      flexDirection: "column", 
+      alignItems: "center", 
+      justifyContent: "center", 
+      
+      // ✅ THE FIX: padding is fine, BUT we must use boxSizing
+      padding: 20, 
+      boxSizing: "border-box", // 🛡️ This keeps the 100% width perfect
+      
+      textAlign: "center", 
+      background: "#050508", 
+      position: "fixed", // ⚓ Pins it to the front of the screen
+      top: 0,
+      left: 0,
+      zIndex: 1000 // 🪜 Makes sure it stays on top of other pages
+    }}>
+      <button 
+        onClick={onCancel} 
+        style={{ 
+          position: 'absolute', top: 30, left: 30, 
+          background: 'none', border: 'none', 
+          color: 'rgba(255,255,255,0.4)', 
+          cursor: 'pointer', fontSize: 14, 
+          fontFamily: "'Cormorant Garamond', serif" 
+        }}
+      >
         ← {isHindi ? "वापस" : "Back"}
       </button>
+
       <div style={{ fontSize: 32, marginBottom: 20, opacity: 0.6 }}>⚖️</div>
-      <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: '#fff', fontWeight: 300, marginBottom: 50, lineHeight: 1.6, maxWidth: 320 }}>
+
+      <h2 style={{ 
+        fontFamily: "'Cormorant Garamond', serif", 
+        fontSize: 24, color: '#fff', 
+        fontWeight: 300, marginBottom: 50, 
+        lineHeight: 1.6, maxWidth: 320 
+      }}>
         {isHindi ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"' : '"Do you have the key to the next level, the Quieter Place?"'}
       </h2>
-      <div style={{ width: '100%', transform: error ? 'translateX(10px)' : 'none', transition: 'transform 0.1s', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <input autoFocus value={input} onChange={(e) => setInput(e.target.value)} placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"} style={{ background: 'transparent', border: 'none', borderBottom: '1px solid rgba(212, 175, 55, 0.4)', color: '#d4af37', textAlign: 'center', fontSize: 20, letterSpacing: 6, outline: 'none', width: '240px', paddingBottom: 10, marginBottom: 25 }} />
-        <button onClick={handleCheck} style={{ background: 'transparent', border: '1px solid #d4af37', color: '#d4af37', padding: '12px 45px', borderRadius: 30, fontSize: 13, letterSpacing: 2, cursor: 'pointer' }}>
+
+      <div style={{ 
+        width: '100%', 
+        transform: error ? 'translateX(10px)' : 'none', 
+        transition: 'transform 0.1s', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center' 
+      }}>
+        <input 
+          autoFocus 
+          value={input} 
+          onChange={(e) => setInput(e.target.value)} 
+          placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"} 
+          style={{ 
+            background: 'transparent', border: 'none', 
+            borderBottom: '1px solid rgba(212, 175, 55, 0.4)', 
+            color: '#d4af37', textAlign: 'center', 
+            fontSize: 20, letterSpacing: 6, 
+            outline: 'none', width: '240px', 
+            paddingBottom: 10, marginBottom: 25,
+            borderRadius: 0 // 🍎 iPhone hack to keep the line flat
+          }} 
+        />
+        <button 
+          onClick={handleCheck} 
+          style={{ 
+            background: 'transparent', border: '1px solid #d4af37', 
+            color: '#d4af37', padding: '12px 45px', 
+            borderRadius: 30, fontSize: 13, 
+            letterSpacing: 2, cursor: 'pointer' 
+          }}
+        >
           {isHindi ? "प्रवेश करें" : "PROCEED"}
         </button>
-        <div style={{ marginTop: 15, opacity: 0.8, fontSize: 12, color: '#ffffff', letterSpacing: 2, fontFamily: 'monospace', fontWeight: 'bold' }}>{MASTER_KEY}</div>
+        <div style={{ 
+          marginTop: 15, opacity: 0.8, fontSize: 12, 
+          color: '#ffffff', letterSpacing: 2, 
+          fontFamily: 'monospace', fontWeight: 'bold' 
+        }}>
+          {MASTER_KEY}
+        </div>
       </div>
     </div>
   );
