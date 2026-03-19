@@ -1,4 +1,3 @@
-// ─── YAKSHA GATE COMPONENT (THE UNBREAKABLE CENTER) ───
 function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
@@ -16,57 +15,55 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
 
   return (
     <div style={{ 
-      // ✅ Step 1: Create a Black Curtain that covers the WHOLE screen
       position: "fixed", 
       top: 0, 
       left: 0, 
       width: "100%", 
-      height: "100%", 
-      height: "100dvh", 
+      height: "100dvh",    // ✅ use dvh only (not height twice)
       zIndex: 99999, 
       background: "#050508",
-      margin: 0,
-      padding: 0,
+      // ✅ THE FIX: flex centering on the container itself
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      boxSizing: "border-box",
+      padding: "0 20px",   // ✅ horizontal padding prevents edge clipping
       overflow: "hidden"
     }}>
       
-      {/* ✅ Step 2: The Content Box (This is what we center perfectly) */}
+      {/* Back Button — fixed to screen, unaffected by flex */}
+      <button 
+        onClick={onCancel} 
+        style={{ 
+          position: 'fixed',
+          top: 30, 
+          left: 30, 
+          background: 'none', 
+          border: 'none', 
+          color: 'rgba(255,255,255,0.3)', 
+          cursor: 'pointer',
+          fontSize: 14, 
+          fontFamily: "'Cormorant Garamond', serif"
+        }}
+      >
+        ← {isHindi ? "वापस" : "Back"}
+      </button>
+      
+      {/* ✅ Content box — now a normal flex child, no absolute positioning */}
       <div style={{ 
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)", // 🎯 The "Mathematical Center"
-        width: "90%",
+        width: "100%",
         maxWidth: "340px",
         textAlign: "center",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         boxSizing: "border-box"
+        // ❌ removed: position absolute, top/left 50%, transform translate
       }}>
         
-        {/* Back Button */}
-        <button 
-          onClick={onCancel} 
-          style={{ 
-            position: 'fixed', // Stay fixed relative to the screen
-            top: 30, 
-            left: 30, 
-            background: 'none', 
-            border: 'none', 
-            color: 'rgba(255,255,255,0.3)', 
-            cursor: 'pointer',
-            fontSize: 14, 
-            fontFamily: "'Cormorant Garamond', serif"
-          }}
-        >
-          ← {isHindi ? "वापस" : "Back"}
-        </button>
-        
-        {/* The Guardian Icon */}
         <div style={{ fontSize: 32, marginBottom: 20, opacity: 0.5 }}>⚖️</div>
         
-        {/* The Yaksha's Question */}
         <h2 style={{ 
           fontFamily: "'Cormorant Garamond', serif", 
           fontSize: 24, 
@@ -81,7 +78,6 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
             : '"Do you have the key to the next level?"'}
         </h2>
 
-        {/* Input Field Area */}
         <div style={{ 
           width: '100%',
           display: 'flex',
@@ -94,6 +90,7 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCheck()}  // ✅ bonus: Enter key support
             placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"}
             style={{ 
               background: 'transparent', 
@@ -104,14 +101,14 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
               fontSize: 18, 
               letterSpacing: 6, 
               outline: 'none', 
-              width: '200px', 
+              width: '200px',
+              maxWidth: '100%',   // ✅ prevents overflow on tiny screens
               paddingBottom: 10,
-              borderRadius: 0 // 🍎 Prevents iPhone from rounding corners
+              borderRadius: 0
             }}
           />
         </div>
 
-        {/* Proceed Button */}
         <button 
           onClick={handleCheck} 
           style={{ 
@@ -129,7 +126,6 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
           {isHindi ? "प्रवेश करें" : "PROCEED"}
         </button>
 
-        {/* Access Key */}
         <div style={{ 
           marginTop: 30, 
           opacity: 0.2, 
