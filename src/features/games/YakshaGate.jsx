@@ -1,4 +1,4 @@
-// ─── YAKSHA GATE COMPONENT (FIXED FOR MOBILE CENTERING) ───
+// ─── YAKSHA GATE COMPONENT (FORCED CENTER FOR MOBILE) ───
 function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
@@ -16,18 +16,24 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
 
   return (
     <div style={{ 
-      height: "100dvh", // ✅ Uses dynamic height to handle mobile browser bars
-      width: "100%", 
+      // ✅ THE "UNIVERSAL ANCHOR" FIX
+      position: "fixed", 
+      top: 0, 
+      left: 0, 
+      right: 0, 
+      bottom: 0,
+      zIndex: 9999, // Make sure it stays on top of everything
+      
       display: "flex", 
       flexDirection: "column", 
       alignItems: "center", 
       justifyContent: "center", 
-      padding: "20px", // ✅ Slightly reduced for mobile screen safety
-      boxSizing: "border-box", // ✅ THE FIX: Keeps padding INSIDE the 100% width
+      
+      padding: "20px",
+      boxSizing: "border-box", 
       textAlign: "center", 
       background: "#050508",
-      position: "relative",
-      overflow: "hidden" // ✅ Prevents accidental side-scrolling
+      overflow: "hidden"
     }}>
       {/* Back Button */}
       <button 
@@ -57,9 +63,11 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
           : '"Do you have the key to the next level, the Quieter Place?"'}
       </h2>
 
-      {/* Input Field */}
+      {/* Input Field Wrapper */}
       <div style={{ 
         width: '100%',
+        display: 'flex',
+        justifyContent: 'center', // Added to ensure the input itself is centered
         transform: error ? 'translateX(10px)' : 'none', 
         transition: 'transform 0.1s',
         marginBottom: 20
@@ -95,7 +103,7 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
         {isHindi ? "प्रवेश करें" : "PROCEED"}
       </button>
 
-      {/* Access Key - Placed directly below button */}
+      {/* Access Key */}
       <div style={{ 
         marginTop: 25, 
         opacity: 0.25, 
