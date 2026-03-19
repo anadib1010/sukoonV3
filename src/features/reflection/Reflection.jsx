@@ -69,7 +69,10 @@ export function Reflection({ setTab, T, lang }) {
       setParticles([]);
     }, 2500);
   };
-
+  const onFinish = () => {
+  addCredits(10); // Reward for completing a session
+  setTab("progress"); 
+};
   // --- SUPABASE DELIVERY TRUCK (Fetches BOTH tables) ---
   const fetchHistory = async () => {
     setIsLoadingHistory(true);

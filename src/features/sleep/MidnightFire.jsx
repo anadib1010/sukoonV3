@@ -14,6 +14,10 @@ export function MidnightFire({ setTab, T, lang }) {
   const dimAmber = "rgba(184, 93, 25, 0.85)";
   const faintBorder = "rgba(184, 93, 25, 0.25)";
 
+  const onFinish = () => {
+  addCredits(10); // Reward for completing a session
+  setTab("progress"); 
+};
   // THE "CALM TECHNOLOGY" SENSORY HANDSHAKE
   const handleBurn = async () => {
     if (!thought.trim()) return;

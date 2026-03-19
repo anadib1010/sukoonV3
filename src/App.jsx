@@ -159,6 +159,32 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
   );
 }
 
+// 🏆 THE GLOBAL REWARDER
+const addCredits = async (amount) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // 1. Get current credits first
+    const { data: stats } = await supabase
+      .from('progress_user_stats')
+      .select('credits')
+      .single();
+
+    const currentCredits = stats?.credits || 0;
+
+    // 2. Add the new reward
+    const { error } = await supabase
+      .from('progress_user_stats')
+      .update({ credits: currentCredits + amount })
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+    console.log(`💎 Success! +${amount} Credits added.`);
+  } catch (err) {
+    console.error("Credit Error:", err.message);
+  }
+};
 // ─── THE ROUTER WRAPPER ───
 // This component handles the actual screen switching based on the URL
 function AppContent() {
