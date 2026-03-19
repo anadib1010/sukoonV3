@@ -1,4 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+import confetti from 'canvas-confetti';
+
+// 🎊 The Celebration Tool
+export const fireConfetti = () => {
+  confetti({
+    particleCount: 150,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#8aaa7a', '#7A9EA8', '#FFD700'] // Sukoon Green, Blue, and Gold!
+  });
+};
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
