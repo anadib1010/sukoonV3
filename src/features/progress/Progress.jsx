@@ -11,9 +11,11 @@ export function Progress({ setTab, goBack, T, lang }) {
   const hi = lang === "Hindi";
   // Add this inside your Progress function, right above your other useEffects
   useEffect(() => {
-    // We only pop the confetti if the user has 10 or more credits!
-    if (stats.credits >= 10) {
-      fireConfetti();
+    // 🎯 Milestone Logic: Only pop for big numbers!
+    const milestones = [10, 50, 100, 250, 500];
+  
+    if (milestones.includes(stats.credits)) {
+    fireGrandConfetti(); // 🎊 Use the new Grand Finale tool!
     }
   }, [stats.credits]); // This tells React: "Only run this when the credit number changes"
   // 💎 REWARD: Give 2 credits for visiting the progress page
