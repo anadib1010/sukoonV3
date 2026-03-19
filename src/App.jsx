@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from './supabase'; // Make sure this path points to your supabase.js file!
+import { Login } from './components/Login'; // 👈 Bringing in the new door!
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react'; 
 import { track } from '@vercel/analytics'; 
@@ -91,6 +93,11 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // ─── THE ID BADGE HOLDER ───
+  const [session, setSession] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     try { return localStorage.getItem("jsukoon_onboarded") === "true"; } 
     catch { return false; }
@@ -102,11 +109,24 @@ function AppContent() {
   const [mood, setMood] = useState(null);
   const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
-  // This replaces your old setTab. Now, calling setTab("journal") changes the URL!
-  const setTab = (newTab) => {
-    if (newTab === "home") navigate("/");
-    else navigate(`/${newTab}`);
-  };
+  const T = themeSource === "manual" ? (THEMES[themeKey] || THEMES.Void) : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
+
+  // ─── THE SECURITY SCANNER ───
+  useEffect(() => {
+    // 1. When the app opens, check if they already have a badge
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsCheckingAuth(false); // Finished checking!
+    });
+
+    // 2. Keep watching the door for Logins/Logouts
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setIsCheckingAuth(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Vercel Tracking per Page
   useEffect(() => {
@@ -115,18 +135,38 @@ function AppContent() {
     }
   }, [location, hasOnboarded]);
 
-  const T = themeSource === "manual" ? (THEMES[themeKey] || THEMES.Void) : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
-
   useEffect(() => {
     const browseTimer = setInterval(() => creditSession(1, true), 60000);
     return () => clearInterval(browseTimer);
   }, []);
 
+  const setTab = (newTab) => {
+    if (newTab === "home") navigate("/");
+    else navigate(`/${newTab}`);
+  };
+
+  // ─── FRONT DOOR LOGIC ───
+  
+  // 1. Show a loading screen while checking the badge
+  if (isCheckingAuth) {
+    return (
+      <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
+        {lang === "Hindi" ? "सुकोन खुल रहा है..." : "Opening Sukoon..."}
+      </div>
+    );
+  }
+
+  // 2. If no badge, lock them on the Login screen!
+  if (!session) {
+    return <Login T={T} lang={lang} />; 
+  }
+
+  // 3. If they are logged in but haven't onboarded, show Onboarding
   if (!hasOnboarded) {
     return <Onboarding onComplete={() => { localStorage.setItem("jsukoon_onboarded", "true"); setHasOnboarded(true); track('Onboarding Complete'); }} setThemeKey={setThemeKey} setLang={setLang} T={T} />;
   }
 
-  // Helper for Yaksha Gate
+  // 4. If all checks pass, show the main App!
   const deepLayers = ["/vault", "/resonance", "/stillness", "/quietcorner", "/soundbath", "/mandala", "/seedinmud"];
   const isProtected = deepLayers.includes(location.pathname) && !vaultUnlocked;
 
@@ -147,7 +187,6 @@ function AppContent() {
             <Route path="/sleep_scan" element={<HeavyScan setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_fire" element={<MidnightFire setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_beat" element={<DeepRhythm setTab={setTab} T={T} lang={lang} />} />
-            {/* Note: /sleep_beat is omitted as you mentioned it was an audio-only tool for the future */}
 
             <Route path="/focus" element={<Focus setTab={setTab} T={T} lang={lang} />} />
             <Route path="/journal" element={<Journal setTab={setTab} T={T} lang={lang} />} />
