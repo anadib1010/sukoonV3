@@ -1,4 +1,4 @@
-// ─── YAKSHA GATE COMPONENT (REVISED FOR ALIGNMENT) ───
+// ─── YAKSHA GATE COMPONENT (FIXED FOR MOBILE CENTERING) ───
 function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
@@ -16,12 +16,18 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
 
   return (
     <div style={{ 
-      height: "100%", width: "100%", 
-      display: "flex", flexDirection: "column", 
-      alignItems: "center", justifyContent: "center", // Perfect Centering
-      padding: 40, textAlign: "center", 
+      height: "100dvh", // ✅ Uses dynamic height to handle mobile browser bars
+      width: "100%", 
+      display: "flex", 
+      flexDirection: "column", 
+      alignItems: "center", 
+      justifyContent: "center", 
+      padding: "20px", // ✅ Slightly reduced for mobile screen safety
+      boxSizing: "border-box", // ✅ THE FIX: Keeps padding INSIDE the 100% width
+      textAlign: "center", 
       background: "#050508",
-      position: "relative"
+      position: "relative",
+      overflow: "hidden" // ✅ Prevents accidental side-scrolling
     }}>
       {/* Back Button */}
       <button 
