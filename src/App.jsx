@@ -62,72 +62,89 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
     }
   };
 
-  return (
-    <div style={{
+  const ys = {
+    page: {
       height: "100dvh", width: "100%",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: 20, boxSizing: "border-box",
       textAlign: "center", background: "#050508",
-      position: "fixed", top: 0, left: 0, zIndex: 1000
-    }}>
-      <button onClick={onCancel} style={{
-        position: 'absolute', top: 30, left: 30,
-        background: 'none', border: 'none',
-        color: 'rgba(255,255,255,0.4)',
-        cursor: 'pointer', fontSize: 14,
-        fontFamily: "'Cormorant Garamond', serif"
-      }}>
+      position: "fixed", top: 0, left: 0, zIndex: 1000,
+    },
+    backBtn: {
+      position: "absolute", top: 30, left: 30,
+      background: "none", border: "none",
+      color: "rgba(255,255,255,0.4)",
+      cursor: "pointer", fontSize: 14,
+      fontFamily: "'Cormorant Garamond', serif",
+    },
+    icon: { fontSize: 32, marginBottom: 20, opacity: 0.6 },
+    question: {
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: 24, color: "#fff",
+      fontWeight: 300, marginBottom: 50,
+      lineHeight: 1.6, maxWidth: 320,
+    },
+    inputWrap: {
+      width: "100%",
+      transform: error ? "translateX(10px)" : "none",
+      transition: "transform 0.1s",
+      display: "flex", flexDirection: "column", alignItems: "center",
+    },
+    input: {
+      background: "transparent", border: "none",
+      borderBottom: "1px solid rgba(212,175,55,0.4)",
+      color: "#d4af37", textAlign: "center",
+      fontSize: 20, letterSpacing: 6,
+      outline: "none", width: "240px",
+      paddingBottom: 10, marginBottom: 25, borderRadius: 0,
+    },
+    proceedBtn: {
+      background: "transparent", border: "1px solid #d4af37",
+      color: "#d4af37", padding: "12px 45px",
+      borderRadius: 30, fontSize: 13,
+      letterSpacing: 2, cursor: "pointer",
+      transition: "background 0.2s",
+    },
+    devKey: {
+      marginTop: 15, opacity: 0.5, fontSize: 11,
+      color: "#ffffff", letterSpacing: 2, fontFamily: "monospace",
+    },
+  };
+
+  return (
+    <div style={ys.page}>
+      <button onClick={onCancel} style={ys.backBtn}>
         ← {isHindi ? "वापस" : "Back"}
       </button>
 
-      <div style={{ fontSize: 32, marginBottom: 20, opacity: 0.6 }}>⚖️</div>
+      <div style={ys.icon}>⚖️</div>
 
-      <h2 style={{
-        fontFamily: "'Cormorant Garamond', serif",
-        fontSize: 24, color: '#fff',
-        fontWeight: 300, marginBottom: 50,
-        lineHeight: 1.6, maxWidth: 320
-      }}>
+      <h2 style={ys.question}>
         {isHindi
           ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"'
           : '"Do you have the key to the next level, the Quieter Place?"'}
       </h2>
 
-      <div style={{
-        width: '100%',
-        transform: error ? 'translateX(10px)' : 'none',
-        transition: 'transform 0.1s',
-        display: 'flex', flexDirection: 'column', alignItems: 'center'
-      }}>
+      <div style={ys.inputWrap}>
         <input
           autoFocus
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
+          onKeyDown={(e) => e.key === "Enter" && handleCheck()}
           placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"}
-          style={{
-            background: 'transparent', border: 'none',
-            borderBottom: '1px solid rgba(212, 175, 55, 0.4)',
-            color: '#d4af37', textAlign: 'center',
-            fontSize: 20, letterSpacing: 6,
-            outline: 'none', width: '240px',
-            paddingBottom: 10, marginBottom: 25, borderRadius: 0
-          }}
+          style={ys.input}
         />
-        <button onClick={handleCheck} style={{
-          background: 'transparent', border: '1px solid #d4af37',
-          color: '#d4af37', padding: '12px 45px',
-          borderRadius: 30, fontSize: 13,
-          letterSpacing: 2, cursor: 'pointer'
-        }}>
+        <button
+          onClick={handleCheck}
+          style={ys.proceedBtn}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(212,175,55,0.1)"}
+          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+        >
           {isHindi ? "प्रवेश करें" : "PROCEED"}
         </button>
-        {/* Key intentionally shown during closed testing phase — remove before public launch */}
         {import.meta.env.DEV && (
-          <div style={{ marginTop: 15, opacity: 0.5, fontSize: 11, color: '#ffffff', letterSpacing: 2, fontFamily: 'monospace' }}>
-            DEV: {MASTER_KEY}
-          </div>
+          <div style={ys.devKey}>DEV: {MASTER_KEY}</div>
         )}
       </div>
     </div>
@@ -177,8 +194,15 @@ function AppContent() {
     return () => clearInterval(browseTimer);
   }, []);
 
+  const [selectedMood, setSelectedMood] = useState(null);
+
   const setTab = (newTab) => {
     if (newTab === "home") navigate("/");
+    else if (newTab.startsWith("moodAction_")) {
+      const moodLabel = newTab.replace("moodAction_", "");
+      setSelectedMood(moodLabel);
+      navigate("/moodaction");
+    }
     else navigate(`/${newTab}`);
   };
 
@@ -253,6 +277,7 @@ function AppContent() {
             <Route path="/about" element={<About setTab={setTab} T={T} lang={lang} />} />
             <Route path="/privacy" element={<Privacy setTab={setTab} T={T} lang={lang} />} />
             <Route path="/wishes" element={<WishesGallery setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/moodaction" element={<MoodAction selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         )}
