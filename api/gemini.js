@@ -6,7 +6,7 @@ const checkLimit = rateLimit({ maxRequests: 20, windowMs: 60 * 1000 });
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (checkLimit(req, res)) return;
+  if (await checkLimit(req, res)) return;
 
   // Verify user is logged in — uses only anon key, safe
   const user = await verifyAuth(req, res);
