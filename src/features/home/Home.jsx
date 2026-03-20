@@ -234,8 +234,8 @@ export function Home({ setTab, T, lang }) {
       background: "transparent",
       border: "none",
       color: T.text,
-      opacity: 0.05,
-      fontSize: 8,
+      opacity: 0.9, // raised for testing — lower to 0.05 before public launch
+      fontSize: 13,
       fontFamily: "'Cormorant Garamond', serif",
       display: "flex",
       alignItems: "center",
