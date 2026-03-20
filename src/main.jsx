@@ -13,7 +13,7 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   capture_pageleave: true,     // Track when users leave
   persistence: 'localStorage', // Works without cookies
   loaded: (ph) => {
-    if (import.meta.env.DEV) ph.opt_out_capturing(); // No tracking in dev
+    if (import.meta.env.DEV) ph.opt_out_capturing(); // No tracking in dev — remove this line to debug locally
   },
 });
 
