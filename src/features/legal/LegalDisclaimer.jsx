@@ -1,105 +1,175 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageNav } from '../../components/SharedUI';
 
 export function LegalDisclaimer({ setTab, goBack, T, lang }) {
   const hi = lang === "Hindi";
+  const [visible, setVisible] = useState(false);
 
-  // Hardcoded here so the legal page never breaks if constants change
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 60);
+    return () => clearTimeout(t);
+  }, []);
+
   const CRISIS_RESOURCES = [
-    { name: "KIRAN (Mental Health)", desc: "24/7 Govt. Helpline", number: "18005990019" },
-    { name: "AASRA (Crisis Support)", desc: "Professional Counseling", number: "9820466726" },
-    { name: "Emergency", desc: "National Emergency", number: "112" }
+    { name: "KIRAN", desc: hi ? "24/7 सरकारी हेल्पलाइन" : "24/7 Govt. Helpline", number: "18005990019" },
+    { name: "AASRA", desc: hi ? "पेशेवर परामर्श"        : "Professional Counseling", number: "9820466726" },
+    { name: hi ? "आपातकाल" : "Emergency", desc: hi ? "राष्ट्रीय आपातकाल" : "National Emergency", number: "112" },
   ];
 
-  const Section = ({ num, title, color, children }) => (
-    <div style={{ marginBottom: 28 }}>
-      <h3 style={{ color: color || T.text, fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
-        {num}. {title}
-      </h3>
-      {children}
-    </div>
-  );
+  const s = {
+    page: { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" },
+    scroll: { flex: 1, overflowY: "auto", padding: "0 0 60px" },
+    inner: {
+      padding: "0 18px 100px",
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(12px)",
+      transition: "opacity 0.6s ease, transform 0.6s ease",
+    },
+    heading: { fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: T.text, marginBottom: 4, marginTop: 16 },
+    updated: { fontSize: 11, color: T.muted, marginBottom: 6, letterSpacing: 0.5 },
+    redBox: { background: "rgba(224,102,102,0.07)", border: "2px solid rgba(224,102,102,0.35)", borderRadius: 18, padding: "18px 20px", marginBottom: 32, marginTop: 24 },
+    redTag: { fontSize: 11, color: "#e06666", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 },
+    redText: { fontSize: 13, lineHeight: 1.9, color: "rgba(255,180,180,0.85)", marginBottom: 10 },
+    redStrong: { color: "#ff8080" },
+    crisisLink: { textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(224,102,102,0.15)" },
+    crisisName: { fontSize: 13, fontWeight: 600, color: "#ff8080", margin: 0 },
+    crisisDesc: { fontSize: 13, color: "rgba(255,150,150,0.75)", margin: 0 },
+    crisisNum:  { fontSize: 15, fontWeight: 700, color: "#ff6b6b", margin: 0 },
+    body: { fontSize: 13, lineHeight: 1.9, color: T.textSoft },
+    termsLabel: { color: T.accent, fontWeight: 600, fontSize: 13, marginBottom: 24, letterSpacing: 1, textTransform: "uppercase" },
+    sectionTitle: { color: T.text, fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 },
+    sectionWrap: { marginBottom: 28 },
+    p: { fontSize: 13, lineHeight: 1.95, color: T.textSoft, marginBottom: 8 },
+    divider: { height: 1, background: T.borderWarm, margin: "32px 0" },
+    summaryLabel: { color: T.accent, fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 },
+    summary: { textAlign: "center", fontStyle: "italic", fontSize: 14, lineHeight: 2.4, color: T.muted, fontFamily: "'Cormorant Garamond',serif" },
+  };
 
-  const P = ({ children, style }) => (
-    <p style={{ fontSize: 13, lineHeight: 1.95, color: T.textSoft, marginBottom: 8, ...style }}>
-      {children}
-    </p>
-  );
+  const SECTIONS = [
+    {
+      num: "1",
+      en: "Nature of the App",
+      hi: "ऐप की प्रकृति",
+      paras: [
+        {
+          en: "JSukoon is a general-purpose digital wellbeing application offering guided exercises, journaling prompts, and reflective content.",
+          hi: "JSukoon एक सामान्य डिजिटल वेलबीइंग ऐप है जो गाइडेड अभ्यास, जर्नलिंग प्रॉम्प्ट और चिंतन सामग्री प्रदान करता है।",
+        },
+        {
+          en: "It is entirely self-guided and is not a medical device, nor is it a substitute for licensed professional mental health care.",
+          hi: "यह पूरी तरह स्व-निर्देशित है और एक चिकित्सा उपकरण नहीं है, न ही यह लाइसेंस प्राप्त पेशेवर मानसिक स्वास्थ्य देखभाल का विकल्प है।",
+        },
+      ],
+    },
+    {
+      num: "2",
+      en: "Artificial Intelligence (AI) Notice",
+      hi: "आर्टिफिशियल इंटेलिजेंस (AI) सूचना",
+      paras: [
+        {
+          en: "Certain interactive features within JSukoon, including reflective responses, are powered by Artificial Intelligence (AI) algorithms.",
+          hi: "JSukoon की कुछ इंटरैक्टिव सुविधाएं, जिनमें चिंतन प्रतिक्रियाएं शामिल हैं, आर्टिफिशियल इंटेलिजेंस (AI) एल्गोरिदम द्वारा संचालित हैं।",
+        },
+        {
+          en: "These responses are generated by a machine, not a human. AI can hallucinate, lack context, and provide inaccurate or inappropriate information. You agree to never use AI-generated responses as a basis for personal, medical, legal, or life decisions.",
+          hi: "ये प्रतिक्रियाएं एक मशीन द्वारा उत्पन्न होती हैं, मनुष्य द्वारा नहीं। AI गलत जानकारी दे सकता है। आप सहमत हैं कि AI-जनित प्रतिक्रियाओं को कभी भी व्यक्तिगत, चिकित्सा, कानूनी या जीवन निर्णयों का आधार नहीं बनाएंगे।",
+        },
+      ],
+    },
+    {
+      num: "3",
+      en: "Data & Privacy Responsibility",
+      hi: "डेटा और गोपनीयता जिम्मेदारी",
+      paras: [
+        {
+          en: "JSukoon stores your personal journal entries, mood logs, reflections, and session data securely on Supabase — a trusted cloud platform protected by row-level security and encrypted connections.",
+          hi: "JSukoon आपकी जर्नल प्रविष्टियां, मूड लॉग, चिंतन और सत्र डेटा Supabase पर सुरक्षित रूप से संग्रहीत करता है — एक विश्वसनीय क्लाउड प्लेटफ़ॉर्म जो row-level security और एन्क्रिप्टेड कनेक्शन द्वारा सुरक्षित है।",
+        },
+        {
+          en: "While we take every precaution to protect your data, no method of internet transmission is 100% secure. The developer is not responsible for any data loss or breaches resulting from circumstances beyond our reasonable control. You are responsible for keeping your login credentials secure.",
+          hi: "हम आपके डेटा की सुरक्षा के लिए हर सावधानी बरतते हैं, लेकिन इंटरनेट ट्रांसमिशन का कोई भी तरीका 100% सुरक्षित नहीं है। डेवलपर किसी भी डेटा हानि के लिए जिम्मेदार नहीं है। आप अपनी लॉगिन क्रेडेंशियल्स को सुरक्षित रखने के लिए जिम्मेदार हैं।",
+        },
+      ],
+    },
+    {
+      num: "4",
+      en: "Limitation of Liability",
+      hi: "देनदारी की सीमा",
+      paras: [
+        {
+          en: "To the maximum extent permitted by applicable law, the developer of JSukoon disclaims all liability for any direct, indirect, incidental, or consequential damages arising out of your use or inability to use this application.",
+          hi: "लागू कानून द्वारा अनुमत अधिकतम सीमा तक, JSukoon के डेवलपर इस ऐप के उपयोग या उपयोग में असमर्थता से उत्पन्न किसी भी प्रत्यक्ष, अप्रत्यक्ष, आकस्मिक या परिणामी नुकसान के लिए सभी दायित्व को अस्वीकार करते हैं।",
+        },
+        {
+          en: "You agree to use this application strictly at your own risk. The app makes no warranty regarding any outcome, including emotional improvement or stress reduction.",
+          hi: "आप इस ऐप का उपयोग पूरी तरह अपने जोखिम पर करने के लिए सहमत हैं। ऐप किसी भी परिणाम की कोई गारंटी नहीं देता, जिसमें भावनात्मक सुधार या तनाव में कमी शामिल है।",
+        },
+      ],
+    },
+  ];
+
+  const SUMMARY = [
+    { en: "JSukoon listens, but does not diagnose.",  hi: "JSukoon सुनता है, लेकिन निदान नहीं करता।" },
+    { en: "It reflects, but does not advise.",        hi: "यह चिंतन करता है, लेकिन सलाह नहीं देता।" },
+    { en: "It offers space, not treatment.",          hi: "यह जगह देता है, इलाज नहीं।" },
+    { en: "For real help, please call a real person.", hi: "असली मदद के लिए, किसी असली इंसान को कॉल करें।" },
+  ];
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
+    <div style={s.page}>
       <PageNav onBack={goBack || (() => setTab("home"))} onHome={() => setTab("home")} backLabel={hi ? "वापस" : "Back"} T={T} lang={lang} />
-      
-      <div className="scroll-area fade-up" style={{ flex: 1, overflowY: "auto", padding: "0 0 60px" }}>
-        <div style={{ padding: "0 18px 100px" }}>
-          
-          <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: T.text, marginBottom: 4, marginTop: 16 }}>
-            Legal Disclaimer
-          </h1>
-          <p style={{ fontSize: 11, color: T.muted, marginBottom: 6, letterSpacing: .5 }}>
-            Last updated: March 2026
-          </p>
-          
-          {/* THE RED FORTRESS - Absolute Emergency Disclaimer */}
-          <div style={{ background: "rgba(224,102,102,0.07)", border: "2px solid rgba(224,102,102,0.35)", borderRadius: 18, padding: "18px 20px", marginBottom: 32, marginTop: 24 }}>
-            <p style={{ fontSize: 11, color: "#e06666", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>
-              ⚠ IMPORTANT — READ FIRST
+
+      <div className="scroll-area fade-up" style={s.scroll}>
+        <div style={s.inner}>
+
+          <h1 style={s.heading}>{hi ? "कानूनी अस्वीकरण" : "Legal Disclaimer"}</h1>
+          <p style={s.updated}>{hi ? "अंतिम अपडेट: मार्च 2026" : "Last updated: March 2026"}</p>
+
+          {/* Red emergency box */}
+          <div style={s.redBox}>
+            <p style={s.redTag}>⚠ {hi ? "महत्वपूर्ण — पहले पढ़ें" : "IMPORTANT — READ FIRST"}</p>
+            <p style={s.redText}>
+              JSukoon <strong style={s.redStrong}>{hi ? "संकट हस्तक्षेप सेवा नहीं है" : "is not a crisis intervention service"}</strong>. {hi ? "यह थेरेपी, परामर्श, मनोरोग निदान या आपातकालीन चिकित्सा सहायता प्रदान नहीं करता।" : "It does not provide therapy, counselling, psychiatric diagnosis, or emergency medical support."}
             </p>
-            <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(255,180,180,0.85)", marginBottom: 10 }}>
-              JSukoon is <strong style={{ color: "#ff8080" }}>not a crisis intervention service</strong>. It does not provide therapy, counselling, psychiatric diagnosis, or emergency medical support.
-            </p>
-            <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(255,180,180,0.85)", marginBottom: 10 }}>
-              If you are experiencing thoughts of self-harm, suicide, or severe psychological distress — <strong style={{ color: "#ff8080" }}>stop using this app immediately</strong> and contact a professional at one of the following numbers:
+            <p style={s.redText}>
+              {hi ? "यदि आप आत्म-नुकसान, आत्महत्या या गंभीर मनोवैज्ञानिक संकट के विचारों का अनुभव कर रहे हैं —" : "If you are experiencing thoughts of self-harm, suicide, or severe psychological distress —"}{" "}
+              <strong style={s.redStrong}>{hi ? "इस ऐप का उपयोग तुरंत बंद करें" : "stop using this app immediately"}</strong>{" "}
+              {hi ? "और नीचे दिए गए नंबर पर कॉल करें:" : "and contact a professional at one of the following numbers:"}
             </p>
             {CRISIS_RESOURCES.map(r => (
-              <a key={r.name} href={`tel:${r.number}`} style={{ textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(224,102,102,0.15)" }}>
+              <a key={r.name} href={`tel:${r.number}`} style={s.crisisLink}>
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#ff8080", margin: 0 }}>{r.name}</p>
-                  <p style={{ fontSize: 13, color: "rgba(255,150,150,0.75)", margin: 0 }}>{r.desc}</p>
+                  <p style={s.crisisName}>{r.name}</p>
+                  <p style={s.crisisDesc}>{r.desc}</p>
                 </div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: "#ff6b6b", margin: 0 }}>{r.number}</p>
+                <p style={s.crisisNum}>{r.number}</p>
               </a>
             ))}
           </div>
 
-          <div style={{ fontSize: 13, lineHeight: 1.9, color: T.textSoft }}>
-            <p style={{ color: T.accent, fontWeight: 600, fontSize: 13, marginBottom: 24, letterSpacing: 1, textTransform: "uppercase" }}>
-              JSukoon — Full Terms
-            </p>
+          {/* Sections */}
+          <div style={s.body}>
+            <p style={s.termsLabel}>JSukoon — {hi ? "पूर्ण नियम" : "Full Terms"}</p>
 
-            <Section num="1" title="Nature of the App" color={T.text}>
-              <P>JSukoon is a general-purpose digital wellbeing application offering guided exercises, journaling prompts, and reflective content.</P>
-              <P>It is entirely self-guided and is not a medical device, nor is it a substitute for licensed professional mental health care.</P>
-            </Section>
+            {SECTIONS.map(sec => (
+              <div key={sec.num} style={s.sectionWrap}>
+                <h3 style={s.sectionTitle}>{sec.num}. {hi ? sec.hi : sec.en}</h3>
+                {sec.paras.map((para, i) => (
+                  <p key={i} style={s.p}>{hi ? para.hi : para.en}</p>
+                ))}
+              </div>
+            ))}
 
-            <Section num="2" title="Artificial Intelligence (AI) Notice" color={T.text}>
-              <P>Certain interactive features within JSukoon, including reflective responses, are powered by Artificial Intelligence (AI) algorithms.</P>
-              <P>These responses are generated by a machine, not a human. AI can hallucinate, lack context, and provide inaccurate or inappropriate information. You agree to never use AI-generated responses as a basis for personal, medical, legal, or life decisions.</P>
-            </Section>
+            <div style={s.divider} />
 
-            <Section num="3" title="Data & Privacy Responsibility" color={T.text}>
-              <P>JSukoon stores your personal journal entries, mood logs, reflections, and session data securely on Supabase — a trusted cloud platform protected by row-level security and encrypted connections.</P>
-              <P>While we take every precaution to protect your data, no method of internet transmission is 100% secure. The developer is not responsible for any data loss or breaches resulting from circumstances beyond our reasonable control. You are responsible for keeping your login credentials secure.</P>
-            </Section>
-
-            <Section num="4" title="Limitation of Liability" color={T.text}>
-              <P>To the maximum extent permitted by applicable law, the developer of JSukoon disclaims all liability for any direct, indirect, incidental, or consequential damages arising out of your use or inability to use this application.</P>
-              <P>You agree to use this application strictly at your own risk. The app makes no warranty regarding any outcome, including emotional improvement or stress reduction.</P>
-            </Section>
-
-            <div style={{ height: 1, background: T.borderWarm, margin: "32px 0" }} />
-
-            <p style={{ color: T.accent, fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>
-              Plain Language Summary
-            </p>
-            <div style={{ textAlign: "center", fontStyle: "italic", fontSize: 14, lineHeight: 2.4, color: T.muted, fontFamily: "'Cormorant Garamond',serif" }}>
-              <p>JSukoon listens, but does not diagnose.</p>
-              <p>It reflects, but does not advise.</p>
-              <p>It offers space, not treatment.</p>
-              <p>For real help, please call a real person.</p>
+            <p style={s.summaryLabel}>{hi ? "सरल भाषा में" : "Plain Language Summary"}</p>
+            <div style={s.summary}>
+              {SUMMARY.map((line, i) => (
+                <p key={i}>{hi ? line.hi : line.en}</p>
+              ))}
             </div>
           </div>
-          
+
         </div>
       </div>
     </div>
