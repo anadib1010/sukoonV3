@@ -133,7 +133,7 @@ export function MidnightFire({ setTab, T, lang }) {
           !isBurning ? (
             <div style={{ animation: 'fadeIn 2s ease' }}>
               <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: dimAmber, fontWeight: 300, marginBottom: 16 }}>
-                {hi ? "आधी रात की आग" : "Midnight Fire"}
+                {hi ? "देर रात तक काम करना" : "Midnight Fire"}
               </h2>
               
               <textarea 

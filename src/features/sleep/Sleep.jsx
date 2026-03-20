@@ -35,7 +35,7 @@ export function Sleep({ setTab, T, lang }) {
     },
     { 
       id: 'sleep_fire', 
-      name: 'Midnight Fire', nameH: 'आधी रात की आग', 
+      name: 'Midnight Fire', nameH: 'देर रात तक काम करना', 
       desc: 'Whisper your worries to the dark and let them burn away.', 
       descH: 'अपनी चिंताओं को फुसफुसाएं और उन्हें जलने दें।' 
     }
