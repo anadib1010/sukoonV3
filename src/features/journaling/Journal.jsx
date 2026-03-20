@@ -484,7 +484,7 @@ export function Journal({ setTab, T, lang }) {
                   disabled={!entry.trim() || isThinking} 
                   style={{ width: "100%", padding: "16px", borderRadius: "40px", background: "transparent", border: `1px solid ${T.accent}`, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", cursor: "pointer", opacity: entry.trim() ? 1 : 0.4 }}
                 >
-                  {hi ? "प्रतिबिंब के लिए AI से पूछें" : "Ask AI for reflection"}
+                  {hi ? "प्रतिबिंब के लिए AI से पूछें" : "Ask AI for Reflection"}
                 </button>
                 
                 <div style={{ display: "flex", gap: "12px" }}>
