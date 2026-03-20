@@ -1,3 +1,4 @@
+import posthog from 'posthog-js';
 import React, { useState, useEffect } from "react";
 import { PageNav } from "../../components/SharedUI";
 import { ParticleCanvas } from "../../components/ParticleCanvas";
@@ -23,6 +24,7 @@ export function Focus({ setTab, goBack, T, lang }) {
     const today = new Date().toDateString();
     setFocusDone(prev => ({ ...prev, [id]: today }));
     setGameComplete(true);
+    posthog.capture('focus_game_completed', { game: id, lang });
   };
 
   const GAMES = [

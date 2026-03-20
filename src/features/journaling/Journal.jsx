@@ -1,3 +1,4 @@
+import posthog from 'posthog-js';
 import React, { useState, useEffect, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
 import { readEmotionalCtx, clearEmotionalCtx } from '../../utils/context';

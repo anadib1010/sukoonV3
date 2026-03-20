@@ -1,3 +1,4 @@
+import posthog from 'posthog-js';
 import React, { useState, useEffect, useRef } from 'react';
 import { Orb, Card } from '../../components/SharedUI';
 import { creditSession } from '../../utils/activity';
@@ -134,6 +135,7 @@ export function Practice({ setTab, goBack, T, lang }) {
     if (completed || cycles > 0) {
       const totalSecs = cycles * (pat.inhale + (pat.hold1 || 0) + pat.exhale + (pat.hold2 || 0));
       creditSession(Math.max(1, Math.round(totalSecs / 60)));
+      posthog.capture('breathwork_completed', { pattern: pat.name, cycles, lang });
     }
     setGoing(false); setPhaseKey("inhale"); setCount(0); setCycles(0);
     phaseRef.current = "inhale"; cntRef.current = 0;

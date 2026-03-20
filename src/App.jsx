@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { track } from '@vercel/analytics';
@@ -181,6 +182,11 @@ function AppContent() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setIsCheckingAuth(false);
+      if (session?.user) {
+        posthog.identify(session.user.id, { email: session.user.email });
+      } else {
+        posthog.reset(); // Clear identity on logout
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -197,13 +203,20 @@ function AppContent() {
   const [selectedMood, setSelectedMood] = useState(null);
 
   const setTab = (newTab) => {
-    if (newTab === "home") navigate("/");
+    if (newTab === "home") {
+      posthog.capture("page_viewed", { page: "home" });
+      navigate("/");
+    }
     else if (newTab.startsWith("moodAction_")) {
       const moodLabel = newTab.replace("moodAction_", "");
       setSelectedMood(moodLabel);
+      posthog.capture("mood_selected", { mood: moodLabel, lang });
       navigate("/moodaction");
     }
-    else navigate(`/${newTab}`);
+    else {
+      posthog.capture("page_viewed", { page: newTab, lang });
+      navigate(`/${newTab}`);
+    }
   };
 
   if (isCheckingAuth) {

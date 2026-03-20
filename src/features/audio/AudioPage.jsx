@@ -1,3 +1,4 @@
+import posthog from 'posthog-js';
 import React, { useState, useEffect, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
 import { creditSession } from '../../utils/activity';
@@ -185,7 +186,10 @@ export function AudioPage({ setTab, goBack, T, lang }) {
     clearTimeout(hindiSeqRef.current);
     if (medAudioRef.current) { medAudioRef.current.pause(); medAudioRef.current.src = ""; medAudioRef.current = null; }
     if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (completed && activeMed) creditSession(activeMed.dur || 5);
+    if (completed && activeMed) {
+      creditSession(activeMed.dur || 5);
+      posthog.capture('meditation_completed', { title: activeMed.title, duration: activeMed.dur, lang });
+    }
     setMedRunning(false); setMedElapsed(0); setMedDuration(0); setActiveMed(null);
     setCurrentHindiLine(null);
   };
