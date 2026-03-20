@@ -57,8 +57,8 @@ export function Privacy({ setTab, goBack, T, lang }) {
           </p>
           <p style={{ color: T.textSoft, fontSize: 15, margin: 0 }}>
             {hi 
-              ? "सुकून को बेहतर बनाने में मदद के लिए, हम अनाम उपयोग एनालिटिक्स का उपयोग करते हैं। यह हमें केवल सामान्य गतिविधि बताता है, जैसे कि कितने लोगों ने कोई सुविधा खोली। यह कभी भी आपकी पहचान नहीं करता है और आपके द्वारा लिखी गई बातों को कभी रिकॉर्ड नहीं करता है।" 
-              : "To help improve Sukoon, we use anonymous usage analytics. This only tells us general activity, such as how many people opened a feature. It never identifies you and never records what you write."}
+              ? "JSukoon को बेहतर बनाने के लिए हम PostHog एनालिटिक्स का उपयोग करते हैं। यह हमें बताता है कि कौन से पेज देखे गए, कौन सी सुविधाएं उपयोग की गईं, और कितने समय तक। यह आपकी जर्नल सामग्री, विचार या व्यक्तिगत लेखन को कभी रिकॉर्ड नहीं करता। डेटा आपके Supabase खाते से जुड़ा है।" 
+              : "To improve JSukoon, we use PostHog analytics. This tells us which pages were visited, which features were used, and session duration. It never records your journal content, thoughts, or personal writing. Data is tied to your Supabase account ID."}
           </p>
         </div>
 
@@ -77,6 +77,14 @@ export function Privacy({ setTab, goBack, T, lang }) {
           titleH="AI प्रोसेसिंग"
           desc="When you Seek a Reflection, your text is sent to the Google Gemini API. This data is used only to generate the reflection and is not stored."
           descH="जब आप कोई प्रतिबिंब (Reflection) खोजते हैं, तो आपका टेक्स्ट Google Gemini API को भेजा जाता है। इस डेटा का उपयोग केवल उत्तर उत्पन्न करने के लिए किया जाता है और इसे सहेजा नहीं जाता है।"
+        />
+
+        <Section
+          icon="📊"
+          title="Analytics & Tracking"
+          titleH="एनालिटिक्स और ट्रैकिंग"
+          desc="JSukoon uses PostHog to collect anonymous usage data — pages visited, features used, and actions like completing a meditation or submitting a journal entry. This data is linked to your account ID and helps us improve the app. Your journal entries, thoughts, and personal writing are never tracked or stored in analytics."
+          descH="JSukoon बेहतर बनाने के लिए PostHog एनालिटिक्स का उपयोग करता है — देखे गए पेज, उपयोग की गई सुविधाएं, और ध्यान पूरा करने या जर्नल सबमिट करने जैसी क्रियाएं। यह डेटा आपके खाता ID से जुड़ा है। आपकी जर्नल प्रविष्टियां, विचार और व्यक्तिगत लेखन कभी ट्रैक नहीं किया जाता।"
         />
 
         <Section 

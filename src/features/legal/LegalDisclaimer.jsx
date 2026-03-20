@@ -78,12 +78,16 @@ export function LegalDisclaimer({ setTab, goBack, T, lang }) {
     },
     {
       num: "3",
-      en: "Data & Privacy Responsibility",
-      hi: "डेटा और गोपनीयता जिम्मेदारी",
+      en: "Data, Privacy & Analytics",
+      hi: "डेटा, गोपनीयता और एनालिटिक्स",
       paras: [
         {
           en: "JSukoon stores your personal journal entries, mood logs, reflections, and session data securely on Supabase — a trusted cloud platform protected by row-level security and encrypted connections.",
           hi: "JSukoon आपकी जर्नल प्रविष्टियां, मूड लॉग, चिंतन और सत्र डेटा Supabase पर सुरक्षित रूप से संग्रहीत करता है — एक विश्वसनीय क्लाउड प्लेटफ़ॉर्म जो row-level security और एन्क्रिप्टेड कनेक्शन द्वारा सुरक्षित है।",
+        },
+        {
+          en: "JSukoon uses PostHog to collect anonymous usage analytics — pages visited, features used, and in-app actions such as completing a meditation. This data is tied to your account ID and used solely to improve the app. Your journal entries, personal writing, and thoughts are never recorded in analytics.",
+          hi: "JSukoon बेहतर बनाने के लिए PostHog एनालिटिक्स का उपयोग करता है — देखे गए पेज, उपयोग की गई सुविधाएं और इन-ऐप क्रियाएं जैसे ध्यान पूरा करना। यह डेटा आपके खाता ID से जुड़ा है और केवल ऐप सुधार के लिए उपयोग किया जाता है। आपकी जर्नल प्रविष्टियां और व्यक्तिगत लेखन कभी रिकॉर्ड नहीं किया जाता।",
         },
         {
           en: "While we take every precaution to protect your data, no method of internet transmission is 100% secure. The developer is not responsible for any data loss or breaches resulting from circumstances beyond our reasonable control. You are responsible for keeping your login credentials secure.",
