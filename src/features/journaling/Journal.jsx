@@ -237,9 +237,14 @@ export function Journal({ setTab, T, lang }) {
     }
    
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
       const response = await fetch('/api/gemini', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ entry, hi }),
       });
 

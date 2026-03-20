@@ -1,12 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { rateLimit } from './_rateLimit.js';
+import { verifyAuth } from './_verifyAuth.js';
 
-// 20 requests per minute per IP — protects Gemini 2.5-flash daily quota
 const checkLimit = rateLimit({ maxRequests: 20, windowMs: 60 * 1000 });
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (checkLimit(req, res)) return;
+
+  // Verify user is logged in — uses only anon key, safe
+  const user = await verifyAuth(req, res);
+  if (!user) return;
 
   const { entry, hi } = req.body;
 
@@ -26,7 +30,6 @@ export default async function handler(req, res) {
       ? "आप 'सुकून एआई' हैं, एक शांत, सहानुभूतिपूर्ण और बिना किसी फैसले के सुनने वाले साथी। उपयोगकर्ता अपनी भावनाओं को जर्नल में लिख रहा है। एक गहरी समझ, शांति और मान्यता के साथ उत्तर दें। उत्तर छोटा (अधिकतम 2-3 वाक्य) और बहुत ही कोमल होना चाहिए। कोई सलाह न दें, बस उन्हें सुनें।"
       : "You are Sukoon AI, a calm, empathetic, and non-judgmental companion. The user is writing their feelings in a journal. Respond with deep empathy, validation, and a gentle tone. Keep the response brief (2-3 sentences max). Do not give unsolicited advice, just hold space for them.";
 
-    // XML delimiters prevent prompt injection
     const safeEntry = entry.slice(0, 1000);
     const prompt = `${systemInstruction}
 

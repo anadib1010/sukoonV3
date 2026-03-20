@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from './supabase';
 
 const moodLibrary = {
   Heavy: {
@@ -99,9 +100,14 @@ export default function MoodAction({ selectedMood, goBack, setTab, lang }) {
       if (!selectedMood) return;
       setIsLoading(true);
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || '';
         const response = await fetch('/api/mood', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
           body: JSON.stringify({ mood: selectedMood, lang }),
         });
         const data = await response.json();

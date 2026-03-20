@@ -1,14 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { rateLimit } from './_rateLimit.js';
+import { verifyAuth } from './_verifyAuth.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// 60 requests per minute per IP — mood endpoint fires more frequently
 const checkLimit = rateLimit({ maxRequests: 60, windowMs: 60 * 1000 });
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (checkLimit(req, res)) return;
+
+  // Verify user is logged in — uses only anon key, safe
+  const user = await verifyAuth(req, res);
+  if (!user) return;
 
   const { mood } = req.body;
 
@@ -20,7 +23,6 @@ export default async function handler(req, res) {
     // gemini-1.5-flash kept intentionally — 1500/day free quota vs 20/day on 2.5-flash
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    // XML delimiters prevent prompt injection from mood string
     const prompt = `You are a gentle mindfulness companion. The user has indicated they are feeling as described below.
 Provide exactly ONE short, comforting sentence to acknowledge this feeling.
 Do not give medical advice. Do not be overly dramatic. Keep it poetic, grounding, and safe.

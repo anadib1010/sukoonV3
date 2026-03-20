@@ -6,26 +6,45 @@
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <!-- Content Security Policy — restricts what can load/run in the app -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      font-src 'self' https://fonts.gstatic.com;
+      style-src 'self' https://fonts.googleapis.com 'unsafe-inline';
+      script-src 'self' 'unsafe-inline';
+      connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com https://vercel.live;
+      img-src 'self' data: https://www.svgrepo.com https://ktqkxfj3pddbxgnf.public.blob.vercel-storage.com;
+      media-src 'self' https://ktqkxfj3pddbxgnf.public.blob.vercel-storage.com;
+      frame-ancestors 'none';
+    ">
+
+    <!-- Prevents clickjacking -->
+    <meta http-equiv="X-Frame-Options" content="DENY">
+
+    <!-- Stops browser sniffing MIME types -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+
     <title>JSukoon</title>
-    
+
+    <!-- Cormorant Garamond: headings, serif UI — DM Sans: body, buttons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+
     <style>
-      /* 1. Fix the 100vw bug by removing default browser margins */
       body, html {
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
-        overflow-x: hidden; /* Kills horizontal scrolling */
-        background-color: #080808; /* Prevents white flashes during load */
+        overflow-x: hidden;
+        background-color: #080808;
       }
-
-      /* 2. Hide scrollbars but keep scrolling functionality */
-      ::-webkit-scrollbar {
-        display: none; /* Chrome, Safari, Opera */
-      }
+      ::-webkit-scrollbar { display: none; }
       * {
-        -ms-overflow-style: none; /* IE and Edge */
-        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
     </style>
   </head>
