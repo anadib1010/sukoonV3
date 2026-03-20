@@ -20,7 +20,7 @@ export function About({ setTab, goBack, T, lang }) {
             Version 3.1 · Made in India
           </p>
           <p style={{ fontSize: 18, color: T.accent, fontFamily: "'Cormorant Garamond',serif", fontStyle: "italic" }}>
-            sukoon — سکون — शांति
+            sukoon — शांति
           </p>
         </div>
 
