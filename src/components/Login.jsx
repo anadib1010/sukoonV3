@@ -69,7 +69,10 @@ export function Login({ onLogin, T, lang }) {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { captchaToken: captchaToken || undefined }
+          options: {
+            captchaToken: captchaToken || undefined,
+            emailRedirectTo: window.location.origin,
+          }
         });
         if (error) throw error;
         setMessage(hi ? "कृपया अपना ईमेल जांचें!" : "Check your email for a confirmation link!");
