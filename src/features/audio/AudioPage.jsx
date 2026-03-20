@@ -5,9 +5,6 @@ import { AUDIO_URLS, MEDITATION_AUDIO } from '../../utils/constants';
 import { MEDITATIONS } from '../../utils/content';
 
 // ─── HINDI + ENGLISH MEDITATION SCRIPTS ──────────────────────────────
-// Hindi plays via browser TTS (no MP3 needed — works on all devices).
-// English plays the MP3 + shows text guide in sync.
-
 const HINDI_SCRIPTS = {
   1:  [[0.0,"आँखें धीरे से बंद करें। एक धीमी सांस लें।"],[0.1,"दिन शुरू होने से पहले इस पल की शांति को महसूस करें।"],[0.25,"हर सांस के साथ, थोड़ी और गर्माहट अपने सीने में भरने दें।"],[0.5,"आप यहाँ हैं। आप पर्याप्त हैं। दिन इंतज़ार कर सकता है।"],[0.75,"एक धीमा इरादा बनाएं — लक्ष्य नहीं, बस एक दिशा।"],[0.9,"इस पल की रोशनी को धीरे-धीरे अपने साथ आगे ले जाने दें।"]],
   2:  [[0.0,"आप सुरक्षित हैं। आप यहाँ हैं। अभी कुछ भी ज़रूरी नहीं।"],[0.15,"देखें कि शरीर में तनाव कहाँ है। बस देखें — लड़ें नहीं।"],[0.3,"एक हाथ अपने सीने पर रखें। उसकी गर्माहट महसूस करें।"],[0.5,"धीरे सांस लें — चार गिनती। हल्के से रोकें — दो। छोड़ें — छह।"],[0.7,"आपने अब तक हर कठिन पल को पार किया है। यह भी गुज़र जाएगा।"],[0.88,"यहाँ थोड़ा और रुकें। आप थामे हुए हैं।"]],
@@ -38,22 +35,19 @@ const ENGLISH_SCRIPTS = {
   12: [[0.0,"Imagine compassion falling on you like gentle rain."],[0.25,"Every part of you — the tired parts, the uncertain parts."],[0.5,"All of it receiving the same gentle, wordless care."],[0.75,"You do not need to deserve it. It falls anyway."],[0.9,"Breathe it in. It is real. It is yours."]],
 };
 
-// ─── MEDITATION GUIDE COMPONENT ───────────────────────────────────────
-function MeditationGuide({ meditation, elapsed, total, lang, onSpeak }) {
+// ─── MEDITATION GUIDE ─────────────────────────────────────────────────
+// ─── MEDITATION GUIDE ─────────────────────────────────────────────────
+// English: line driven by audio progress (synced to MP3 elapsed time)
+// Hindi: line driven by TTS sequencer (speech drives the display, not timer)
+function MeditationGuide({ meditation, elapsed, total, lang, currentHindiLine }) {
   const pct = total > 0 ? elapsed / total : 0;
   const isHindi = lang === "Hindi";
   const scripts = isHindi ? HINDI_SCRIPTS : ENGLISH_SCRIPTS;
   const lines = scripts[meditation.id] || scripts[1];
-  const currentLine = [...lines].reverse().find(([t]) => pct >= t)?.[1] || lines[0][1];
 
-  const prevLineRef = useRef(null);
-  useEffect(() => {
-    if (!isHindi || !onSpeak) return;
-    if (currentLine !== prevLineRef.current) {
-      prevLineRef.current = currentLine;
-      onSpeak(currentLine);
-    }
-  }, [currentLine, isHindi, onSpeak]);
+  const displayLine = isHindi
+    ? (currentHindiLine || lines[0][1])
+    : ([...lines].reverse().find(([t]) => pct >= t)?.[1] || lines[0][1]);
 
   return (
     <p style={{
@@ -68,15 +62,25 @@ function MeditationGuide({ meditation, elapsed, total, lang, onSpeak }) {
       minHeight: 60,
       transition: "opacity 0.8s ease",
     }}>
-      {currentLine}
+      {displayLine}
     </p>
   );
 }
 
-// ─── MAIN AUDIO PAGE ──────────────────────────────────────────────────
+// ─── SOUNDS DATA ──────────────────────────────────────────────────────
+const SOUNDS = [
+  { id:"birds.mp3",  emoji:"🐦", title:"Morning Birds",   titleH:"सुबह के पक्षी",   desc:"Gentle morning chorus",    descH:"हल्की चहचहाहट" },
+  { id:"wind.mp3",   emoji:"💨", title:"Passing Wind",    titleH:"बहती हवा",         desc:"Breeze through the trees", descH:"पेड़ों से गुजरती हवा" },
+  { id:"forest.mp3", emoji:"🌲", title:"Deep Forest",     titleH:"गहरा जंगल",       desc:"Leaves and deep quiet",    descH:"पत्ते और शांति" },
+  { id:"flute.mp3",  emoji:"🪈", title:"Distant Flute",   titleH:"बांसुरी",          desc:"A calming melody",         descH:"एक शांत धुन" },
+  { id:"waves.mp3",  emoji:"🌊", title:"Ocean Waves",     titleH:"समुद्र की लहरें", desc:"Steady and rhythmic",      descH:"लगातार और स्थिर" },
+];
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────
 export function AudioPage({ setTab, goBack, T, lang }) {
   const hi = lang === "Hindi";
   const [audioCategory, setAudioCategory] = useState("sounds");
+  const [visible, setVisible] = useState(false);
 
   // Ambient state
   const [activeSound, setActiveSound] = useState(null);
@@ -92,27 +96,26 @@ export function AudioPage({ setTab, goBack, T, lang }) {
   const [medDuration, setMedDuration] = useState(0);
   const medAudioRef = useRef(null);
   const medTimerRef = useRef(null);
+  // Hindi TTS sequencer state
+  const [currentHindiLine, setCurrentHindiLine] = useState(null);
+  const hindiSeqRef = useRef(null); // holds timeout for next line
 
-  // ── Hindi TTS ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 60);
+    return () => clearTimeout(t);
+  }, []);
+
   const speakHindi = (text) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "hi-IN";
-    u.rate = 0.82;
-    u.pitch = 1.0;
+    u.lang = "hi-IN"; u.rate = 0.82; u.pitch = 1.0;
     const voices = window.speechSynthesis.getVoices();
-    const hindiVoice = voices.find(v =>
-      v.lang.startsWith("hi") ||
-      v.name.toLowerCase().includes("hindi") ||
-      v.name.toLowerCase().includes("hemant") ||
-      v.name.toLowerCase().includes("kalpana")
-    );
+    const hindiVoice = voices.find(v => v.lang.startsWith("hi") || v.name.toLowerCase().includes("hindi") || v.name.toLowerCase().includes("hemant") || v.name.toLowerCase().includes("kalpana"));
     if (hindiVoice) u.voice = hindiVoice;
     window.speechSynthesis.speak(u);
   };
 
-  // Pre-load voices on mount
   useEffect(() => {
     if (window.speechSynthesis) {
       window.speechSynthesis.getVoices();
@@ -120,7 +123,6 @@ export function AudioPage({ setTab, goBack, T, lang }) {
     }
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopAmbient();
@@ -129,7 +131,6 @@ export function AudioPage({ setTab, goBack, T, lang }) {
     };
   }, []);
 
-  // Meditation timer
   useEffect(() => {
     if (!medRunning) { clearInterval(medTimerRef.current); return; }
     medTimerRef.current = setInterval(() => {
@@ -142,7 +143,6 @@ export function AudioPage({ setTab, goBack, T, lang }) {
     return () => clearInterval(medTimerRef.current);
   }, [medRunning, medDuration]);
 
-  // ── Ambient ────────────────────────────────────────────────────────
   const stopAmbient = () => {
     if (ambientStartRef.current) {
       const mins = (Date.now() - ambientStartRef.current) / 60000;
@@ -170,8 +170,7 @@ export function AudioPage({ setTab, goBack, T, lang }) {
     const url = AUDIO_URLS[sound.id];
     if (!url) return;
     const a = new Audio(url);
-    a.loop = true;
-    a.volume = volume;
+    a.loop = true; a.volume = volume;
     a.play().then(() => {
       ambientRef.current = a;
       window.__pageAudio = a;
@@ -181,51 +180,62 @@ export function AudioPage({ setTab, goBack, T, lang }) {
     }).catch(() => {});
   };
 
-  // ── Meditation ─────────────────────────────────────────────────────
   const stopMeditation = (completed = false) => {
     clearInterval(medTimerRef.current);
+    clearTimeout(hindiSeqRef.current);
     if (medAudioRef.current) { medAudioRef.current.pause(); medAudioRef.current.src = ""; medAudioRef.current = null; }
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (completed && activeMed) creditSession(activeMed.dur || 5);
-    setMedRunning(false);
-    setMedElapsed(0);
-    setMedDuration(0);
-    setActiveMed(null);
+    setMedRunning(false); setMedElapsed(0); setMedDuration(0); setActiveMed(null);
+    setCurrentHindiLine(null);
   };
 
   const playMeditation = (med) => {
-    // Toggle same session
     if (activeMed?.id === med.id) {
-      if (medRunning) {
-        setMedRunning(false);
-        medAudioRef.current?.pause();
-        window.speechSynthesis?.cancel();
-      } else {
-        setMedRunning(true);
-        medAudioRef.current?.play()?.catch(() => {});
-      }
+      if (medRunning) { setMedRunning(false); medAudioRef.current?.pause(); window.speechSynthesis?.cancel(); }
+      else { setMedRunning(true); medAudioRef.current?.play()?.catch(() => {}); }
       return;
     }
-
-    stopMeditation(false);
-    stopAmbient();
-
+    stopMeditation(false); stopAmbient();
     const totalSecs = (med.dur || 5) * 60;
-    setActiveMed(med);
-    setMedDuration(totalSecs);
-    setMedElapsed(0);
-
+    setActiveMed(med); setMedDuration(totalSecs); setMedElapsed(0);
     if (hi) {
-      // ── HINDI: TTS drives everything — no MP3 needed ──
-      // Speak the opening line immediately on tap
-      const firstLine = HINDI_SCRIPTS[med.id]?.[0]?.[1];
-      if (firstLine) {
-        // Small delay so the UI settles before speech starts
-        setTimeout(() => speakHindi(firstLine), 400);
-      }
+      // Speech-driven sequencer — each line speaks, then schedules the next
+      // This way speech is never interrupted by a timer firing too early
+      const lines = HINDI_SCRIPTS[med.id] || HINDI_SCRIPTS[1];
+      const totalSecs2 = (med.dur || 5) * 60;
+
+      const speakLine = (index) => {
+        if (index >= lines.length) {
+          stopMeditation(true);
+          return;
+        }
+        const lineText = lines[index][1];
+        setCurrentHindiLine(lineText);
+
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(lineText);
+        u.lang = "hi-IN"; u.rate = 0.78; u.pitch = 1.0;
+        const voices = window.speechSynthesis.getVoices();
+        const hindiVoice = voices.find(v => v.lang.startsWith("hi") || v.name.toLowerCase().includes("hindi"));
+        if (hindiVoice) u.voice = hindiVoice;
+
+        // When speech ends, pause then speak next line
+        u.onend = () => {
+          hindiSeqRef.current = setTimeout(() => speakLine(index + 1), 2200);
+        };
+        u.onerror = () => {
+          // On error, still advance after a delay
+          hindiSeqRef.current = setTimeout(() => speakLine(index + 1), 3000);
+        };
+        window.speechSynthesis.speak(u);
+      };
+
+      // Start first line after brief UI settle delay
+      hindiSeqRef.current = setTimeout(() => speakLine(0), 500);
       setMedRunning(true);
     } else {
-      // ── ENGLISH: MP3 + synchronized text guide ──
       const url = MEDITATION_AUDIO[med.id];
       if (url) {
         const a = new Audio(url);
@@ -249,43 +259,215 @@ export function AudioPage({ setTab, goBack, T, lang }) {
   const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const medProgress = activeMed && medDuration > 0 ? medElapsed / medDuration : 0;
 
-  const SOUNDS = [
-    { id:"birds.mp3",  emoji:"🐦", title:"Morning Birds",   titleH:"सुबह के पक्षी",   desc:"Gentle morning chorus",    descH:"हल्की चहचहाहट" },
-    { id:"wind.mp3",   emoji:"💨", title:"Passing Wind",    titleH:"बहती हवा",         desc:"Breeze through the trees", descH:"पेड़ों से गुजरती हवा" },
-    { id:"forest.mp3", emoji:"🌲", title:"Deep Forest",     titleH:"गहरा जंगल",       desc:"Leaves and deep quiet",    descH:"पत्ते और शांति" },
-    { id:"flute.mp3",  emoji:"🪈", title:"Distant Flute",   titleH:"बांसुरी",          desc:"A calming melody",         descH:"एक शांत धुन" },
-    { id:"waves.mp3",  emoji:"🌊", title:"Ocean Waves",     titleH:"समुद्र की लहरें", desc:"Steady and rhythmic",      descH:"लगातार और स्थिर" },
+  // ─── STYLES ───
+  const s = {
+    page: { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" },
+
+    scrollArea: { flex: 1, overflowY: "auto", padding: "10px 24px 80px" },
+
+    header: {
+      marginBottom: 24,
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(12px)",
+      transition: "opacity 0.6s ease, transform 0.6s ease",
+    },
+
+    heading: { fontFamily: "'Cormorant Garamond', serif", fontSize: 32, color: T.text, fontWeight: 400, marginBottom: 8 },
+    subheading: { fontSize: 13, color: T.textSoft, lineHeight: 1.6, margin: 0 },
+    hindiNote: { fontSize: 11, color: T.accent, marginTop: 6, opacity: 0.8 },
+
+    tabToggle: {
+      display: "flex",
+      background: `${T.accent}0a`,
+      borderRadius: 16,
+      padding: 4,
+      marginBottom: 24,
+      border: `1px solid ${T.border}`,
+      opacity: visible ? 1 : 0,
+      transition: "opacity 0.6s ease 0.1s",
+    },
+
+    tab: (active) => ({
+      flex: 1,
+      padding: "10px 8px",
+      borderRadius: 12,
+      background: active ? T.surface : "transparent",
+      border: `1px solid ${active ? T.accent + "40" : "transparent"}`,
+      color: active ? T.accent : T.muted,
+      fontSize: 13,
+      fontWeight: active ? 600 : 400,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      transition: "all 0.2s",
+      cursor: "pointer",
+    }),
+
+    // Active meditation player
+    medPlayer: (col) => ({
+      background: `${col}10`,
+      border: `1px solid ${col}35`,
+      borderRadius: 24,
+      padding: "24px 20px",
+      marginBottom: 28,
+    }),
+
+    medPlayerHeader: { textAlign: "center", marginBottom: 16 },
+    medEmoji: { fontSize: 36 },
+    medTitle: { margin: "8px 0 2px", fontSize: 18, color: T.text, fontWeight: 500 },
+    medStatus: { margin: 0, fontSize: 11, color: T.muted },
+    medGuideWrap: { marginBottom: 20, minHeight: 60 },
+
+    progressTrack: { height: 3, background: T.border, borderRadius: 99, marginBottom: 10, overflow: "hidden" },
+    progressBar: (pct, col) => ({ height: "100%", width: `${pct * 100}%`, background: col, borderRadius: 99, transition: "width 1s linear" }),
+
+    medTime: { textAlign: "center", fontSize: 12, color: T.muted, marginBottom: 16 },
+
+    volumeRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 },
+    volumeLabel: { fontSize: 12, color: T.muted },
+
+    medControls: { display: "flex", gap: 12, justifyContent: "center" },
+
+    playBtn: (col) => ({
+      background: col,
+      color: "#fff",
+      border: "none",
+      borderRadius: 99,
+      width: 56,
+      height: 56,
+      fontSize: 22,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: `0 4px 16px ${col}40`,
+      cursor: "pointer",
+      transition: "transform 0.2s",
+    }),
+
+    stopBtn: {
+      background: `${T.accent}15`,
+      color: T.muted,
+      border: `1px solid ${T.border}`,
+      borderRadius: 99,
+      width: 56,
+      height: 56,
+      fontSize: 18,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+    },
+
+    hindiTtsNote: { textAlign: "center", fontSize: 11, color: T.muted, marginTop: 14, opacity: 0.7 },
+
+    // Active ambient mini-player
+    ambientPlayer: {
+      background: `${T.accent}10`,
+      border: `1px solid ${T.accent}30`,
+      borderRadius: 18,
+      padding: "14px 18px",
+      marginBottom: 20,
+      display: "flex",
+      alignItems: "center",
+      gap: 14,
+    },
+
+    ambientEmoji: { fontSize: 28 },
+    ambientInfo: { flex: 1 },
+    ambientTitle: { margin: "0 0 2px", fontSize: 14, color: T.text, fontWeight: 500 },
+    ambientStatus: { margin: 0, fontSize: 11, color: T.muted },
+
+    ambientPlayBtn: {
+      background: T.accent,
+      color: "#fff",
+      border: "none",
+      borderRadius: 99,
+      width: 40,
+      height: 40,
+      fontSize: 16,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+    },
+
+    // Audio list
+    list: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(12px)",
+      transition: "opacity 0.6s ease 0.2s, transform 0.6s ease 0.2s",
+    },
+
+    listItem: (active, col) => ({
+      display: "flex",
+      alignItems: "center",
+      gap: 14,
+      background: active ? `${col}12` : T.surface,
+      border: `1px solid ${active ? col + "50" : T.border}`,
+      borderRadius: 16,
+      padding: "14px 16px",
+      textAlign: "left",
+      transition: "all 0.2s",
+      width: "100%",
+      cursor: "pointer",
+    }),
+
+    listIcon: (col) => ({
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      background: `${col}18`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 22,
+      flexShrink: 0,
+    }),
+
+    listInfo: { flex: 1 },
+
+    listTitle: (active, col) => ({
+      margin: "0 0 3px",
+      fontSize: 14,
+      color: active ? col : T.text,
+      fontWeight: active ? 600 : 500,
+    }),
+
+    listDesc: { margin: 0, fontSize: 11, color: T.muted },
+
+    listDur: (col) => ({ fontSize: 10, color: col, display: "block", marginTop: 3 }),
+
+    listArrow: (active, col) => ({ color: active ? col : T.muted, fontSize: 16, flexShrink: 0 }),
+  };
+
+  const TABS = [
+    { key: "sounds",      icon: "🌊", en: "Soundscapes", hi: "साउंडस्केप" },
+    { key: "meditations", icon: "🧘", en: "Meditations",  hi: "ध्यान" },
   ];
 
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:T.bg, overflow:"hidden" }}>
+    <div style={s.page}>
       <PageNav onBack={goBack || (() => setTab("more"))} onHome={() => setTab("home")} backLabel={hi ? "वापस" : "Back"} T={T} lang={lang} />
 
-      <div className="scroll-area fade-up" style={{ flex:1, overflowY:"auto", padding:"10px 24px 80px" }}>
+      <div className="scroll-area fade-up" style={s.scrollArea}>
 
         {/* Header */}
-        <div style={{ marginBottom:24 }}>
-          <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, color:T.text, fontWeight:400, marginBottom:8 }}>
-            {hi ? "ऑडियो" : "Audio"}
-          </h1>
-          <p style={{ fontSize:13, color:T.textSoft, lineHeight:1.6 }}>
+        <div style={s.header}>
+          <h1 style={s.heading}>{hi ? "ऑडियो" : "Audio"}</h1>
+          <p style={s.subheading}>
             {hi ? "आवाज़ को आपको ज़मीन पर लाने दें।" : "Let sound anchor you. Pick a soundscape or a meditation and simply rest."}
           </p>
-          {hi && (
-            <p style={{ fontSize:11, color:T.accent, marginTop:6, opacity:0.8 }}>
-              ✦ ध्यान हिंदी में — आपके डिवाइस की आवाज़ बोलेगी
-            </p>
-          )}
+          {hi && <p style={s.hindiNote}>✦ ध्यान हिंदी में — आपके डिवाइस की आवाज़ बोलेगी</p>}
         </div>
 
         {/* Tab toggle */}
-        <div style={{ display:"flex", background:`${T.accent}0a`, borderRadius:16, padding:4, marginBottom:24, border:`1px solid ${T.border}` }}>
-          {[
-            { key:"sounds",      icon:"🌊", en:"Soundscapes", hi:"साउंडस्केप" },
-            { key:"meditations", icon:"🧘", en:"Meditations",  hi:"ध्यान" },
-          ].map(t => (
-            <button key={t.key} onClick={() => setAudioCategory(t.key)}
-              style={{ flex:1, padding:"10px 8px", borderRadius:12, background:audioCategory===t.key ? T.surface : "transparent", border:`1px solid ${audioCategory===t.key ? T.accent+"40" : "transparent"}`, color:audioCategory===t.key ? T.accent : T.muted, fontSize:13, fontWeight:audioCategory===t.key ? 600 : 400, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all 0.2s" }}>
+        <div style={s.tabToggle}>
+          {TABS.map(t => (
+            <button key={t.key} onClick={() => setAudioCategory(t.key)} style={s.tab(audioCategory === t.key)}>
               <span>{t.icon}</span> {hi ? t.hi : t.en}
             </button>
           ))}
@@ -293,112 +475,104 @@ export function AudioPage({ setTab, goBack, T, lang }) {
 
         {/* Active meditation player */}
         {activeMed && (
-          <div className="fade-in" style={{ background:`${activeMed.col||T.accent}10`, border:`1px solid ${activeMed.col||T.accent}35`, borderRadius:24, padding:"24px 20px", marginBottom:28 }}>
-            <div style={{ textAlign:"center", marginBottom:16 }}>
-              <span style={{ fontSize:36 }}>{activeMed.emoji}</span>
-              <h3 style={{ margin:"8px 0 2px", fontSize:18, color:T.text, fontWeight:500 }}>
-                {hi ? activeMed.titleH : activeMed.title}
-              </h3>
-              <p style={{ margin:0, fontSize:11, color:T.muted }}>
-                {medRunning ? (hi ? "चल रहा है..." : "Playing...") : (hi ? "रुका हुआ" : "Paused")}
-              </p>
+          <div className="fade-in" style={s.medPlayer(activeMed.col || T.accent)}>
+            <div style={s.medPlayerHeader}>
+              <span style={s.medEmoji}>{activeMed.emoji}</span>
+              <h3 style={s.medTitle}>{hi ? activeMed.titleH : activeMed.title}</h3>
+              <p style={s.medStatus}>{medRunning ? (hi ? "चल रहा है..." : "Playing...") : (hi ? "रुका हुआ" : "Paused")}</p>
             </div>
 
-            {/* Synchronized guide text — TTS speaks it in Hindi */}
-            <div style={{ marginBottom:20, minHeight:60 }}>
+            <div style={s.medGuideWrap}>
               <MeditationGuide
                 meditation={activeMed}
                 elapsed={medElapsed}
                 total={medDuration || (activeMed.dur * 60)}
                 lang={lang}
-                onSpeak={hi ? speakHindi : null}
+                currentHindiLine={currentHindiLine}
               />
             </div>
 
-            {/* Progress bar */}
-            <div style={{ height:3, background:`${T.border}`, borderRadius:99, marginBottom:10, overflow:"hidden" }}>
-              <div style={{ height:"100%", width:`${medProgress * 100}%`, background:activeMed.col||T.accent, borderRadius:99, transition:"width 1s linear" }} />
+            <div style={s.progressTrack}>
+              <div style={s.progressBar(medProgress, activeMed.col || T.accent)} />
             </div>
-            <p style={{ textAlign:"center", fontSize:12, color:T.muted, marginBottom:16 }}>
-              {fmt(medElapsed)} / {fmt(medDuration || (activeMed.dur * 60))}
-            </p>
+            <p style={s.medTime}>{fmt(medElapsed)} / {fmt(medDuration || (activeMed.dur * 60))}</p>
 
-            {/* Volume — English only (Hindi uses device TTS volume) */}
+            {/* Volume — English MP3 only. Hindi uses device TTS volume. */}
             {!hi && (
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-                <span style={{ fontSize:12, color:T.muted }}>🔈</span>
-                <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} style={{ flex:1, accentColor:activeMed.col||T.accent }} />
-                <span style={{ fontSize:12, color:T.muted }}>🔊</span>
+              <div style={s.volumeRow}>
+                <span style={s.volumeLabel}>🔈</span>
+                <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} style={{ flex: 1, accentColor: activeMed.col || T.accent }} />
+                <span style={s.volumeLabel}>🔊</span>
               </div>
             )}
-
-            {/* Play / Stop buttons */}
-            <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
-              <button onClick={() => {
-                if (medRunning) { setMedRunning(false); medAudioRef.current?.pause(); window.speechSynthesis?.cancel(); }
-                else { setMedRunning(true); medAudioRef.current?.play()?.catch(() => {}); }
-              }} style={{ background:activeMed.col||T.accent, color:"#fff", border:"none", borderRadius:99, width:56, height:56, fontSize:22, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 4px 16px ${(activeMed.col||T.accent)}40` }}>
-                {medRunning ? "⏸" : "▶"}
-              </button>
-              <button onClick={() => stopMeditation(false)}
-                style={{ background:`${T.accent}15`, color:T.muted, border:`1px solid ${T.border}`, borderRadius:99, width:56, height:56, fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                ⏹
-              </button>
-            </div>
-
+            {/* Hindi: device TTS volume note */}
             {hi && (
-              <p style={{ textAlign:"center", fontSize:11, color:T.muted, marginTop:14, opacity:0.7 }}>
-                🔊 आपके डिवाइस की हिंदी आवाज़ बोल रही है
+              <p style={{ fontSize: 11, color: T.muted, textAlign: "center", marginBottom: 12, opacity: 0.65 }}>
+                🔊 आवाज़ की तेज़ी अपने फ़ोन के वॉल्यूम बटन से बदलें
               </p>
             )}
+
+            <div style={s.medControls}>
+              <button
+                onClick={() => {
+                  if (medRunning) { setMedRunning(false); medAudioRef.current?.pause(); window.speechSynthesis?.cancel(); }
+                  else { setMedRunning(true); medAudioRef.current?.play()?.catch(() => {}); }
+                }}
+                style={s.playBtn(activeMed.col || T.accent)}
+                onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                {medRunning ? "⏸" : "▶"}
+              </button>
+              <button onClick={() => stopMeditation(false)} style={s.stopBtn}>⏹</button>
+            </div>
+
+            {hi && <p style={s.hindiTtsNote}>🔊 आपके डिवाइस की हिंदी आवाज़ बोल रही है</p>}
           </div>
         )}
 
         {/* Active ambient mini-player */}
         {activeSound && audioCategory === "sounds" && (
-          <div className="fade-in" style={{ background:`${T.accent}10`, border:`1px solid ${T.accent}30`, borderRadius:18, padding:"14px 18px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
-            <span style={{ fontSize:28 }}>{activeSound.emoji}</span>
-            <div style={{ flex:1 }}>
-              <p style={{ margin:"0 0 2px", fontSize:14, color:T.text, fontWeight:500 }}>{hi ? activeSound.titleH : activeSound.title}</p>
-              <p style={{ margin:0, fontSize:11, color:T.muted }}>{soundPlaying ? (hi ? "चल रहा है" : "Playing") : (hi ? "रुका" : "Paused")}</p>
+          <div className="fade-in" style={s.ambientPlayer}>
+            <span style={s.ambientEmoji}>{activeSound.emoji}</span>
+            <div style={s.ambientInfo}>
+              <p style={s.ambientTitle}>{hi ? activeSound.titleH : activeSound.title}</p>
+              <p style={s.ambientStatus}>{soundPlaying ? (hi ? "चल रहा है" : "Playing") : (hi ? "रुका" : "Paused")}</p>
             </div>
-            <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} style={{ width:60, accentColor:T.accent }} />
-            <button onClick={() => playAmbient(activeSound)}
-              style={{ background:T.accent, color:"#fff", border:"none", borderRadius:99, width:40, height:40, fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} style={{ width: 60, accentColor: T.accent }} />
+            <button onClick={() => playAmbient(activeSound)} style={s.ambientPlayBtn}>
               {soundPlaying ? "⏸" : "▶"}
             </button>
           </div>
         )}
 
         {/* Audio list */}
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        <div style={s.list}>
           {(audioCategory === "sounds" ? SOUNDS : (MEDITATIONS || [])).map(item => {
             const isActive = audioCategory === "sounds" ? activeSound?.id === item.id : activeMed?.id === item.id;
             const isPlaying = isActive && (audioCategory === "sounds" ? soundPlaying : medRunning);
             const col = item.col || T.accent;
 
             return (
-              <button key={item.id}
+              <button
+                key={item.id}
                 onClick={() => audioCategory === "sounds" ? playAmbient(item) : playMeditation(item)}
-                style={{ display:"flex", alignItems:"center", gap:14, background:isActive ? `${col}12` : T.surface, border:`1px solid ${isActive ? col+"50" : T.border}`, borderRadius:16, padding:"14px 16px", textAlign:"left", transition:"all 0.2s", width:"100%" }}>
-                <div style={{ width:46, height:46, borderRadius:12, background:`${col}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>
-                  {item.emoji}
-                </div>
-                <div style={{ flex:1 }}>
-                  <p style={{ margin:"0 0 3px", fontSize:14, color:isActive ? col : T.text, fontWeight:isActive ? 600 : 500 }}>
-                    {hi ? (item.titleH || item.title) : item.title}
-                  </p>
-                  <p style={{ margin:0, fontSize:11, color:T.muted }}>
-                    {hi ? (item.descH || item.desc) : item.desc}
-                  </p>
+                style={s.listItem(isActive, col)}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = `${col}08`; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = T.surface; }}
+              >
+                <div style={s.listIcon(col)}>{item.emoji}</div>
+                <div style={s.listInfo}>
+                  <p style={s.listTitle(isActive, col)}>{hi ? (item.titleH || item.title) : item.title}</p>
+                  <p style={s.listDesc}>{hi ? (item.descH || item.desc) : item.desc}</p>
                   {item.dur && (
-                    <span style={{ fontSize:10, color:col, display:"block", marginTop:3 }}>
+                    <span style={s.listDur(col)}>
                       {item.dur} {hi ? "मिनट" : "min"}
-                      {hi && <span style={{ opacity:0.65, marginLeft:5 }}>· हिंदी आवाज़ में</span>}
+                      {hi && <span style={{ opacity: 0.65, marginLeft: 5 }}>· हिंदी आवाज़ में</span>}
                     </span>
                   )}
                 </div>
-                <div style={{ color:isActive ? col : T.muted, fontSize:16, flexShrink:0 }}>
+                <div style={s.listArrow(isActive, col)}>
                   {isActive ? (isPlaying ? "⏸" : "▶") : "▶"}
                 </div>
               </button>
