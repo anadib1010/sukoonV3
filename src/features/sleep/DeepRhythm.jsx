@@ -18,7 +18,6 @@ export function DeepRhythm({ setTab, T, lang }) {
         try {
           wakeLockRef.current = await navigator.wakeLock.request('screen');
         } catch (err) {
-          console.error("Wake Lock failed:", err);
         }
       }
     };

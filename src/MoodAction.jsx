@@ -107,7 +107,6 @@ export default function MoodAction({ selectedMood, goBack, setTab, lang }) {
         const data = await response.json();
         setAiTip(data.tip);
       } catch (error) {
-        console.error("AI fetch failed", error);
         setAiTip(
           hi
             ? "एक धीमी सांस लें। आप एक सुरक्षित जगह पर हैं।"

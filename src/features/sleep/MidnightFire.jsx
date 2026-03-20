@@ -25,7 +25,6 @@ export function MidnightFire({ setTab, T, lang }) {
     // A. Setup the "Gentle" Sound
     const audio = new Audio('/whoosh.mp3');
     audio.volume = 0.2; 
-    audio.play().catch(() => console.log("Sound ready!"));
 
     // 1. Start Animation
     setIsBurning(true);
@@ -41,9 +40,8 @@ export function MidnightFire({ setTab, T, lang }) {
         .from('midnight_fire_burns') // ✅ Updated table name to match database
         .insert([{ content: thought }]);
         
-      if (error) console.error("Database Error:", error.message);
     } catch (err) {
-      console.error("System Error:", err);
+      
     }
 
     // 4. Cleanup
@@ -67,7 +65,6 @@ export function MidnightFire({ setTab, T, lang }) {
         setBurntHistory(data || []);
       }
     } catch (err) {
-      console.error(err);
     } finally {
       setIsLoadingHistory(false);
     }

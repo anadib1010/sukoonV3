@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageNav } from '../../components/SharedUI';
-// 🔗 Connecting to our global tools
-import { supabase, addCredits } from "../../supabase";
+import { supabase, addCredits, fireGrandConfetti } from "../../supabase";
 
 export function Progress({ setTab, goBack, T, lang }) {
   const [stats, setStats] = useState({ total_sessions: 0, total_minutes: 0, current_streak: 0, grace_days: 2, credits: 0 });
@@ -9,24 +8,18 @@ export function Progress({ setTab, goBack, T, lang }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const hi = lang === "Hindi";
-  // Add this inside your Progress function, right above your other useEffects
-  useEffect(() => {
-    // 🎯 Milestone Logic: Only pop for big numbers!
-    const milestones = [10, 50, 100, 250, 500];
-  
-    if (milestones.includes(stats.credits)) {
-    fireGrandConfetti(); // 🎊 Use the new Grand Finale tool!
-    }
-  }, [stats.credits]); // This tells React: "Only run this when the credit number changes"
-  // 💎 REWARD: Give 2 credits for visiting the progress page
-  useEffect(() => {
-    addCredits(2);
-  }, []);
 
-  // 📈 LOAD: Fetch all data from the cloud
+  // Milestone confetti — fireGrandConfetti now correctly imported from supabase.js
   useEffect(() => {
-    loadAllProgress();
-  }, []);
+    const milestones = [10, 50, 100, 250, 500];
+    if (milestones.includes(stats.credits)) {
+      fireGrandConfetti();
+    }
+  }, [stats.credits]);
+
+  useEffect(() => { addCredits(2); }, []);
+
+  useEffect(() => { loadAllProgress(); }, []);
 
   const loadAllProgress = async () => {
     try {
@@ -34,50 +27,37 @@ export function Progress({ setTab, goBack, T, lang }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Fetch Stats (using maybeSingle to prevent 406 errors)
       let { data: statsData } = await supabase
-        .from('progress_user_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
+        .from('progress_user_stats').select('*')
+        .eq('user_id', user.id).maybeSingle();
       if (statsData) setStats(statsData);
 
-      // 2. Fetch Weekly Activity
       let { data: activityData } = await supabase
-        .from('daily_activity')
-        .select('activity_date')
-        .eq('user_id', user.id)
-        .limit(7);
-
+        .from('daily_activity').select('activity_date')
+        .eq('user_id', user.id).limit(7);
       if (activityData) {
         const newWeekData = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
         const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         activityData.forEach(act => {
-          const dayName = days[new Date(act.activity_date).getDay()];
-          newWeekData[dayName] = 1;
+          newWeekData[days[new Date(act.activity_date).getDay()]] = 1;
         });
         setWeekData(newWeekData);
       }
 
-      // 3. Fetch Journal History from 'journal_entries'
       let { data: histData } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
+        .from('journal_entries').select('*')
+        .eq('user_id', user.id).order('created_at', { ascending: false });
       if (histData) setHistory(histData);
 
     } catch (e) {
-      console.error("Cloud Sync Error:", e);
+      // Cloud sync failure handled silently — user sees stale data, not a crash
     } finally {
       setLoading(false);
     }
   };
 
   const renderTree = (sessionCount) => {
-    const leafCount = Math.min(sessionCount, 40); 
+    const leafCount = Math.min(sessionCount, 40);
     const leaves = [];
     for (let i = 0; i < leafCount; i++) {
       const angle = (i * 137.5) * (Math.PI / 180);
@@ -88,7 +68,6 @@ export function Progress({ setTab, goBack, T, lang }) {
       const color = i % 3 === 0 ? T.accent : i % 2 === 0 ? "#7A9EA8" : "#8aaa7a";
       leaves.push(<circle key={i} cx={x} cy={y} r={size} fill={color} opacity="0.85" />);
     }
-
     return (
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
         <svg width="200" height="160" viewBox="0 0 200 160">
@@ -103,10 +82,17 @@ export function Progress({ setTab, goBack, T, lang }) {
     );
   };
 
+  // Unicode glyphs replace emojis — calmer, more refined
+  const statCards = [
+    { glyph: "✦", value: stats.total_sessions,  label: hi ? "सत्र"       : "Sessions" },
+    { glyph: "◈", value: stats.current_streak,  label: hi ? "सिलसिला"   : "Streak"   },
+    { glyph: "⬡", value: stats.credits || 0,    label: hi ? "क्रेडिट्स" : "Credits"  },
+  ];
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
       <PageNav onBack={goBack || (() => setTab("home"))} onHome={() => setTab("home")} backLabel={hi ? "वापस" : "Back"} T={T} lang={lang} />
-      
+
       <div className="scroll-area fade-up" style={{ flex: 1, overflowY: "auto", padding: "10px 24px 80px" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: T.text, fontWeight: 400, margin: "0 0 8px" }}>
@@ -119,45 +105,46 @@ export function Progress({ setTab, goBack, T, lang }) {
 
         {renderTree(stats.total_sessions)}
 
-        {/* 📊 The 3-Column Stats Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24 }}>
-          <div style={{ background: T.surface, border: `1px solid ${T.borderWarm}`, borderRadius: 20, padding: "15px 5px", textAlign: "center" }}>
-            <span style={{ fontSize: 20 }}>🌿</span>
-            <h3 style={{ fontSize: 22, color: T.text, margin: "5px 0", fontFamily: "'Cormorant Garamond',serif" }}>{stats.total_sessions}</h3>
-            <p style={{ fontSize: 9, color: T.muted, textTransform: "uppercase" }}>{hi ? "सत्र" : "Sessions"}</p>
-          </div>
-
-          <div style={{ background: T.surface, border: `1px solid ${T.borderWarm}`, borderRadius: 20, padding: "15px 5px", textAlign: "center" }}>
-            <span style={{ fontSize: 20 }}>🔥</span>
-            <h3 style={{ fontSize: 22, color: T.text, margin: "5px 0", fontFamily: "'Cormorant Garamond',serif" }}>{stats.current_streak}</h3>
-            <p style={{ fontSize: 9, color: T.muted, textTransform: "uppercase" }}>{hi ? "सिलसिला" : "Streak"}</p>
-          </div>
-
-          <div style={{ background: T.surface, border: `1px solid ${T.borderWarm}`, borderRadius: 20, padding: "15px 5px", textAlign: "center" }}>
-            <span style={{ fontSize: 20 }}>💎</span>
-            <h3 style={{ fontSize: 22, color: T.text, margin: "5px 0", fontFamily: "'Cormorant Garamond',serif" }}>{stats.credits || 0}</h3>
-            <p style={{ fontSize: 9, color: T.muted, textTransform: "uppercase" }}>{hi ? "क्रेडिट्स" : "Credits"}</p>
-          </div>
+        {/* Stats Grid — improved padding and legible label sizes */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
+          {statCards.map(({ glyph, value, label }) => (
+            <div key={label} style={{ background: T.surface, border: `1px solid ${T.borderWarm}`, borderRadius: 20, padding: "18px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 16, color: T.accent, marginBottom: 6, fontFamily: "'Cormorant Garamond',serif" }}>{glyph}</div>
+              <h3 style={{ fontSize: 24, color: T.text, margin: "0 0 6px", fontFamily: "'Cormorant Garamond',serif", fontWeight: 400 }}>{value}</h3>
+              {/* fontSize 11 minimum — was 9, below WCAG floor */}
+              <p style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 1, margin: 0 }}>{label}</p>
+            </div>
+          ))}
         </div>
 
-        <div style={{ background: `${T.accent}10`, border: `1px solid ${T.accent}30`, borderRadius: 18, padding: "16px", marginBottom: 32, display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontSize: 24, flexShrink: 0 }}>🪷</span>
+        {/* Grace Days — with explanatory copy so users aren't anxious */}
+        <div style={{ background: `${T.accent}10`, border: `1px solid ${T.accent}30`, borderRadius: 18, padding: "16px 20px", marginBottom: 32, display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <div style={{ fontSize: 20, color: T.accent, flexShrink: 0, marginTop: 2, fontFamily: "'Cormorant Garamond',serif" }}>✿</div>
           <div>
             <p style={{ fontSize: 14, color: T.text, fontWeight: 500, margin: "0 0 4px" }}>
-               {stats.grace_days} {hi ? "ग्रेस दिन बचे हैं" : "Grace Days Left"}
+              {stats.grace_days} {hi ? "ग्रेस दिन बचे हैं" : "Grace Days Left"}
+            </p>
+            <p style={{ fontSize: 12, color: T.textSoft, margin: 0, lineHeight: 1.5 }}>
+              {hi
+                ? "आपकी streak सुरक्षित है — एक दिन छोड़ने पर भी।"
+                : "Your streak is safe even if you miss a day."}
             </p>
           </div>
         </div>
 
         <div>
-          <p style={{ fontSize: 11, color: T.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16 }}>{hi ? "आपकी डायरी" : "Your History"}</p>
+          <p style={{ fontSize: 11, color: T.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16 }}>
+            {hi ? "आपकी डायरी" : "Your History"}
+          </p>
           {history.length === 0 ? (
-            <p style={{ fontSize: 13, color: T.muted, fontStyle: "italic", textAlign: "center" }}>{hi ? "अभी तक कुछ नहीं लिखा गया है।" : "Nothing written yet."}</p>
+            <p style={{ fontSize: 13, color: T.muted, fontStyle: "italic", textAlign: "center" }}>
+              {hi ? "अभी तक कुछ नहीं लिखा गया है।" : "Nothing written yet."}
+            </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {history.map(item => (
                 <div key={item.id} style={{ background: T.surface, border: `1px solid ${T.borderWarm}`, borderRadius: 16, padding: "16px" }}>
-                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                     <span style={{ fontSize: 11, color: T.accent, fontWeight: 500 }}>{item.mood}</span>
                     <span style={{ fontSize: 11, color: T.muted }}>{new Date(item.created_at).toLocaleDateString()}</span>
                   </div>

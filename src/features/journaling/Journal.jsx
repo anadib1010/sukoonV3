@@ -63,17 +63,14 @@ export function Journal({ setTab, T, lang }) {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // 🚨 THE TRACKING DEVICE (Shows us what's in the bag)
-      console.log("Backpack from Mumbai contains:", data);
+
       
       if (error) {
-        console.error("Supabase Guard Error:", error.message);
         throw error;
       }
       
       setCloudHistory(data || []);
     } catch (err) {
-      console.error("Cloud Fetch Error:", err.message);
     } finally {
       setIsLoadingCloud(false);
     }
@@ -108,7 +105,6 @@ export function Journal({ setTab, T, lang }) {
         };
        
         recognitionRef.current.onerror = (event) => {
-          console.error("Speech Recognition Error:", event.error);
           setIsRecording(false);
           if (event.error === 'not-allowed') {
             alert(hi 
@@ -122,7 +118,6 @@ export function Journal({ setTab, T, lang }) {
         recognitionRef.current.start();
         setIsRecording(true);
       } catch (e) {
-        console.error("Failed to start recording:", e);
         setIsRecording(false);
       }
     }
@@ -210,7 +205,6 @@ export function Journal({ setTab, T, lang }) {
       .insert([packageForCloud]);
 
     if (error) {
-      console.error("Bridge Error:", error);
       alert(hi ? "सहेजा नहीं जा सका।" : "Could not save.");
       return;
     }
@@ -255,7 +249,6 @@ export function Journal({ setTab, T, lang }) {
       setAiResponse(data.response);
       speakText(data.response);
     } catch (error) {
-      console.error("Bridge Error:", error);
       const fallbackText = hi
         ? "मुझे क्षमा करें, मैं अभी आपसे जुड़ नहीं पा रहा हूँ।"
         : "I'm sorry, I'm having trouble connecting right now.";

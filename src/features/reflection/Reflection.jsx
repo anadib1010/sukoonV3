@@ -34,7 +34,6 @@ export function Reflection({ setTab, T, lang }) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        console.error("No user found! Are you logged in?");
         return;
       }
 
@@ -46,9 +45,7 @@ export function Reflection({ setTab, T, lang }) {
           user_id: user.id 
         }]);
 
-      if (error) console.error("Database Bridge Error:", error.message);
     } catch (err) {
-      console.error("System Error:", err);
     }
 
     // 3. Generate physics particles (Your original magic)
@@ -95,7 +92,6 @@ export function Reflection({ setTab, T, lang }) {
       if (!burnResponse.error) setBurntHistory(burnResponse.data || []);
       if (!wishResponse.error) setWishHistory(wishResponse.data || []);
     } catch (err) {
-      console.error("System Error:", err);
     } finally {
       setIsLoadingHistory(false);
     }

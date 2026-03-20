@@ -176,7 +176,6 @@ export function MandalaFlow({ setTab, T, lang }) {
         await navigator.clipboard.writeText(text);
       }
     } catch (err) {
-      console.log("Clipboard copy failed", err);
     }
 
     if (navigator.share && navigator.canShare?.({ files:[file] })) {

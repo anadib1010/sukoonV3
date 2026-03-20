@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabase'; // Make sure this path points to your supabase.js file!
-import { Login } from './components/Login'; // 👈 Bringing in the new door!
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Analytics } from '@vercel/analytics/react'; 
-import { track } from '@vercel/analytics'; 
+import { Analytics } from '@vercel/analytics/react';
+import { track } from '@vercel/analytics';
+import { supabase } from './supabase';
+import { Login } from './components/Login';
 import { useLS } from './hooks/useLS';
 import { THEMES } from './utils/theme';
 import { creditSession } from './utils/activity';
@@ -29,27 +29,21 @@ import { WishesGallery } from './features/reflection/WishesGallery';
 import MoodAction from './MoodAction';
 import { CommunityRoom } from './features/games/CommunityRoom';
 import { Sleep } from './features/sleep/Sleep';
-import { DeepRhythm } from './features/sleep/DeepRhythm'; 
-
-// ─── SLEEP ROOM ACTIVITIES ───
+import { DeepRhythm } from './features/sleep/DeepRhythm';
 import { DreamScrambler } from './features/sleep/DreamScrambler';
 import { DimmingEmber } from './features/sleep/DimmingEmber';
 import { HeavyScan } from './features/sleep/HeavyScan';
 import { MidnightFire } from './features/sleep/MidnightFire';
-
-// ─── GAMES & LAYERS ───
 import { TheDescent } from './features/games/TheDescent';
 import { Vault } from './features/vault/Vault';
 import { Resonance } from "./features/resonance/Resonance";
-import { Stillness } from './features/games/Stillness'; 
-
-// ─── RESONANCE LAYER GAMES ───
+import { Stillness } from './features/games/Stillness';
 import { QuietCorner } from './features/games/QuietCorner';
 import { SoundBath } from './features/games/SoundBath';
 import { MandalaFlow } from './features/games/MandalaFlow';
 import { SeedInMud } from './features/games/SeedInMud';
 
-// ─── YAKSHA GATE COMPONENT ───
+// ─── YAKSHA GATE ───
 function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
@@ -60,7 +54,7 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
 
   const handleCheck = () => {
     if (input.toUpperCase() === MASTER_KEY) {
-      track('Unlocked Deep Layers'); 
+      track('Unlocked Deep Layers');
       onUnlock();
     } else {
       setError(true);
@@ -69,134 +63,86 @@ function YakshaGate({ lang, T, onUnlock, onCancel }) {
   };
 
   return (
-    <div style={{ 
-      // ✅ THE FIX: We use 100dvh for "Dynamic Viewport Height" (handles mobile bars)
-      height: "100dvh", 
-      width: "100%", 
-      display: "flex", 
-      flexDirection: "column", 
-      alignItems: "center", 
-      justifyContent: "center", 
-      
-      // ✅ THE FIX: padding is fine, BUT we must use boxSizing
-      padding: 20, 
-      boxSizing: "border-box", // 🛡️ This keeps the 100% width perfect
-      
-      textAlign: "center", 
-      background: "#050508", 
-      position: "fixed", // ⚓ Pins it to the front of the screen
-      top: 0,
-      left: 0,
-      zIndex: 1000 // 🪜 Makes sure it stays on top of other pages
+    <div style={{
+      height: "100dvh", width: "100%",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: 20, boxSizing: "border-box",
+      textAlign: "center", background: "#050508",
+      position: "fixed", top: 0, left: 0, zIndex: 1000
     }}>
-      <button 
-        onClick={onCancel} 
-        style={{ 
-          position: 'absolute', top: 30, left: 30, 
-          background: 'none', border: 'none', 
-          color: 'rgba(255,255,255,0.4)', 
-          cursor: 'pointer', fontSize: 14, 
-          fontFamily: "'Cormorant Garamond', serif" 
-        }}
-      >
+      <button onClick={onCancel} style={{
+        position: 'absolute', top: 30, left: 30,
+        background: 'none', border: 'none',
+        color: 'rgba(255,255,255,0.4)',
+        cursor: 'pointer', fontSize: 14,
+        fontFamily: "'Cormorant Garamond', serif"
+      }}>
         ← {isHindi ? "वापस" : "Back"}
       </button>
 
       <div style={{ fontSize: 32, marginBottom: 20, opacity: 0.6 }}>⚖️</div>
 
-      <h2 style={{ 
-        fontFamily: "'Cormorant Garamond', serif", 
-        fontSize: 24, color: '#fff', 
-        fontWeight: 300, marginBottom: 50, 
-        lineHeight: 1.6, maxWidth: 320 
+      <h2 style={{
+        fontFamily: "'Cormorant Garamond', serif",
+        fontSize: 24, color: '#fff',
+        fontWeight: 300, marginBottom: 50,
+        lineHeight: 1.6, maxWidth: 320
       }}>
-        {isHindi ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"' : '"Do you have the key to the next level, the Quieter Place?"'}
+        {isHindi
+          ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"'
+          : '"Do you have the key to the next level, the Quieter Place?"'}
       </h2>
 
-      <div style={{ 
-        width: '100%', 
-        transform: error ? 'translateX(10px)' : 'none', 
-        transition: 'transform 0.1s', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center' 
+      <div style={{
+        width: '100%',
+        transform: error ? 'translateX(10px)' : 'none',
+        transition: 'transform 0.1s',
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
       }}>
-        <input 
-          autoFocus 
-          value={input} 
-          onChange={(e) => setInput(e.target.value)} 
-          placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"} 
-          style={{ 
-            background: 'transparent', border: 'none', 
-            borderBottom: '1px solid rgba(212, 175, 55, 0.4)', 
-            color: '#d4af37', textAlign: 'center', 
-            fontSize: 20, letterSpacing: 6, 
-            outline: 'none', width: '240px', 
-            paddingBottom: 10, marginBottom: 25,
-            borderRadius: 0 // 🍎 iPhone hack to keep the line flat
-          }} 
-        />
-        <button 
-          onClick={handleCheck} 
-          style={{ 
-            background: 'transparent', border: '1px solid #d4af37', 
-            color: '#d4af37', padding: '12px 45px', 
-            borderRadius: 30, fontSize: 13, 
-            letterSpacing: 2, cursor: 'pointer' 
+        <input
+          autoFocus
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
+          placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"}
+          style={{
+            background: 'transparent', border: 'none',
+            borderBottom: '1px solid rgba(212, 175, 55, 0.4)',
+            color: '#d4af37', textAlign: 'center',
+            fontSize: 20, letterSpacing: 6,
+            outline: 'none', width: '240px',
+            paddingBottom: 10, marginBottom: 25, borderRadius: 0
           }}
-        >
+        />
+        <button onClick={handleCheck} style={{
+          background: 'transparent', border: '1px solid #d4af37',
+          color: '#d4af37', padding: '12px 45px',
+          borderRadius: 30, fontSize: 13,
+          letterSpacing: 2, cursor: 'pointer'
+        }}>
           {isHindi ? "प्रवेश करें" : "PROCEED"}
         </button>
-        <div style={{ 
-          marginTop: 15, opacity: 0.8, fontSize: 12, 
-          color: '#ffffff', letterSpacing: 2, 
-          fontFamily: 'monospace', fontWeight: 'bold' 
-        }}>
-          {MASTER_KEY}
-        </div>
+        {/* Key intentionally shown during closed testing phase — remove before public launch */}
+        {import.meta.env.DEV && (
+          <div style={{ marginTop: 15, opacity: 0.5, fontSize: 11, color: '#ffffff', letterSpacing: 2, fontFamily: 'monospace' }}>
+            DEV: {MASTER_KEY}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// 🏆 THE GLOBAL REWARDER
-const addCredits = async (amount) => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // 1. Get current credits first
-    const { data: stats } = await supabase
-      .from('progress_user_stats')
-      .select('credits')
-      .single();
-
-    const currentCredits = stats?.credits || 0;
-
-    // 2. Add the new reward
-    const { error } = await supabase
-      .from('progress_user_stats')
-      .update({ credits: currentCredits + amount })
-      .eq('user_id', user.id);
-
-    if (error) throw error;
-    console.log(`💎 Success! +${amount} Credits added.`);
-  } catch (err) {
-    console.error("Credit Error:", err.message);
-  }
-};
-// ─── THE ROUTER WRAPPER ───
-// This component handles the actual screen switching based on the URL
+// ─── APP CONTENT ───
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // ─── THE ID BADGE HOLDER ───
+
   const [session, setSession] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
   const [hasOnboarded, setHasOnboarded] = useState(() => {
-    try { return localStorage.getItem("jsukoon_onboarded") === "true"; } 
+    try { return localStorage.getItem("jsukoon_onboarded") === "true"; }
     catch { return false; }
   });
 
@@ -206,30 +152,24 @@ function AppContent() {
   const [mood, setMood] = useState(null);
   const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
-  const T = themeSource === "manual" ? (THEMES[themeKey] || THEMES.Void) : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
+  const T = themeSource === "manual"
+    ? (THEMES[themeKey] || THEMES.Void)
+    : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
 
-  // ─── THE SECURITY SCANNER ───
   useEffect(() => {
-    // 1. When the app opens, check if they already have a badge
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setIsCheckingAuth(false); // Finished checking!
+      setIsCheckingAuth(false);
     });
-
-    // 2. Keep watching the door for Logins/Logouts
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setIsCheckingAuth(false);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  // Vercel Tracking per Page
   useEffect(() => {
-    if (hasOnboarded) {
-      track('View Feature', { featureName: location.pathname });
-    }
+    if (hasOnboarded) track('View Feature', { featureName: location.pathname });
   }, [location, hasOnboarded]);
 
   useEffect(() => {
@@ -242,9 +182,6 @@ function AppContent() {
     else navigate(`/${newTab}`);
   };
 
-  // ─── FRONT DOOR LOGIC ───
-  
-  // 1. Show a loading screen while checking the badge
   if (isCheckingAuth) {
     return (
       <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
@@ -253,38 +190,45 @@ function AppContent() {
     );
   }
 
-  // 2. If no badge, lock them on the Login screen!
-  if (!session) {
-    return <Login T={T} lang={lang} />; 
-  }
+  if (!session) return <Login T={T} lang={lang} />;
 
-  // 3. If they are logged in but haven't onboarded, show Onboarding
   if (!hasOnboarded) {
-    return <Onboarding onComplete={() => { localStorage.setItem("jsukoon_onboarded", "true"); setHasOnboarded(true); track('Onboarding Complete'); }} setThemeKey={setThemeKey} setLang={setLang} T={T} />;
+    return (
+      <Onboarding
+        onComplete={() => {
+          localStorage.setItem("jsukoon_onboarded", "true");
+          setHasOnboarded(true);
+          track('Onboarding Complete');
+        }}
+        setThemeKey={setThemeKey}
+        setLang={setLang}
+        T={T}
+      />
+    );
   }
 
-  // 4. If all checks pass, show the main App!
   const deepLayers = ["/vault", "/resonance", "/stillness", "/quietcorner", "/soundbath", "/mandala", "/seedinmud"];
   const isProtected = deepLayers.includes(location.pathname) && !vaultUnlocked;
 
   return (
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
-        
+
         {isProtected ? (
-          <YakshaGate lang={lang} T={T} onUnlock={() => setVaultUnlocked(true)} onCancel={() => setTab("practice")} />
+          <YakshaGate
+            lang={lang} T={T}
+            onUnlock={() => setVaultUnlocked(true)}
+            onCancel={() => setTab("practice")}
+          />
         ) : (
           <Routes>
             <Route path="/" element={<Home setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep" element={<Sleep setTab={setTab} T={T} lang={lang} />} />
-            
-            {/* ─── NEW SLEEP ROUTES ─── */}
             <Route path="/sleep_scrambler" element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_ember" element={<DimmingEmber setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_scan" element={<HeavyScan setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_fire" element={<MidnightFire setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_beat" element={<DeepRhythm setTab={setTab} T={T} lang={lang} />} />
-
             <Route path="/focus" element={<Focus setTab={setTab} T={T} lang={lang} />} />
             <Route path="/journal" element={<Journal setTab={setTab} T={T} lang={lang} />} />
             <Route path="/warmth" element={<WarmthPage setTab={setTab} T={T} lang={lang} />} />
@@ -309,8 +253,6 @@ function AppContent() {
             <Route path="/about" element={<About setTab={setTab} T={T} lang={lang} />} />
             <Route path="/privacy" element={<Privacy setTab={setTab} T={T} lang={lang} />} />
             <Route path="/wishes" element={<WishesGallery setTab={setTab} T={T} lang={lang} />} />
-            
-            {/* Catch-all Redirect */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         )}
@@ -320,7 +262,6 @@ function AppContent() {
   );
 }
 
-// ─── FINAL APP EXPORT ───
 export default function App() {
   return (
     <Router>

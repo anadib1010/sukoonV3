@@ -36,7 +36,6 @@ export function TheStaringStar({ setTab, T, lang }) {
           return;
         }
       } catch (error) {
-        console.error("Sensor permission error:", error);
       }
     }
     
