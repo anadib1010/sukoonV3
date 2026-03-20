@@ -52,8 +52,8 @@ export function Privacy({ setTab, goBack, T, lang }) {
           </h3>
           <p style={{ marginBottom: '10px', color: T.textSoft, fontSize: 15 }}>
             {hi 
-              ? "यह एक निजी स्थान है। आपके शब्द आपके डिवाइस पर ही रहते हैं और हमारे द्वारा न तो सहेजे जाते हैं और न ही पढ़े जाते हैं।" 
-              : "This is a private space. Your words remain on your device and are not stored or read by us."}
+              ? "यह एक निजी स्थान है। आपका जर्नल, मूड, और सत्र डेटा Supabase क्लाउड पर सुरक्षित रूप से संग्रहीत होता है — केवल आपके खाते से जुड़ा।" 
+              : "This is a private space. Your journal, mood, and session data is securely stored on Supabase cloud — linked only to your account."}
           </p>
           <p style={{ color: T.textSoft, fontSize: 15, margin: 0 }}>
             {hi 
@@ -64,11 +64,11 @@ export function Privacy({ setTab, goBack, T, lang }) {
 
         {/* Sections */}
         <Section 
-          icon="📱" 
-          title="Your Data is Local" 
-          titleH="आपका डेटा लोकल है"
-          desc="Your journal entries are stored directly on your device using LocalStorage. We do not have a database that stores your personal entries on our servers."
-          descH="आपकी डायरी प्रविष्टियां LocalStorage का उपयोग करके सीधे आपके डिवाइस पर संग्रहीत की जाती हैं। हमारे पास कोई ऐसा डेटाबेस नहीं है जो आपकी व्यक्तिगत प्रविष्टियों को हमारे सर्वर पर सहेजता हो।"
+          icon="☁️" 
+          title="Your Data is on Secure Cloud" 
+          titleH="आपका डेटा सुरक्षित क्लाउड पर है"
+          desc="Your journal entries, mood logs, reflections, and session history are stored securely on Supabase — a trusted cloud platform. Your data is tied to your account and protected by row-level security."
+          descH="आपकी जर्नल प्रविष्टियां, मूड लॉग, चिंतन और सत्र इतिहास Supabase पर सुरक्षित रूप से संग्रहीत हैं — एक विश्वसनीय क्लाउड प्लेटफ़ॉर्म। आपका डेटा आपके खाते से जुड़ा है और row-level security द्वारा सुरक्षित है।"
         />
 
         <Section 

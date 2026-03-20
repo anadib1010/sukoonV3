@@ -78,8 +78,8 @@ export function LegalDisclaimer({ setTab, goBack, T, lang }) {
             </Section>
 
             <Section num="3" title="Data & Privacy Responsibility" color={T.text}>
-              <P>JSukoon is designed for privacy. Your personal journal entries and usage data are stored entirely locally on your own device.</P>
-              <P>Because we do not control your device, the developer is not responsible for any data loss, breaches, or unauthorized access to your device. Securing your device is solely your responsibility.</P>
+              <P>JSukoon stores your personal journal entries, mood logs, reflections, and session data securely on Supabase — a trusted cloud platform protected by row-level security and encrypted connections.</P>
+              <P>While we take every precaution to protect your data, no method of internet transmission is 100% secure. The developer is not responsible for any data loss or breaches resulting from circumstances beyond our reasonable control. You are responsible for keeping your login credentials secure.</P>
             </Section>
 
             <Section num="4" title="Limitation of Liability" color={T.text}>

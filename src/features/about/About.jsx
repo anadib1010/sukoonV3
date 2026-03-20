@@ -92,7 +92,7 @@ export function About({ setTab, goBack, T, lang }) {
             <div style={s.headerEmoji}>🌿</div>
             <h1 style={s.appName}>JSukoon</h1>
             <p style={s.version}>Version 3.1 · Made in India</p>
-            <p style={s.tagline}>Sukoon — शांति</p>
+            <p style={s.tagline}>sukoon — शांति</p>
           </div>
 
           {/* What This Is */}
@@ -131,8 +131,8 @@ export function About({ setTab, goBack, T, lang }) {
             <h3 style={s.sectionLabel}>{hi ? "तकनीक" : "The Tech"}</h3>
             <p style={s.sectionText}>
               {hi
-                ? "Vite + React पर PWA के रूप में निर्मित। जेमिनी द्वारा संचालित AI रिफ्लेक्शन। Supabase क्लाउड सुरक्षित। कोई विज्ञापन नहीं।"
-                : "Built on Vite + React as a PWA. AI reflections powered by Gemini. Secured by Supabase. No ads."}
+                ? "Vite + React पर PWA के रूप में निर्मित। Gemini द्वारा संचालित AI रिफ्लेक्शन। Supabase पर सुरक्षित क्लाउड स्टोरेज। Cloudflare Turnstile सुरक्षा। कोई विज्ञापन नहीं।"
+                : "Built on Vite + React as a PWA. AI reflections powered by Gemini. Secure cloud storage on Supabase. Protected by Cloudflare Turnstile. No ads."}
             </p>
           </div>
 
