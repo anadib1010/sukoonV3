@@ -1,5 +1,19 @@
 import React from 'react';
 
+// ─── PRESSABLE HOOK ───────────────────────────────────────────────────
+// Adds desktop hover (lift) + mobile touch (press) feedback to any element.
+// Usage: <button {...pressable()}>...</button>
+// Or with custom scale: {...pressable(0.96)}
+export function usePressable(scale = 0.97) {
+  return {
+    onMouseEnter:  e => { e.currentTarget.style.transform = "translateY(-2px)"; },
+    onMouseLeave:  e => { e.currentTarget.style.transform = "translateY(0)"; },
+    onTouchStart:  e => { e.currentTarget.style.transform = `scale(${scale})`; e.currentTarget.style.transition = "transform 0.1s ease"; },
+    onTouchEnd:    e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.transition = "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)"; },
+    onTouchCancel: e => { e.currentTarget.style.transform = "scale(1)"; },
+  };
+}
+
 // ─── ORB ──────────────────────────────────────────────────────────────
 export function Orb({ size = 180, col, pulse = false, label }) {
   return (

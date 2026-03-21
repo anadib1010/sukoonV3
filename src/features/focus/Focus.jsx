@@ -1,6 +1,6 @@
 import posthog from 'posthog-js';
 import React, { useState, useEffect } from "react";
-import { PageNav } from "../../components/SharedUI";
+import { PageNav, usePressable } from "../../components/SharedUI";
 import { ParticleCanvas } from "../../components/ParticleCanvas";
 import { SensoryAnchor }  from "../games/SensoryAnchor";
 import { BreathPainting } from "../breathing/BreathPainting";
@@ -426,8 +426,7 @@ export function Focus({ setTab, goBack, T, lang }) {
           <button
             onClick={() => { setGameComplete(false); setActiveGame(featured.id); }}
             style={s.featuredCard}
-            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.2)`; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+            {...usePressable(0.97)}
           >
             <div style={s.featuredTop}>
               <span style={s.featuredEmoji}>{featured.emoji}</span>
@@ -452,8 +451,7 @@ export function Focus({ setTab, goBack, T, lang }) {
                 key={g.id}
                 onClick={() => { setGameComplete(false); setActiveGame(g.id); }}
                 style={s.gameCard(focusDone[g.id] === today)}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 20px rgba(0,0,0,0.15)`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                {...usePressable(0.95)}
               >
                 {focusDone[g.id] === today && <span style={s.gameCardCheck}>✓</span>}
                 <span style={s.gameCardEmoji}>{g.emoji}</span>

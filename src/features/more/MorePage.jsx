@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PageNav } from '../../components/SharedUI';
+import { PageNav, usePressable } from '../../components/SharedUI';
 import { useLS } from '../../hooks/useLS';
 import { THEMES } from '../../utils/theme';
 
@@ -345,8 +345,7 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
                 key={m.label}
                 onClick={() => handleMoodClick(m)}
                 style={s.moodCard(isSelected, m.theme)}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+                {...usePressable(0.95)}
               >
                 <span style={s.moodEmoji}>{m.emoji}</span>
                 <span style={s.moodLabel(isSelected, m.theme)}>
@@ -368,8 +367,7 @@ export function MorePage({ setTab, goBack, T, lang, setThemeKey }) {
               key={item.id}
               onClick={() => setTab(item.id)}
               style={s.toolCard}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = isDark ? "0 8px 24px rgba(0,0,0,0.4)" : "0 8px 24px rgba(0,0,0,0.12)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = glass.boxShadow; }}
+              {...usePressable(0.96)}
             >
               <span style={s.toolEmoji}>{item.emoji}</span>
               <span style={s.toolLabel}>{item.label}</span>

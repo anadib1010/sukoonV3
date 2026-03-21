@@ -127,6 +127,8 @@ const GlassButton = ({ emoji, label, onClick, isVisible }) => {
       style={s.btn}
       onMouseEnter={e => { if (isVisible) e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
       onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+      onTouchStart={e => { e.currentTarget.style.transform = "scale(0.97)"; e.currentTarget.style.transition = "transform 0.1s ease"; }}
+      onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.transition = "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)"; }}
     >
       <div style={s.iconBox}>{emoji}</div>
       <p style={s.label}>{label}</p>
