@@ -1,397 +1,308 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StoneDrop }        from '../games/StoneDrop';
-import { BilateralTapping } from '../games/BilateralTapping';
-import { UnsentLetter }     from '../games/UnsentLetter';
-import { NadiShodhana }     from '../breathing/NadiShodhana';
+import React, { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { track } from '@vercel/analytics';
+import { supabase } from './supabase';
+import { Login } from './components/Login';
+import { useLS } from './hooks/useLS';
+import { THEMES } from './utils/theme';
+import { creditSession } from './utils/activity';
 
-// ─── AMBIENT PARTICLE CANVAS ──────────────────────────────────────────
-function MysticParticleCanvas() {
-  const canvasRef = useRef(null);
+// ─── INSTANT LOAD ALL ROOMS ───
+import { Onboarding } from './features/onboarding/Onboarding';
+import { Settings } from './features/settings/Settings';
+import { Home } from './features/home/Home';
+import { Focus } from './features/focus/Focus';
+import { Journal } from './features/journaling/Journal';
+import { WarmthPage } from './features/warmth/WarmthPage';
+import { Bench } from './features/bench/Bench';
+import { MorePage } from './features/more/MorePage';
+import { Practice } from './features/practice/Practice';
+import { LegalDisclaimer } from './features/legal/LegalDisclaimer';
+import { Reflection } from './features/reflection/Reflection';
+import { Progress } from './features/progress/Progress';
+import { AudioPage } from './features/audio/AudioPage';
+import { Crisis } from './features/crisis/Crisis';
+import { About } from './features/about/About';
+import { Privacy } from './features/privacy/Privacy';
+import { WishesGallery } from './features/reflection/WishesGallery';
+import MoodAction from './MoodAction';
+import { CommunityRoom } from './features/games/CommunityRoom';
+import { Sleep } from './features/sleep/Sleep';
+import { DeepRhythm } from './features/sleep/DeepRhythm';
+import { DreamScrambler } from './features/sleep/DreamScrambler';
+import { DimmingEmber } from './features/sleep/DimmingEmber';
+import { HeavyScan } from './features/sleep/HeavyScan';
+import { MidnightFire } from './features/sleep/MidnightFire';
+import { TheDescent } from './features/games/TheDescent';
+import { Vault } from './features/vault/Vault';
+import { Resonance } from "./features/resonance/Resonance";
+import { Stillness } from './features/games/Stillness';
+import { QuietCorner } from './features/games/QuietCorner';
+import { SoundBath } from './features/games/SoundBath';
+import { MandalaFlow } from './features/games/MandalaFlow';
+import { SeedInMud } from './features/games/SeedInMud';
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let animId;
+// ─── YAKSHA GATE ───
+function YakshaGate({ lang, T, onUnlock, onCancel }) {
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(false);
+  const MASTER_KEY = "SUKOON2026";
+  const isHindi = lang === "Hindi";
 
-    const resize = () => {
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = window.innerHeight;
-    };
-    window.addEventListener("resize", resize);
-    resize();
+  useEffect(() => { track('Encountered Yaksha Gate'); }, []);
 
-    const colors = ["#ff4d00", "#cc1100", "#ffdb58", "#ffffff"];
-
-    class Particle {
-      constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.vx = (Math.random() - 0.5) * 0.3;
-        this.vy = (Math.random() - 0.5) * 0.3;
-        this.size = Math.random() * 1.5 + 0.5;
-        this.color = colors[Math.floor(Math.random() * colors.length)];
-        this.baseAlpha = Math.random() * 0.4 + 0.1;
-      }
-      update() {
-        this.vx += (Math.random() - 0.5) * 0.02;
-        this.vy += (Math.random() - 0.5) * 0.02;
-        this.vx *= 0.99; this.vy *= 0.99;
-        this.x += this.vx; this.y += this.vy;
-        if (this.x < -10) this.x = canvas.width + 10;
-        else if (this.x > canvas.width + 10) this.x = -10;
-        if (this.y < -10) this.y = canvas.height + 10;
-        else if (this.y > canvas.height + 10) this.y = -10;
-      }
-      draw() {
-        ctx.save();
-        ctx.globalAlpha = this.baseAlpha;
-        const og = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 5);
-        og.addColorStop(0, this.color);
-        og.addColorStop(1, "transparent");
-        ctx.fillStyle = og;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size * 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+  const handleCheck = () => {
+    if (input.toUpperCase() === MASTER_KEY) {
+      track('Unlocked Deep Layers');
+      onUnlock();
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 500);
     }
+  };
 
-    const particles = Array.from({ length: 45 }, () => new Particle());
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => { p.update(); p.draw(); });
-      animId = requestAnimationFrame(render);
-    };
-    render();
-
-    return () => {
-      window.removeEventListener("resize", resize);
-      cancelAnimationFrame(animId);
-    };
-  }, []);
+  const ys = {
+    page: {
+      height: "100dvh", width: "100%",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: 20, boxSizing: "border-box",
+      textAlign: "center", background: "#050508",
+      position: "fixed", top: 0, left: 0, zIndex: 1000,
+    },
+    backBtn: {
+      position: "absolute", top: 30, left: 30,
+      background: "none", border: "none",
+      color: "rgba(255,255,255,0.4)",
+      cursor: "pointer", fontSize: 14,
+      fontFamily: "'Cormorant Garamond', serif",
+    },
+    icon: { fontSize: 32, marginBottom: 20, opacity: 0.6 },
+    question: {
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: 24, color: "#fff",
+      fontWeight: 300, marginBottom: 50,
+      lineHeight: 1.6, maxWidth: 320,
+    },
+    inputWrap: {
+      width: "100%",
+      transform: error ? "translateX(10px)" : "none",
+      transition: "transform 0.1s",
+      display: "flex", flexDirection: "column", alignItems: "center",
+    },
+    input: {
+      background: "transparent", border: "none",
+      borderBottom: "1px solid rgba(212,175,55,0.4)",
+      color: "#d4af37", textAlign: "center",
+      fontSize: 20, letterSpacing: 6,
+      outline: "none", width: "240px",
+      paddingBottom: 10, marginBottom: 25, borderRadius: 0,
+    },
+    proceedBtn: {
+      background: "transparent", border: "1px solid #d4af37",
+      color: "#d4af37", padding: "12px 45px",
+      borderRadius: 30, fontSize: 13,
+      letterSpacing: 2, cursor: "pointer",
+      transition: "background 0.2s",
+    },
+    devKey: {
+      marginTop: 20, opacity: 0.85, fontSize: 14,
+      color: "#d4af37", letterSpacing: 3, fontFamily: "monospace",
+      textAlign: "center",
+    },
+  };
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}
-    />
+    <div style={ys.page}>
+      <button onClick={onCancel} style={ys.backBtn}>
+        ← {isHindi ? "वापस" : "Back"}
+      </button>
+
+      <div style={ys.icon}>⚖️</div>
+
+      <h2 style={ys.question}>
+        {isHindi
+          ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"'
+          : '"Do you have the key to the next level, the Quieter Place?"'}
+      </h2>
+
+      <div style={ys.inputWrap}>
+        <input
+          autoFocus
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleCheck()}
+          placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"}
+          style={ys.input}
+        />
+        <button
+          onClick={handleCheck}
+          style={ys.proceedBtn}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(212,175,55,0.1)"}
+          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+        >
+          {isHindi ? "प्रवेश करें" : "PROCEED"}
+        </button>
+        <div style={ys.devKey}>Key: {MASTER_KEY}</div>
+      </div>
+    </div>
   );
 }
 
-// ─── GLASS BUTTON ─────────────────────────────────────────────────────
-const GlassButton = ({ emoji, label, onClick, isVisible }) => {
-  const s = {
-    btn: {
-      width: "100%",
-      display: "flex",
-      alignItems: "center",
-      gap: 16,
-      padding: "12px 18px",
-      marginBottom: 10,
-      background: "rgba(255,255,255,0.04)",
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
-      border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 20,
-      cursor: isVisible ? "pointer" : "default",
-      textAlign: "left",
-      boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
-      position: "relative",
-      zIndex: 2,
-      opacity: isVisible ? 1 : 0,
-      transform: isVisible ? "translateY(0)" : "translateY(15px)",
-      transition: "opacity 0.8s ease, transform 0.8s ease, background 0.3s ease",
-    },
-    iconBox: {
-      width: 40, height: 40,
-      borderRadius: 12,
-      background: "rgba(255,255,255,0.06)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 20, flexShrink: 0,
-    },
-    label: {
-      fontFamily: "'Cormorant Garamond', serif",
-      fontSize: 18, fontWeight: 400,
-      color: "#ffffff", margin: 0,
-      letterSpacing: 0.5,
-      flex: 1,
-    },
-    arrow: { fontSize: 14, color: "rgba(255,255,255,0.2)" },
-  };
+// ─── APP CONTENT ───
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  return (
-    <button
-      onClick={onClick}
-      style={s.btn}
-      onMouseEnter={e => { if (isVisible) e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-      onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
-      onTouchStart={e => { e.currentTarget.style.transform = "scale(0.97)"; e.currentTarget.style.transition = "transform 0.1s ease"; }}
-      onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.transition = "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)"; }}
-    >
-      <div style={s.iconBox}>{emoji}</div>
-      <p style={s.label}>{label}</p>
-      <span style={s.arrow}>→</span>
-    </button>
-  );
-};
+  const [session, setSession] = useState(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [hasOnboarded, setHasOnboarded] = useState(() => {
+    try { return localStorage.getItem("jsukoon_onboarded") === "true"; }
+    catch { return false; }
+  });
 
-// ─── DATA ─────────────────────────────────────────────────────────────
-const VAULT_TOOLS = [
-  { id: "reflection", en: "Write it. Then release it.",             hi: "लिखें। फिर जाने दें।",                tab: "reflection", emoji: "🪞" },
-  { id: "descent",    en: "Let go of the day completely.",          hi: "दिन को पूरी तरह छोड़ दें।",           tab: "descent",    emoji: "🍂" },
-  { id: "bilateral",  en: "For what the mind cannot release alone.",hi: "जो मन अकेले नहीं छोड़ पाता।",         tab: null,         emoji: "⚖️" },
-  { id: "nadi",       en: "Balance what words cannot reach.",       hi: "जहाँ शब्द नहीं पहुँचते, वहाँ जाएं।",  tab: null,         emoji: "🌬️" },
-  { id: "letter",     en: "Say what you never could.",              hi: "वो कहें जो कभी कह न सके।",            tab: null,         emoji: "✉️" },
-  { id: "stone",      en: "Let it sink. Let it go.",                hi: "डूब जाने दें। जाने दें।",             tab: null,         emoji: "🪨" },
-];
+  const [lang, setLang] = useLS("jsukoon_lang", "English");
+  const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
+  const [themeKey, setThemeKey] = useLS("jsukoon_theme", "Void");
+  const [mood, setMood] = useState(null);
+  const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
-const RETURN_GREETINGS = [
-  null, null,
-  { en: "You came back. That means something.",       hi: "आप फिर आए — इसका मतलब है।"               },
-  { en: "This is becoming a practice.",               hi: "यह अब एक अभ्यास बन रहा है।"              },
-  { en: "The ones who return here are rare.",         hi: "यहाँ लौटने वाले कम होते हैं।"             },
-  { en: "You keep showing up. That is everything.",  hi: "आप बार-बार आते हैं — यही सब कुछ है।"     },
-];
-const REGULAR_RETURN = { en: "Welcome back to the quieter place.", hi: "अंतर्मन में फिर से स्वागत है।" };
-const LS_KEY = "jsukoon_vault_visits";
-
-// ─── VAULT ────────────────────────────────────────────────────────────
-export function Vault({ setTab, T, lang }) {
-  const hi = lang === "Hindi";
-  const [activeTool, setActiveTool] = useState(null);
-  const [visits,     setVisits]     = useState(0);
-  const [revealed,   setRevealed]   = useState([]);
-  const [showGreet,  setShowGreet]  = useState(true);
+  const T = themeSource === "manual"
+    ? (THEMES[themeKey] || THEMES.Void)
+    : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
 
   useEffect(() => {
-    const prev = parseInt(localStorage.getItem(LS_KEY) || "0", 10);
-    const next = prev + 1;
-    localStorage.setItem(LS_KEY, String(next));
-    setVisits(next);
-
-    if (next === 1) {
-      VAULT_TOOLS.forEach((_, i) => {
-        setTimeout(() => setRevealed(r => [...r, i]), 600 + i * 350);
-      });
-    } else {
-      setRevealed(VAULT_TOOLS.map((_, i) => i));
-    }
-
-    const t = setTimeout(() => setShowGreet(false), 4000);
-    return () => clearTimeout(t);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsCheckingAuth(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setIsCheckingAuth(false);
+      if (session?.user) {
+        posthog.identify(session.user.id, { email: session.user.email });
+      } else {
+        posthog.reset(); // Clear identity on logout
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const greeting = visits === 1
-    ? { en: "You found this place. Not everyone does.\nThis is for the ones who look deeper.",
-        hi: "आप यहाँ तक आए — यह सब नहीं कर पाते।\nयह जगह उनके लिए है जो और गहरे जाना चाहते हैं।" }
-    : visits <= 5 ? RETURN_GREETINGS[visits] : REGULAR_RETURN;
+  useEffect(() => {
+    if (hasOnboarded) track('View Feature', { featureName: location.pathname });
+  }, [location, hasOnboarded]);
 
-  // ─── STYLES ───
-  const s = {
-    toolPage: {
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-      background: T.bg,
-      overflow: "hidden",
-    },
+  useEffect(() => {
+    const browseTimer = setInterval(() => creditSession(1, true), 60000);
+    return () => clearInterval(browseTimer);
+  }, []);
 
-    toolNav: {
-      padding: "20px 24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
+  const [selectedMood, setSelectedMood] = useState(null);
 
-    toolNavBtn: {
-      background: "none", border: "none",
-      fontSize: 20, color: T.text,
-      cursor: "pointer", transition: "opacity 0.2s",
-    },
-
-    toolScroll: {
-      flex: 1, overflowY: "auto",
-      padding: "0 24px 40px",
-    },
-
-    // Main vault page
-    page: {
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-      background: "radial-gradient(circle at center 30%, #2a0a00 0%, #050201 100%)",
-      overflow: "hidden",
-      position: "relative",
-    },
-
-    nav: {
-      padding: "16px 24px",
-      display: "flex",
-      alignItems: "center",
-      gap: 16,
-      zIndex: 2,
-      position: "relative",
-    },
-
-    backBtn: {
-      background: "none", border: "none",
-      fontSize: 20, color: "#fff",
-      cursor: "pointer", opacity: 0.6,
-      transition: "opacity 0.2s",
-    },
-
-    scrollArea: {
-      flex: 1, overflowY: "auto",
-      padding: "0 24px 40px",
-      display: "flex", flexDirection: "column",
-      zIndex: 2, position: "relative",
-    },
-
-    titleWrap: { textAlign: "center", marginBottom: 4, marginTop: 4 },
-
-    title: {
-      fontFamily: "'Cormorant Garamond', serif",
-      fontSize: "clamp(20px, 6vw, 26px)",
-      textTransform: "uppercase",
-      letterSpacing: 4,
-      fontWeight: 400,
-      color: "#ffffff",
-      margin: "0 0 4px",
-      lineHeight: 1.2,
-    },
-
-    subtitle: {
-      fontFamily: "'Cormorant Garamond', serif",
-      fontSize: 16, color: "rgba(255,255,255,0.6)",
-      margin: 0, letterSpacing: 2,
-    },
-
-    divider: {
-      width: 28, height: 1,
-      background: "#ff7e00",
-      margin: "12px auto 16px",
-      opacity: 0.5,
-    },
-
-    greeting: (show) => ({
-      fontFamily: "'Cormorant Garamond', serif",
-      fontStyle: "italic",
-      fontSize: 15,
-      color: "rgba(255,255,255,0.7)",
-      textAlign: "center",
-      lineHeight: 1.6,
-      marginBottom: 20,
-      whiteSpace: "pre-line",
-      opacity: show ? 1 : 0,
-      transition: "opacity 1.5s ease",
-      minHeight: 48,
-    }),
-
-    toolList: { display: "flex", flexDirection: "column", gap: 0 },
-
-    descendWrap: { marginTop: 24, textAlign: "center", paddingBottom: 20 },
-
-    descendBtn: {
-      background: "none", border: "none",
-      color: "rgba(255,255,255,0.4)",
-      fontSize: 11, letterSpacing: 4,
-      textTransform: "uppercase",
-      cursor: "pointer", padding: 16,
-      transition: "color 0.3s ease",
-      fontFamily: "'Cormorant Garamond', serif",
-    },
+  const setTab = (newTab) => {
+    if (newTab === "home") {
+      posthog.capture("page_viewed", { page: "home" });
+      navigate("/");
+    }
+    else if (newTab.startsWith("moodAction_")) {
+      const moodLabel = newTab.replace("moodAction_", "");
+      setSelectedMood(moodLabel);
+      posthog.capture("mood_selected", { mood: moodLabel, lang });
+      navigate("/moodaction");
+    }
+    else {
+      posthog.capture("page_viewed", { page: newTab, lang });
+      navigate(`/${newTab}`);
+    }
   };
 
-  // ── Active tool view ──
-  if (activeTool) {
+  if (isCheckingAuth) {
     return (
-      <div style={s.toolPage}>
-        <div style={s.toolNav}>
-          <button
-            onClick={() => setActiveTool(null)}
-            style={s.toolNavBtn}
-            onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-            onMouseLeave={e => e.currentTarget.style.opacity = "0.7"}
-          >←</button>
-          <button
-            onClick={() => setTab("home")}
-            style={{ ...s.toolNavBtn, opacity: 0.6 }}
-            onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-            onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
-          >🏠</button>
-        </div>
-        <div style={s.toolScroll}>
-          {activeTool === "bilateral" && <BilateralTapping T={T} lang={lang} />}
-          {activeTool === "nadi"      && <NadiShodhana     T={T} lang={lang} />}
-          {activeTool === "letter"    && <UnsentLetter      T={T} lang={lang} />}
-          {activeTool === "stone"     && <StoneDrop         T={T} lang={lang} />}
-        </div>
+      <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
+        {lang === "Hindi" ? "सुकून खुल रहा है..." : "Opening Sukoon..."}
       </div>
     );
   }
 
-  // ── Main vault view ──
+  if (!session) return <Login T={T} lang={lang} />;
+
+  if (!hasOnboarded) {
+    return (
+      <Onboarding
+        onComplete={() => {
+          localStorage.setItem("jsukoon_onboarded", "true");
+          setHasOnboarded(true);
+          track('Onboarding Complete');
+        }}
+        setThemeKey={setThemeKey}
+        setLang={setLang}
+        T={T}
+      />
+    );
+  }
+
+  const deepLayers = ["/vault", "/resonance", "/stillness", "/quietcorner", "/soundbath", "/mandala", "/seedinmud"];
+  const isProtected = deepLayers.includes(location.pathname) && !vaultUnlocked;
+
   return (
-    <div style={s.page}>
-      <MysticParticleCanvas />
+    <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
+      <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
 
-      <div style={s.nav}>
-        <button
-          onClick={() => setTab("more")}
-          style={s.backBtn}
-          onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
-        >←</button>
-      </div>
-
-      <div style={s.scrollArea}>
-
-        <div style={s.titleWrap}>
-          <h1 style={s.title}>THE QUIETER PLACE</h1>
-          <p style={s.subtitle}>अंतर्मन</p>
-        </div>
-
-        <div style={s.divider} />
-
-        {greeting && (
-          <p style={s.greeting(showGreet)}>
-            {hi ? greeting.hi : greeting.en}
-          </p>
+        {isProtected ? (
+          <YakshaGate
+            lang={lang} T={T}
+            onUnlock={() => setVaultUnlocked(true)}
+            onCancel={() => setTab("practice")}
+          />
+        ) : (
+          <Routes>
+            <Route path="/" element={<Home setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep" element={<Sleep setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_scrambler" element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_ember" element={<DimmingEmber setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_scan" element={<HeavyScan setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_fire" element={<MidnightFire setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/sleep_beat" element={<DeepRhythm setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/focus" element={<Focus setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/journal" element={<Journal setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/warmth" element={<WarmthPage setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/bench" element={<Bench setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/more" element={<MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+            <Route path="/practice" element={<Practice setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/community" element={<CommunityRoom setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/legal" element={<LegalDisclaimer setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/reflection" element={<Reflection setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/progress" element={<Progress setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/descent" element={<TheDescent setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />} />
+            <Route path="/vault" element={<Vault setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/stillness" element={<Stillness setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/resonance" element={<Resonance setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/quietcorner" element={<QuietCorner setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/soundbath" element={<SoundBath setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/mandala" element={<MandalaFlow setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/seedinmud" element={<SeedInMud setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/settings" element={<Settings setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />} />
+            <Route path="/audio" element={<AudioPage setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/crisis" element={<Crisis setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/about" element={<About setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/privacy" element={<Privacy setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/wishes" element={<WishesGallery setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/moodaction" element={<MoodAction selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
         )}
-
-        <div style={s.toolList}>
-          {VAULT_TOOLS.map((tool, i) => {
-            const isVisible = revealed.includes(i);
-            return (
-              <GlassButton
-                key={tool.id}
-                emoji={tool.emoji}
-                label={hi ? tool.hi : tool.en}
-                isVisible={isVisible}
-                onClick={() => {
-                  if (!isVisible) return;
-                  if (tool.tab) setTab(tool.tab);
-                  else setActiveTool(tool.id);
-                }}
-              />
-            );
-          })}
-        </div>
-
-        <div style={s.descendWrap}>
-          <button
-            onClick={() => setTab("resonance")}
-            style={s.descendBtn}
-            onMouseEnter={e => e.currentTarget.style.color = "#ffdb58"}
-            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.4)"}
-          >
-            {hi ? "गहरा उतरें" : "Descend Further"}
-          </button>
-        </div>
-
+        <Analytics />
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
