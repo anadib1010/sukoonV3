@@ -201,19 +201,83 @@ function AppContent() {
 
   const [selectedMood, setSelectedMood] = useState(null);
 
+  // ─── PAGE TITLES ───────────────────────────────────────────────────
+  const PAGE_TITLES_EN = {
+    home:          "JSukoon — Home",
+    more:          "JSukoon — More",
+    bench:         "JSukoon — The Bench",
+    journal:       "JSukoon — Journal",
+    audio:         "JSukoon — Audio",
+    focus:         "JSukoon — Focus",
+    practice:      "JSukoon — Practice",
+    warmth:        "JSukoon — Warmth",
+    progress:      "JSukoon — Progress",
+    settings:      "JSukoon — Settings",
+    reflection:    "JSukoon — Reflection",
+    vault:         "JSukoon — The Vault",
+    resonance:     "JSukoon — Resonance",
+    stillness:     "JSukoon — Stillness",
+    sleep:         "JSukoon — Sleep",
+    crisis:        "JSukoon — Crisis Support",
+    about:         "JSukoon — About",
+    privacy:       "JSukoon — Privacy",
+    legal:         "JSukoon — Legal",
+    moodaction:    "JSukoon — Mood Response",
+    community:     "JSukoon — Community",
+    quietcorner:   "JSukoon — Quiet Corner",
+    soundbath:     "JSukoon — Sound Bath",
+    mandala:       "JSukoon — Mandala Flow",
+    seedinmud:     "JSukoon — Seed in the Mud",
+  };
+  const PAGE_TITLES_HI = {
+    home:          "JSukoon — होम",
+    more:          "JSukoon — और",
+    bench:         "JSukoon — बेंच",
+    journal:       "JSukoon — जर्नल",
+    audio:         "JSukoon — ऑडियो",
+    focus:         "JSukoon — फ़ोकस",
+    practice:      "JSukoon — अभ्यास",
+    warmth:        "JSukoon — गर्माहट",
+    progress:      "JSukoon — प्रगति",
+    settings:      "JSukoon — सेटिंग्स",
+    reflection:    "JSukoon — चिंतन",
+    vault:         "JSukoon — वॉल्ट",
+    resonance:     "JSukoon — अनुनाद",
+    stillness:     "JSukoon — स्थिरता",
+    sleep:         "JSukoon — नींद",
+    crisis:        "JSukoon — संकट सहायता",
+    about:         "JSukoon — हमारे बारे में",
+    privacy:       "JSukoon — गोपनीयता",
+    legal:         "JSukoon — कानूनी",
+    moodaction:    "JSukoon — मूड प्रतिक्रिया",
+    community:     "JSukoon — समुदाय",
+    quietcorner:   "JSukoon — शांत कोना",
+    soundbath:     "JSukoon — ध्वनि स्नान",
+    mandala:       "JSukoon — मंडला",
+    seedinmud:     "JSukoon — कीचड़ में बीज",
+  };
+
+  const setPageTitle = (page) => {
+    const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
+    document.title = titles[page] || "JSukoon";
+  };
+
   const setTab = (newTab) => {
     if (newTab === "home") {
       posthog.capture("page_viewed", { page: "home" });
+      setPageTitle("home");
       navigate("/");
     }
     else if (newTab.startsWith("moodAction_")) {
       const moodLabel = newTab.replace("moodAction_", "");
       setSelectedMood(moodLabel);
       posthog.capture("mood_selected", { mood: moodLabel, lang });
+      setPageTitle("moodaction");
       navigate("/moodaction");
     }
     else {
       posthog.capture("page_viewed", { page: newTab, lang });
+      setPageTitle(newTab);
       navigate(`/${newTab}`);
     }
   };
