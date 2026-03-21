@@ -391,7 +391,7 @@ export function Reflection({ setTab, T, lang }) {
                   onMouseLeave={e => e.currentTarget.style.background = `${T.accent}15`}
                 >
                   <span style={s.btnEmoji}>✨</span>
-                  <span style={s.btnLabel}>{hi ? "शांत इच्छा" : "Quiet Wish"}</span>
+                  <span style={s.btnLabel}>{hi ? "शांत इच्छा"  : "Quiet Wish"}</span>
                 </button>
               </div>
             </div>
