@@ -600,10 +600,11 @@ export function Journal({ setTab, T, lang }) {
 
               <div style={s.privacy}>
                 <p style={s.privacyP(true)}>
-                  "This is a private space. Your words remain on your device and are not stored or read by us."
+                  "This is a private space. Your entries are stored securely in your account and are not shared with others.
+If you choose to use AI reflection, your entry is used to generate a response."
                 </p>
                 <p style={s.privacyP(false)}>
-                  To help improve Sukoon, we use anonymous usage analytics. This never identifies you and never records what you write.
+                  We also use anonymous usage analytics to improve Sukoon — this never identifies you or records what you write.
                 </p>
               </div>
 
