@@ -44,6 +44,9 @@ import { SoundBath } from './features/games/SoundBath';
 import { MandalaFlow } from './features/games/MandalaFlow';
 import { SeedInMud } from './features/games/SeedInMud';
 
+// NEW: Import the Reset Engine (Adjust path if you placed it in the features folder!)
+import { Reset } from "./components/Reset";
+
 // ─── YAKSHA GATE ───
 function YakshaGate({ lang, T, onUnlock, onCancel }) {
   const [input, setInput] = useState("");
@@ -204,6 +207,7 @@ function AppContent() {
   // ─── PAGE TITLES ───────────────────────────────────────────────────
   const PAGE_TITLES_EN = {
     home:          "JSukoon — Home",
+    reset:         "JSukoon — Reset", // <-- ADDED
     more:          "JSukoon — More",
     bench:         "JSukoon — The Bench",
     journal:       "JSukoon — Journal",
@@ -231,6 +235,7 @@ function AppContent() {
   };
   const PAGE_TITLES_HI = {
     home:          "JSukoon — होम",
+    reset:         "JSukoon — रीसेट", // <-- ADDED
     more:          "JSukoon — और",
     bench:         "JSukoon — बेंच",
     journal:       "JSukoon — जर्नल",
@@ -323,6 +328,7 @@ function AppContent() {
         ) : (
           <Routes>
             <Route path="/" element={<Home setTab={setTab} T={T} lang={lang} />} />
+            <Route path="/reset" element={<Reset setTab={setTab} T={T} lang={lang} />} /> {/* <-- ADDED ROUTE */}
             <Route path="/sleep" element={<Sleep setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_scrambler" element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
             <Route path="/sleep_ember" element={<DimmingEmber setTab={setTab} T={T} lang={lang} />} />
