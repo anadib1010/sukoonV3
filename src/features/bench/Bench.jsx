@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getReflection } from '../../utils/quoteEngine';
+import { getReflection, getReflectionHindi } from '../../utils/quoteEngine';
 import { AUDIO_URLS } from '../../utils/constants';
 
 function lerpN(a, b, t) { return a + (b - a) * t; }
@@ -43,14 +43,15 @@ export function Bench({ T, lang, setTab, goBack }) {
   const timeRef       = useRef(0);
 
   // --- QUOTE ENGINE LOGIC START (MODIFIED) ---
-  const [currentQuote, setCurrentQuote] = useState(() => getReflection());
+  const getQuote = () => lang === 'Hindi' ? getReflectionHindi() : getReflection();
+  const [currentQuote, setCurrentQuote] = useState(() => getQuote());
   const [quoteVisible, setQuoteVisible] = useState(true);
 
   useEffect(() => {
     const t = setInterval(() => {
       setQuoteVisible(false);
       setTimeout(() => {
-        setCurrentQuote(getReflection());
+        setCurrentQuote(getQuote());
         setQuoteVisible(true);
       }, 800);
     }, 12000);
@@ -683,6 +684,23 @@ export function Bench({ T, lang, setTab, goBack }) {
 
   const hi = lang === 'Hindi';
   const [vaultVisible, setVaultVisible] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  const handleShare = async () => {
+    if (!currentQuote) return;
+    const text = `"${currentQuote}"
+
+— JSukoon · find your sukoon at sukoon-v3.vercel.app`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setShared(true);
+        setTimeout(() => setShared(false), 2500);
+      }
+    } catch {}
+  };
 
   // Vault whisper — appears after 30s, fades after another 30s
   useEffect(() => {
@@ -691,80 +709,118 @@ export function Bench({ T, lang, setTab, goBack }) {
     return () => { clearTimeout(showT); clearTimeout(hideT); };
   }, []);
 
-  return (
-    <div style={{ position:'fixed', inset:0, zIndex:50, background:'#000', overflow:'hidden' }}>
-      <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', display:'block' }} />
+  const SOUNDS = [
+    { key:'birds.mp3',  icon:'🐦', en:'Birds',  hiL:'पक्षी'   },
+    { key:'wind.mp3',   icon:'💨', en:'Wind',   hiL:'हवा'     },
+    { key:'forest.mp3', icon:'🌲', en:'Forest', hiL:'जंगल'    },
+    { key:'flute.mp3',  icon:'🪈', en:'Flute',  hiL:'बांसुरी' },
+    { key:'waves.mp3',  icon:'🌊', en:'Waves',  hiL:'लहरें'   },
+  ];
 
-      {/* Back */}
-      <button onClick={() => { killAudio(); if(goBack) goBack(); else setTab('home'); }}
-        style={{ position:'absolute', top:16, left:16, zIndex:10, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:99, color:'#fff', padding:'8px 16px', fontSize:13, cursor:'pointer' }}>
-        ← {hi?'वापस':'Back'}
+  const s = {
+    page:    { position:'fixed', inset:0, zIndex:50, background:'#000', overflow:'hidden' },
+    canvas:  { position:'absolute', inset:0, width:'100%', height:'100%', display:'block' },
+    backBtn: { position:'absolute', top:16, left:16, zIndex:10, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:99, color:'#fff', padding:'8px 16px', fontSize:13, cursor:'pointer', transition:'background 0.2s' },
+    homeBtn: { position:'absolute', top:16, right:16, zIndex:10, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:99, padding:'8px 14px', fontSize:16, cursor:'pointer', transition:'background 0.2s' },
+    quoteWrap:   { position:'absolute', top:'28%', left:0, right:0, textAlign:'center', padding:'0 24px', zIndex:10, pointerEvents:'none' },
+    quoteFade:   { opacity:quoteVisible?1:0, transition:'opacity 0.8s ease', maxWidth:400, margin:'0 auto' },
+    quoteText:   { fontFamily:"'Cormorant Garamond',serif", fontSize:'clamp(16px,4.5vw,26px)', color:'rgba(255,252,238,0.92)', fontStyle:'italic', lineHeight:1.7, textShadow:'0 2px 12px rgba(0,0,0,0.95)', margin:'0 0 18px' },
+    sitBtn:      { background:'rgba(255,255,255,0.09)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:99, color:'rgba(255,255,255,0.82)', padding:'7px 22px', fontSize:11, cursor:'pointer', pointerEvents:'auto', letterSpacing:'0.04em', transition:'background 0.2s' },
+    shareBtn:    { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.14)', borderRadius:99, color:'rgba(255,255,255,0.55)', padding:'6px 16px', fontSize:11, cursor:'pointer', pointerEvents:'auto', letterSpacing:'0.04em', transition:'all 0.2s', marginTop:8 },
+    vaultWrap:   { position:'absolute', bottom:90, left:0, right:0, textAlign:'center', zIndex:10, opacity:vaultVisible?1:0, transition:'opacity 2s ease', pointerEvents:vaultVisible?'auto':'none' },
+    vaultBtn:    { background:'none', border:'none', color:'rgba(255,252,238,0.35)', fontFamily:"'Cormorant Garamond', serif", fontStyle:'italic', fontSize:'clamp(13px,3.5vw,16px)', cursor:'pointer', letterSpacing:'0.5px', padding:'8px 16px', transition:'color 0.2s' },
+    soundBar:    { position:'absolute', bottom:24, left:0, right:0, zIndex:10, display:'flex', justifyContent:'center', flexWrap:'wrap', gap:8, padding:'0 12px' },
+    soundBtn: (active) => ({
+      background:    active ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.72)',
+      border:        `1px solid ${active ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
+      borderRadius:  99,
+      color:         active ? 'rgba(255,255,220,0.95)' : 'rgba(255,255,255,0.55)',
+      padding:       '10px 14px',
+      display:       'flex', alignItems:'center', gap:6,
+      fontSize:      13, cursor:'pointer',
+      transition:    'all 0.2s', backdropFilter:'blur(8px)',
+    }),
+  };
+
+  return (
+    <div style={s.page}>
+      <canvas ref={canvasRef} style={s.canvas} />
+
+      <button
+        onClick={() => { killAudio(); if(goBack) goBack(); else setTab('home'); }}
+        style={s.backBtn}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.55)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.35)'}
+        onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.96)'; }}
+        onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      >
+        ← {hi ? 'वापस' : 'Back'}
       </button>
 
-      {/* Home */}
-      <button onClick={() => { killAudio(); setTab('home'); }}
-        style={{ position:'absolute', top:16, right:16, zIndex:10, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:99, padding:'8px 14px', fontSize:16, cursor:'pointer' }}>
+      <button
+        onClick={() => { killAudio(); setTab('home'); }}
+        style={s.homeBtn}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.55)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.35)'}
+        onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.96)'; }}
+        onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      >
         🏠
       </button>
 
-      {/* Quote — Using new currentQuote state from engine */}
-      <div style={{ position:'absolute', top:'28%', left:0, right:0, textAlign:'center', padding:'0 24px', zIndex:10, pointerEvents:'none' }}>
-        <div style={{ opacity:quoteVisible?1:0, transition:'opacity 0.8s ease', maxWidth:400, margin:'0 auto' }}>
+      <div style={s.quoteWrap}>
+        <div style={s.quoteFade}>
           {currentQuote && (
-            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'clamp(16px,4.5vw,26px)', color:'rgba(255,252,238,0.92)', fontStyle:'italic', lineHeight:1.7, textShadow:'0 2px 12px rgba(0,0,0,0.95)', margin:'0 0 18px' }}>
-              "{currentQuote}"
-            </p>
+            <p style={s.quoteText}>"{currentQuote}"</p>
           )}
-          <button onClick={() => {
-            setQuoteVisible(false);
-            setTimeout(() => { setCurrentQuote(getReflection()); setQuoteVisible(true); }, 600);
-          }} style={{ background:'rgba(255,255,255,0.09)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:99, color:'rgba(255,255,255,0.82)', padding:'7px 22px', fontSize:11, cursor:'pointer', pointerEvents:'auto', letterSpacing:'0.04em' }}>
-            {hi?'थोड़ा और बैठें':'sit a little longer'}
+          <button
+            onClick={() => {
+              setQuoteVisible(false);
+              setTimeout(() => { setCurrentQuote(getQuote()); setQuoteVisible(true); }, 600);
+            }}
+            style={s.sitBtn}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.09)'}
+            onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.96)'; }}
+            onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            {hi ? 'थोड़ा और बैठें' : 'sit a little longer'}
+          </button>
+          <button
+            onClick={handleShare}
+            style={s.shareBtn}
+            onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.85)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+            onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.96)'; }}
+            onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            {shared ? (hi ? '✓ कॉपी हो गया' : '✓ copied') : (hi ? '↗ शेयर करें' : '↗ share')}
           </button>
         </div>
       </div>
 
-      {/* Vault whisper — appears after 30s of stillness */}
-      <div style={{
-        position: 'absolute', bottom: 90, left: 0, right: 0,
-        textAlign: 'center', zIndex: 10,
-        opacity: vaultVisible ? 1 : 0,
-        transition: 'opacity 2s ease',
-        pointerEvents: vaultVisible ? 'auto' : 'none',
-      }}>
-        <button onClick={() => { killAudio(); setTab('vault'); }} style={{
-          background: 'none', border: 'none',
-          color: 'rgba(255,252,238,0.35)',
-          fontFamily: "'Cormorant Garamond', serif",
-          fontStyle: 'italic',
-          fontSize: 'clamp(13px,3.5vw,16px)',
-          cursor: 'pointer',
-          letterSpacing: '0.5px',
-          padding: '8px 16px',
-        }}>
+      <div style={s.vaultWrap}>
+        <button
+          onClick={() => { killAudio(); setTab('vault'); }}
+          style={s.vaultBtn}
+          onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,252,238,0.65)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,252,238,0.35)'}
+        >
           {hi ? 'एक और गहरी जगह है, अगर आप तैयार हैं।' : 'There is a quieter place, if you are ready.'}
         </button>
       </div>
 
-      {/* Sound buttons — bottom, thumb-friendly */}
-      <div style={{ position:'absolute', bottom:24, left:0, right:0, zIndex:10, display:'flex', justifyContent:'center', flexWrap:'wrap', gap:8, padding:'0 12px' }}>
-        {[
-          { key:'birds.mp3',  icon:'🐦', en:'Birds',  hi:'पक्षी'    },
-          { key:'wind.mp3',   icon:'💨', en:'Wind',   hi:'हवा'      },
-          { key:'forest.mp3', icon:'🌲', en:'Forest', hi:'जंगल'     },
-          { key:'flute.mp3',  icon:'🪈', en:'Flute',  hi:'बांसुरी'  },
-          { key:'waves.mp3',  icon:'🌊', en:'Waves',  hi:'लहरें'    },
-        ].map(s => (
-          <button key={s.key} onClick={() => playBenchSound(s.key)} style={{
-            background: activeSound===s.key ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.72)',
-            border:     `1px solid ${activeSound===s.key ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
-            borderRadius:99, color: activeSound===s.key ? 'rgba(255,255,220,0.95)' : 'rgba(255,255,255,0.55)',
-            padding:'10px 14px',
-            display:'flex', alignItems:'center', gap:6, fontSize:13, cursor:'pointer',
-            transition:'all 0.2s', backdropFilter:'blur(8px)',
-          }}>
-            <span>{s.icon}</span>
-            <span>{hi ? s.hi : s.en}</span>
+      <div style={s.soundBar}>
+        {SOUNDS.map(snd => (
+          <button
+            key={snd.key}
+            onClick={() => playBenchSound(snd.key)}
+            style={s.soundBtn(activeSound === snd.key)}
+            onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+            onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            <span>{snd.icon}</span>
+            <span>{hi ? snd.hiL : snd.en}</span>
           </button>
         ))}
       </div>
