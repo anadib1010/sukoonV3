@@ -626,6 +626,20 @@ function WarmthCard({ T, lang }) {
   const palette = PALETTES.find(p=>p.id===paletteId)||PALETTES[0];
 
   // ─── STYLES ───
+  const baseInput = {
+    width: '100%',
+    background: T.surfaceAlt,
+    border: `1px solid ${T.border}`,
+    borderRadius: 11,
+    padding: '11px 14px',
+    color: T.text,
+    fontSize: 13,
+    outline: 'none',
+    fontFamily: "'DM Sans', sans-serif",
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
+  };
+
   const s = {
     card: {
       background: T.surface,
@@ -640,19 +654,12 @@ function WarmthCard({ T, lang }) {
     headerEmoji: { fontSize: 36, display: 'block', marginBottom: 8 },
     headerTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: T.accentSoft, fontWeight: 400, margin: '0 0 6px' },
     headerSub: { fontSize: 13, color: T.textSoft, margin: 0, lineHeight: 1.6 },
-    input: {
-      width: '100%',
-      background: T.surfaceAlt,
-      border: `1px solid ${T.border}`,
-      borderRadius: 11,
-      padding: '11px 14px',
-      color: T.text,
-      fontSize: 13,
-      outline: 'none',
-      fontFamily: "'DM Sans', sans-serif",
-      boxSizing: 'border-box',
-      transition: 'border-color 0.2s',
-    },
+    
+    // Extracted Inline Styles:
+    inputTop: { ...baseInput, marginBottom: 9 },
+    inputBottom: { ...baseInput, marginBottom: 14 },
+    voiceSection: { marginBottom: 14 },
+
     dropdownLabel: { fontSize: 11, color: T.muted, margin: '0 0 6px', letterSpacing: 0.5 },
     dropdownWrap: { marginBottom: 12 },
     preview: {
@@ -730,13 +737,13 @@ function WarmthCard({ T, lang }) {
         value={recipientName}
         onChange={e => setRecipientName(e.target.value)}
         placeholder={hi ? 'किसे भेजना है? (नाम या रिश्ता)' : 'Who is this for? (name or relationship)'}
-        style={{ ...s.input, marginBottom: 9 }}
+        style={s.inputTop}
       />
       <input
         value={senderName}
         onChange={e => setSenderName(e.target.value)}
         placeholder={hi ? 'आपका नाम (वैकल्पिक)' : 'Your name (optional)'}
-        style={{ ...s.input, marginBottom: 14 }}
+        style={s.inputBottom}
       />
 
       <div style={s.dropdownWrap}>
@@ -755,7 +762,7 @@ function WarmthCard({ T, lang }) {
         </div>
       )}
 
-      <div style={{ marginBottom: 14 }}>
+      <div style={s.voiceSection}>
         {micBlocked ? (
           <div style={s.micBlocked}>
             <p style={s.micBlockedText}>
@@ -802,9 +809,10 @@ function WarmthCard({ T, lang }) {
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export function WarmthPage({ setTab, goBack, T, lang }) {
   const s = {
-    page: { height: '100%', display: 'flex', flexDirection: 'column', background: T.bg, overflow: 'hidden' },
+    // 💡 FIXED: Changed 'height: 100%' to 'minHeight: 100dvh' to prevent the white screen collapse!
+    page: { minHeight: '100dvh', width: '100%', display: 'flex', flexDirection: 'column', background: T.bg, overflow: 'hidden' },
     scroll: { flex: 1, overflowY: 'auto', padding: '0 0 60px' },
-    inner: { padding: '16px 18px' },
+    inner: { padding: '16px 18px', maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box' },
   };
 
   return (
