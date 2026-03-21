@@ -55,13 +55,18 @@ export function Home({ setTab, T, lang }) {
       letterSpacing: "1.5px", textTransform: "uppercase", opacity: 0.8,
       margin: "0 0 16px", textAlign: "center",
     },
+    
+    // 🔆 PRIMARY BEACON BUTTON (High Contrast)
     resetBtn: {
       width: "100%", maxWidth: "340px", padding: "20px 0",
-      background: "linear-gradient(180deg, #e6e6e6 0%, #999999 100%)",
-      border: "none", borderRadius: "4px",
-      color: "#111", fontFamily: "'DM Sans', sans-serif", fontSize: "18px",
-      fontWeight: 700, letterSpacing: "1px", cursor: "pointer",
-      boxShadow: "0 0 30px rgba(255,255,255,0.15)", transition: "transform 0.2s ease",
+      background: "linear-gradient(180deg, #f0f0f0 0%, #a0a0a0 100%)", // Bright silver glow
+      border: "none", 
+      borderRadius: "12px", 
+      color: "#111111", // Deep dark text so it's super easy to read
+      fontFamily: "'DM Sans', sans-serif", fontSize: "18px",
+      fontWeight: 700, letterSpacing: "1.5px", cursor: "pointer",
+      boxShadow: "0 0 30px rgba(255, 255, 255, 0.2)", // Glowing halo around it
+      transition: "all 0.2s ease",
     },
 
     bottomSection: {
@@ -69,20 +74,30 @@ export function Home({ setTab, T, lang }) {
       gap: "16px", opacity: visible ? 1 : 0,
       transition: "opacity 0.8s ease 0.4s",
     },
+    
+    // 🧊 SECONDARY QUIET GLASS BUTTONS
     sanctuaryBtn: {
       width: "100%", padding: "18px 0",
-      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(255, 255, 255, 0.04)",
+      backdropFilter: "blur(8px)",
+      WebkitBackdropFilter: "blur(8px)",
+      border: "1px solid rgba(255, 255, 255, 0.08)",
       borderRadius: "12px", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "15px", letterSpacing: "1px",
-      textTransform: "uppercase", cursor: "pointer", transition: "background 0.2s ease",
+      textTransform: "uppercase", cursor: "pointer", transition: "all 0.3s ease",
+      boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
     },
     row: { display: "flex", gap: "16px", width: "100%" },
     halfBtn: {
       flex: 1, padding: "18px 0",
-      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(255, 255, 255, 0.04)",
+      backdropFilter: "blur(8px)",
+      WebkitBackdropFilter: "blur(8px)",
+      border: "1px solid rgba(255, 255, 255, 0.08)",
       borderRadius: "12px", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "15px", letterSpacing: "1px",
-      textTransform: "uppercase", cursor: "pointer", transition: "background 0.2s ease",
+      textTransform: "uppercase", cursor: "pointer", transition: "all 0.3s ease",
+      boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
     },
     warmthBtn: {
       background: "none", border: "none", marginTop: "8px",
@@ -107,6 +122,8 @@ export function Home({ setTab, T, lang }) {
         <button 
           onClick={() => setTab('reset')} 
           style={s.resetBtn}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 45px rgba(255, 255, 255, 0.3)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "0 0 30px rgba(255, 255, 255, 0.2)"}
           onMouseDown={e => e.currentTarget.style.transform = "scale(0.97)"}
           onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
         >
@@ -115,20 +132,40 @@ export function Home({ setTab, T, lang }) {
       </div>
 
       <div style={s.bottomSection}>
-        <button onClick={() => setTab('bench')} style={s.sanctuaryBtn}>
+        <button 
+          onClick={() => setTab('bench')} 
+          style={s.sanctuaryBtn}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
+          onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
+        >
           {hi ? "अभयारण्य में बैठें" : "SIT IN SANCTUARY"}
         </button>
 
         <div style={s.row}>
-          <button onClick={() => setTab('sleep')} style={s.halfBtn}>
+          <button 
+            onClick={() => setTab('sleep')} 
+            style={s.halfBtn}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
+          >
             {hi ? "नींद" : "SLEEP"}
           </button>
-          <button onClick={() => setTab('more')} style={s.halfBtn}>
+          <button 
+            onClick={() => setTab('more')} 
+            style={s.halfBtn}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
+          >
             {hi ? "खोजें" : "EXPLORE"}
           </button>
         </div>
 
-        <button onClick={() => setTab('warmth')} style={s.warmthBtn}>
+        <button 
+          onClick={() => setTab('warmth')} 
+          style={s.warmthBtn}
+          onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+          onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
+        >
           {hi ? "गर्माहट भेजें" : "SEND WARMTH"}
         </button>
       </div>

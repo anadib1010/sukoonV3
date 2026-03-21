@@ -4,7 +4,7 @@ import { PageNav } from '../../components/SharedUI';
 export function MorePage({ setTab, T, lang }) {
   const hi = lang === "Hindi";
   const [visible, setVisible] = useState(false);
-  const [showDeep, setShowDeep] = useState(false); // Progressive reveal for Section 1 & 3
+  const [showDeep, setShowDeep] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 60);
@@ -24,7 +24,6 @@ export function MorePage({ setTab, T, lang }) {
       transition: "opacity 0.6s ease, transform 0.6s ease",
     },
     
-    // Header
     header: { textAlign: "center", marginBottom: 40, marginTop: 10 },
     title: { 
       fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(28px, 8vw, 34px)", 
@@ -35,7 +34,6 @@ export function MorePage({ setTab, T, lang }) {
       fontSize: 16, color: T.textSoft, opacity: 0.7, margin: 0 
     },
 
-    // Section Blocks
     section: { marginBottom: 36 },
     sectionLabel: { 
       display: "flex", alignItems: "center", gap: 8,
@@ -44,7 +42,6 @@ export function MorePage({ setTab, T, lang }) {
     },
     emoji: { fontSize: 18 },
 
-    // Buttons
     btnGrid: { display: "grid", gap: 12 },
     btnBase: { 
       background: `linear-gradient(135deg, ${T.accent}08 0%, transparent 100%)`, 
@@ -58,7 +55,6 @@ export function MorePage({ setTab, T, lang }) {
       color: T.text, fontWeight: 500, letterSpacing: "0.5px" 
     },
     
-    // Progressive Reveal Button
     expandBtn: {
       background: "transparent", border: "none", color: T.textSoft,
       fontSize: 12, textTransform: "uppercase", letterSpacing: "2px",
@@ -66,7 +62,6 @@ export function MorePage({ setTab, T, lang }) {
       transition: "opacity 0.3s ease"
     },
 
-    // The Hidden Layer (Vault/Deeper Spaces)
     deepSection: { 
       marginTop: 48, paddingTop: 32, borderTop: `1px solid ${T.accent}15`, textAlign: "center" 
     },
@@ -79,6 +74,18 @@ export function MorePage({ setTab, T, lang }) {
       borderRadius: 99, padding: "12px 32px", color: T.text,
       fontFamily: "'Cormorant Garamond', serif", fontSize: 16, cursor: "pointer",
       transition: "all 0.3s ease"
+    },
+
+    // NEW: Utility Section for Settings
+    utilityWrap: {
+      marginTop: 60, display: "flex", justifyContent: "center", paddingBottom: 20
+    },
+    settingsBtn: {
+      background: "transparent", border: `1px solid rgba(255,255,255,0.1)`,
+      borderRadius: 99, padding: "10px 24px", color: T.textSoft,
+      fontFamily: "'DM Sans', sans-serif", fontSize: 12, letterSpacing: "1.5px",
+      textTransform: "uppercase", cursor: "pointer", transition: "all 0.3s ease",
+      display: "flex", alignItems: "center", gap: 10, opacity: 0.7
     }
   };
 
@@ -88,13 +95,11 @@ export function MorePage({ setTab, T, lang }) {
 
       <div style={s.scrollArea}>
         
-        {/* TOP: Minimal Map Header */}
         <div style={s.header}>
           <h1 style={s.title}>{hi ? "अपनी गति से खोजें" : "Explore at your own pace"}</h1>
           <p style={s.subtitle}>{hi ? "जो चाहिए वो लें, बाकी छोड़ दें" : "Take what you need, leave the rest"}</p>
         </div>
 
-        {/* SECTION 1: Active Mind */}
         <div style={s.section}>
           <div style={s.sectionLabel}>
             <span style={s.emoji}>🌿</span>
@@ -119,7 +124,6 @@ export function MorePage({ setTab, T, lang }) {
           </div>
         </div>
 
-        {/* SECTION 2: Passive Rest */}
         <div style={s.section}>
           <div style={s.sectionLabel}>
             <span style={s.emoji}>🌙</span>
@@ -137,7 +141,6 @@ export function MorePage({ setTab, T, lang }) {
           </div>
         </div>
 
-        {/* SECTION 3: Active Shift */}
         <div style={s.section}>
           <div style={s.sectionLabel}>
             <span style={s.emoji}>🔄</span>
@@ -161,7 +164,6 @@ export function MorePage({ setTab, T, lang }) {
             )}
           </div>
           
-          {/* Subtle reveal button for hidden mid-layer tools */}
           {!showDeep && (
             <button onClick={() => setShowDeep(true)} style={s.expandBtn} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.6}>
               {hi ? "और दिखाएं" : "Show more paths"}
@@ -169,7 +171,6 @@ export function MorePage({ setTab, T, lang }) {
           )}
         </div>
 
-        {/* SECTION 4: The Vault / Layer 3 */}
         <div style={s.deepSection}>
           <div style={{ ...s.sectionLabel, justifyContent: "center" }}>
             <span style={s.emoji}>🌌</span>
@@ -185,6 +186,19 @@ export function MorePage({ setTab, T, lang }) {
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
           >
             ✨ {hi ? "गहरी जगहें" : "Deeper spaces"}
+          </button>
+        </div>
+
+        {/* SETTINGS UTILITY BUTTON */}
+        <div style={s.utilityWrap}>
+          <button 
+            onClick={() => setTab('settings')} 
+            style={s.settingsBtn}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.opacity = 1; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.opacity = 0.7; }}
+          >
+            <span style={{ fontSize: "16px" }}>⚙️</span> 
+            {hi ? "सेटिंग्स" : "Settings"}
           </button>
         </div>
 
