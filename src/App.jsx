@@ -222,7 +222,7 @@ function AppContent() {
   if (isCheckingAuth) {
     return (
       <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
-        {lang === "Hindi" ? "सुकोन खुल रहा है..." : "Opening Sukoon..."}
+        {lang === "Hindi" ? "सुकून खुल रहा है..." : "Opening Sukoon..."}
       </div>
     );
   }

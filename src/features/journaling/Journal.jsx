@@ -610,7 +610,7 @@ export function Journal({ setTab, T, lang }) {
               {(isThinking || aiResponse) && (
                 <div className="fade-in" style={s.aiBox}>
                   <div style={s.aiBoxHeader}>
-                    <p style={s.aiLabel}>{hi ? "सुकोन एआई" : "Sukoon AI"}</p>
+                    <p style={s.aiLabel}>{hi ? "सुकून एआई" : "Sukoon AI"}</p>
                     {aiResponse && !isThinking && (
                       <button onClick={() => speakText(aiResponse)} style={s.speakBtn}>🔊</button>
                     )}
