@@ -16,13 +16,13 @@ export function Home({ setTab, T, lang }) {
     ? (hours < 12 ? "सुप्रभात" : hours < 17 ? "शुभ दोपहर" : "शुभ संध्या")
     : (hours < 12 ? "Good morning" : hours < 17 ? "Good afternoon" : "Good evening");
 
-  // ─── STYLES (Rule of T) ───
+  // ─── STYLES (The Architect's Precision) ───
   const s = {
     page: {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
       alignItems: "center", 
       background: T.bg, color: T.text, overflowX: "hidden", boxSizing: "border-box",
-      padding: "8vh 24px 4vh", // Padding at top and bottom
+      padding: "4vh 18px 4vh",
     },
 
     topSection: {
@@ -32,20 +32,24 @@ export function Home({ setTab, T, lang }) {
       transition: "opacity 0.8s ease, transform 0.8s ease",
     },
     title: {
-      fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(42px, 12vw, 56px)",
-      fontWeight: 600, margin: "0 0 16px", letterSpacing: "2px",
+      fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(48px, 14vw, 64px)",
+      fontWeight: 600, margin: "0 0 4px", letterSpacing: "3px",
+    },
+    subTitle: {
+      fontFamily: "'DM Sans', sans-serif", fontSize: "11px", fontWeight: 500,
+      letterSpacing: "4px", textTransform: "uppercase", opacity: 0.8,
+      margin: "0 0 30px",
     },
     greeting: {
       fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-      fontSize: "clamp(18px, 5vw, 22px)", margin: "0 0 32px", opacity: 0.9,
+      fontSize: "clamp(18px, 5vw, 22px)", margin: "0 0 20px", opacity: 0.9,
     },
     quote: {
       fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-      fontSize: "clamp(16px, 4.5vw, 18px)", margin: "0", opacity: 0.75,
-      maxWidth: "300px", lineHeight: 1.4,
+      fontSize: "clamp(16px, 4.5vw, 18px)", margin: "0", opacity: 0.7,
+      maxWidth: "320px", lineHeight: 1.5,
     },
 
-    // 🎈 THE INVISIBLE BALLOON (flex: 1)
     midSection: {
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       width: "100%", flex: 1, 
@@ -53,23 +57,28 @@ export function Home({ setTab, T, lang }) {
       transition: "opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s",
     },
     instruction: {
-      fontFamily: "'DM Sans', sans-serif", fontSize: "11px", fontWeight: 600,
-      letterSpacing: "1.5px", textTransform: "uppercase", opacity: 0.8,
+      fontFamily: "'DM Sans', sans-serif", fontSize: "10px", fontWeight: 600,
+      letterSpacing: "1.5px", textTransform: "uppercase", opacity: 0.7,
       margin: "0 0 16px", textAlign: "center",
     },
     
-    resetBtn: {
-      width: "100%", maxWidth: "340px", padding: "20px 0",
-      background: "linear-gradient(180deg, #f0f0f0 0%, #a0a0a0 100%)",
-      border: "none", borderRadius: "12px", 
-      color: "#111111", 
-      fontFamily: "'DM Sans', sans-serif", fontSize: "18px",
-      fontWeight: 700, letterSpacing: "1.5px", cursor: "pointer",
-      boxShadow: "0 0 30px rgba(255, 255, 255, 0.2)", 
-      transition: "all 0.2s ease",
+    // 🎨 SHARED BUTTON BASE (Dark 3-Tone Gradient)
+    buttonBase: {
+      background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}40 50%, ${T.bg} 100%)`,
+      border: `1px solid ${T.accent}30`, 
+      borderRadius: "12px", 
+      color: "#ffffff", 
+      fontFamily: "'DM Sans', sans-serif",
+      fontWeight: 600, cursor: "pointer",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.4)", 
+      transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
     },
 
-    // 🧲 THE FLOOR MAGNET
+    resetBtn: {
+      width: "100%", maxWidth: "340px", padding: "16px 0",
+      fontSize: "17px", letterSpacing: "2px",
+    },
+
     bottomContainer: {
       display: "flex", flexDirection: "column", alignItems: "center", 
       width: "100%", maxWidth: "340px",
@@ -81,92 +90,88 @@ export function Home({ setTab, T, lang }) {
       transition: "opacity 0.8s ease 0.4s",
     },
     
-    sanctuaryBtn: {
-      width: "100%", padding: "18px 0",
-      background: "rgba(255, 255, 255, 0.04)",
-      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-      border: "1px solid rgba(255, 255, 255, 0.08)",
-      borderRadius: "12px", color: T.textSoft,
-      fontFamily: "'DM Sans', sans-serif", fontSize: "15px", letterSpacing: "1px",
-      textTransform: "uppercase", cursor: "pointer", transition: "all 0.3s ease",
-      boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
-    },
-    row: { display: "flex", gap: "16px", width: "100%" },
-    halfBtn: {
-      flex: 1, padding: "18px 0",
-      background: "rgba(255, 255, 255, 0.04)",
-      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-      border: "1px solid rgba(255, 255, 255, 0.08)",
-      borderRadius: "12px", color: T.textSoft,
-      fontFamily: "'DM Sans', sans-serif", fontSize: "15px", letterSpacing: "1px",
-      textTransform: "uppercase", cursor: "pointer", transition: "all 0.3s ease",
-      boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
-    },
-    warmthBtn: {
-      background: "none", border: "none", marginTop: "8px",
-      color: T.textSoft, opacity: 0.6,
-      fontFamily: "'DM Sans', sans-serif", fontSize: "13px", letterSpacing: "1px",
-      textTransform: "uppercase", cursor: "pointer", transition: "opacity 0.2s ease",
+    row: { display: "flex", gap: "12px", width: "100%" },
+    
+    // 💎 UPDATED: SLEEP & EXPLORE (Same shade as Reset)
+    glassBtn: {
+      flex: 1, padding: "14px 0",
+      fontSize: "14px", letterSpacing: "1.5px",
+      textTransform: "uppercase",
     },
 
     footerWrap: {
-      display: "flex", gap: "20px", opacity: visible ? 0.4 : 0,
-      transition: "opacity 1s ease 0.6s", marginTop: "24px",
+      display: "flex", gap: "24px", opacity: visible ? 0.4 : 0,
+      transition: "opacity 1s ease 0.6s", marginTop: "32px",
     },
     footerLink: {
       background: "none", border: "none", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "10px",
       letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer",
-      textDecoration: "underline", textUnderlineOffset: "3px",
+    }
+  };
+
+  // Helper function for the 2px hover lift
+  const handleHover = (e, isEnter) => {
+    if (isEnter) {
+      e.currentTarget.style.background = `linear-gradient(135deg, ${T.accent}20 0%, ${T.accent}60 50%, ${T.accent}20 100%)`;
+      e.currentTarget.style.border = `1px solid ${T.accent}80`;
+      e.currentTarget.style.transform = "translateY(-2px)";
+      e.currentTarget.style.boxShadow = "0 15px 30px rgba(0,0,0,0.5)";
+    } else {
+      e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}40 50%, ${T.bg} 100%)`;
+      e.currentTarget.style.border = `1px solid ${T.accent}30`;
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.4)";
     }
   };
 
   return (
     <div style={s.page}>
       
-      {/* 1. TOP */}
+      {/* 1. TOP SECTION */}
       <div style={s.topSection}>
         <h1 style={s.title}>JSukoon</h1>
+        <p style={s.subTitle}>DISCOVER STILLNESS</p>
         <p style={s.greeting}>{greeting}</p>
         <p style={s.quote}>"{quote}"</p>
       </div>
 
-      {/* 2. MIDDLE */}
+      {/* 2. MIDDLE SECTION (RESET) */}
       <div style={s.midSection}>
         <p style={s.instruction}>
           {hi ? "आगे बढ़ने से पहले रीसेट करने के लिए एक पल लें" : "TAKE A MOMENT TO RESET BEFORE YOU CONTINUE"}
         </p>
         <button 
           onClick={() => setTab('reset')} 
-          style={s.resetBtn}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 45px rgba(255, 255, 255, 0.3)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "0 0 30px rgba(255, 255, 255, 0.2)"}
-          onMouseDown={e => e.currentTarget.style.transform = "scale(0.97)"}
-          onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+          style={{...s.buttonBase, ...s.resetBtn}}
+          onMouseEnter={(e) => handleHover(e, true)}
+          onMouseLeave={(e) => handleHover(e, false)}
         >
           {hi ? "90 सेकंड का रीसेट शुरू करें" : "START 90 SECOND RESET"}
         </button>
       </div>
       
-      {/* 3. BOTTOM */}
+      {/* 3. BOTTOM SECTION (SLEEP & EXPLORE - Now matching shade) */}
       <div style={s.bottomContainer}>
         <div style={s.bottomSection}>
-          <button onClick={() => setTab('bench')} style={s.sanctuaryBtn}>
-            {hi ? "अभयारण्य में बैठें" : "SIT IN SANCTUARY"}
-          </button>
-
           <div style={s.row}>
-            <button onClick={() => setTab('sleep')} style={s.halfBtn}>
+            <button 
+              onClick={() => setTab('sleep')} 
+              style={{...s.buttonBase, ...s.glassBtn}}
+              onMouseEnter={(e) => handleHover(e, true)}
+              onMouseLeave={(e) => handleHover(e, false)}
+            >
               {hi ? "नींद" : "SLEEP"}
             </button>
-            <button onClick={() => setTab('more')} style={s.halfBtn}>
+            <button 
+              onClick={() => setTab('more')} 
+              style={{...s.buttonBase, ...s.glassBtn}}
+              onMouseEnter={(e) => handleHover(e, true)}
+              onMouseLeave={(e) => handleHover(e, false)}
+            >
               {hi ? "खोजें" : "EXPLORE"}
             </button>
           </div>
-
-          <button onClick={() => setTab('warmth')} style={s.warmthBtn}>
-            {hi ? "गर्माहट भेजें" : "SEND WARMTH"}
-          </button>
         </div>
 
         <div style={s.footerWrap}>
@@ -174,7 +179,7 @@ export function Home({ setTab, T, lang }) {
             {hi ? "गोपनीयता" : "Privacy"}
           </button>
           <button onClick={() => setTab('legal')} style={s.footerLink}>
-            {hi ? "कानूनी" : "Legal"}
+            {hi ? "कानूनी" : "Legal Disclaimer"}
           </button>
         </div>
       </div>
