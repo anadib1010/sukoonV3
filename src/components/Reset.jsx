@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+// 🧱 Bringing in our LEGO bricks! (Using ./ because they are in the same folder)
+import { BrandHeader } from './BrandHeader'; 
+import { BackButton } from './BackButton'; 
 
 export function Reset({ setTab, T, lang }) {
   const hi = lang === "Hindi";
   const [step, setStep] = useState(0);
-  const [fade, setFade] = useState(false); // Start with false for a smooth initial entry
+  const [fade, setFade] = useState(false); 
 
   // Our professional-grade engine to move from screen to screen
   const advance = (nextStep, delay) => {
@@ -19,11 +22,10 @@ export function Reset({ setTab, T, lang }) {
 
   // 🚀 INSTANT START LOGIC
   useEffect(() => {
-    // When the user enters the room, immediately fade in Step 1
     const initialStart = setTimeout(() => {
-      setStep(1); // Set to "Pause" right away
+      setStep(1); 
       setFade(true);
-    }, 100); // Tiny delay to ensure the browser has painted the black background
+    }, 100); 
     
     return () => clearTimeout(initialStart);
   }, []);
@@ -73,15 +75,22 @@ export function Reset({ setTab, T, lang }) {
     content: {
       opacity: fade ? 1 : 0,
       transition: "opacity 1s ease-in-out",
-      display: "flex", flexDirection: "column", alignItems: "center", width: "100%"
+      display: "flex", flexDirection: "column", alignItems: "center", width: "100%",
+      zIndex: 2 // Keeps content above background
     },
     text: { fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic", letterSpacing: "1px", margin: 0, lineHeight: 1.4 },
     
-    orbWrap: { position: "relative", width: 120, height: 120, margin: "40px auto" },
+    orbWrap: { 
+      position: "relative", width: 120, height: 120, margin: "40px auto",
+      display: "flex", justifyContent: "center", alignItems: "center"
+    },
+    // 🌟 THE FIX: A razor-sharp solid core with a glowing shadow, plus hardware acceleration
     orb: {
       width: "100%", height: "100%", borderRadius: "50%",
-      background: `radial-gradient(circle, ${T.accent}80 0%, transparent 70%)`,
+      background: T.accent, 
+      boxShadow: `0 0 40px ${T.accent}80, inset 0 0 20px rgba(255,255,255,0.3)`,
       animation: step === 3 ? "heartbeat 1s infinite" : step === 4 ? "breathe 8s infinite" : "none",
+      willChange: "transform, opacity" // This makes the graphics card keep it perfectly sharp!
     },
 
     focusWrap: { marginTop: 60, width: "100%" },
@@ -95,7 +104,11 @@ export function Reset({ setTab, T, lang }) {
       fontWeight: 700, letterSpacing: "1px", cursor: "pointer",
       fontFamily: "'DM Sans', sans-serif", transition: "transform 0.2s",
       width: "100%", maxWidth: "300px", boxShadow: "0 0 30px rgba(255,255,255,0.2)"
-    }
+    },
+
+    // ─── LEGO BRICK PLACEMENT ───
+    headerWrap: { position: "absolute", top: 0, left: 0, width: "100%", zIndex: 10, opacity: 0.5 },
+    backWrap: { position: "absolute", bottom: "30px", left: "24px", zIndex: 10, opacity: 0.5 }
   };
 
   useEffect(() => {
@@ -120,6 +133,11 @@ export function Reset({ setTab, T, lang }) {
 
   return (
     <div style={s.page}>
+
+      {/* 🧱 BRANDING AND BACK BUTTON (Wrapped to control opacity so they don't distract) */}
+      <div style={s.headerWrap}><BrandHeader T={T} /></div>
+      <div style={s.backWrap}><BackButton setTab={setTab} destination="home" T={T} lang={lang} /></div>
+
       <div style={s.content}>
         
         {step === 1 && <p style={s.text}>{hi ? "ठहरें।" : "Pause."}</p>}
@@ -127,7 +145,7 @@ export function Reset({ setTab, T, lang }) {
 
         {step === 3 && (
           <>
-            <p style={{...s.text, fontSize: 24, opacity: 0.7}}>{hi ? "लय के साथ टैप करें" : "Tap with the rhythm"}</p>
+            <p style={{...s.text, fontSize: "32px", opacity: 0.8}}>{hi ? "लय के साथ टैप करें" : "Tap with the rhythm"}</p>
             <div style={s.orbWrap} onClick={() => { if(window.navigator.vibrate) window.navigator.vibrate(50); }}>
               <div style={s.orb} />
             </div>
@@ -136,7 +154,8 @@ export function Reset({ setTab, T, lang }) {
 
         {step === 4 && (
           <>
-            <p style={{...s.text, fontSize: 24, opacity: 0.7}}>{hi ? "इस लय का पालन करें" : "Follow this rhythm"}</p>
+            {/* 🌟 THE FIX: Increased font size to 32px */}
+            <p style={{...s.text, fontSize: "32px", opacity: 0.8}}>{hi ? "इस लय का पालन करें" : "Follow this rhythm"}</p>
             <div style={{...s.orbWrap, width: 200, height: 200}}>
               <div style={s.orb} />
             </div>
