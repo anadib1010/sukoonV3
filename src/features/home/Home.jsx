@@ -84,6 +84,13 @@ export function Home({ setTab, T, lang }) {
       fontSize: "17px", letterSpacing: "2px",
     },
 
+    // 🌟 NEW: The professional medical disclaimer following the Rule of T
+    disclaimerText: {
+      fontFamily: "'DM Sans', sans-serif", fontSize: "10px", 
+      color: T.text, opacity: 0.6, letterSpacing: "0.5px", 
+      marginTop: "12px", textAlign: "center", maxWidth: "340px"
+    },
+
     bottomContainer: {
       display: "flex", flexDirection: "column", alignItems: "center", 
       width: "100%", maxWidth: "340px",
@@ -150,8 +157,13 @@ export function Home({ setTab, T, lang }) {
           onMouseEnter={(e) => handleHover(e, true)}
           onMouseLeave={(e) => handleHover(e, false)}
         >
-          {hi ? "90 सेकंड का रीसेट शुरू करें" : "START 90 SECOND RESET"}
+          {/* 🌟 FIX: Updated Button Text */}
+          {hi ? "1-मिनट का रीसेट लें" : "TAKE A 1-MINUTE RESET"}
         </button>
+        {/* 🌟 FIX: Soft Medical Disclaimer adapting to T.text */}
+        <p style={s.disclaimerText}>
+          {hi ? "यह एक सरल निर्देशित अनुभव है, चिकित्सा सलाह नहीं।" : "This is a simple guided experience, not medical advice."}
+        </p>
       </div>
       
       {/* 3. BOTTOM SECTION */}

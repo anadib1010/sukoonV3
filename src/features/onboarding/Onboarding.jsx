@@ -27,7 +27,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
   };
 
   const handleComplete = (destination) => {
-    console.log('DESTINATION SENT FROM BUTTON:', destination); // ChatGPT's diagnostic!
+    console.log('DESTINATION SENT FROM BUTTON:', destination);
     setLeaving(true);
     if (setThemeKey) setThemeKey("Void"); 
     setTimeout(() => { 
@@ -62,9 +62,14 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       background: "rgba(255, 255, 255, 0.08)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
       border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "16px", padding: "24px 20px", width: "100%",
       color: "#ffffff", fontFamily: sans, fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase",
-      cursor: "pointer", transition: "all 0.3s ease", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)", marginBottom: "0px" 
+      cursor: "pointer", transition: "all 0.3s ease", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)", marginBottom: "16px" 
     },
     
+    disclaimerText: {
+      fontFamily: sans, fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", 
+      letterSpacing: "0.5px", marginTop: "4px", width: "100%", textAlign: "center"
+    },
+
     skipBtn: {
       position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)",
       background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", fontFamily: sans, fontSize: "14px", letterSpacing: "1px",
@@ -92,18 +97,24 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
         )}
         {screen === 2 && (
           <>
-            <p style={st.bodyText}>{hi ? "जब सब कुछ भारी लगने लगे, तो आप केवल 90 सेकंड में रीसेट कर सकते हैं।" : "When things feel overwhelming, you can reset in just 90 seconds."}</p>
+            {/* 🌟 FIX: Legally safe, non-clinical wording */}
+            <p style={st.bodyText}>{hi ? "जब सब कुछ बहुत अधिक लगने लगे, तो 1-मिनट का रीसेट लें।" : "When things feel like too much, take a 1-minute reset."}</p>
             <p style={st.subText}>{hi ? "एक बार आज़माएं। किसी सेटअप की आवश्यकता नहीं है।" : "Try it once. No setup needed."}</p>
             <button onClick={() => go(3)} style={st.ghostBtn}>{hi ? "आगे" : "Continue"}</button>
           </>
         )}
         {screen === 3 && (
-          <button 
-            onClick={() => handleComplete('reset')} 
-            style={st.glassResetBtn}
-          >
-            {hi ? "90 सेकंड का रीसेट शुरू करें" : "START 90 SECOND RESET"}
-          </button>
+          <div style={{width: "100%", display: "flex", flexDirection: "column", alignItems: "center"}}>
+            <button 
+              onClick={() => handleComplete('reset')} 
+              style={st.glassResetBtn}
+            >
+              {hi ? "1-मिनट का रीसेट लें" : "TAKE A 1-MINUTE RESET"}
+            </button>
+            <p style={st.disclaimerText}>
+              {hi ? "यह एक सरल निर्देशित अनुभव है, चिकित्सा सलाह नहीं।" : "This is a simple guided experience, not medical advice."}
+            </p>
+          </div>
         )}
       </div>
 
