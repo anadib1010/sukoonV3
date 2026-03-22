@@ -18,6 +18,7 @@ import { Journal } from './features/journaling/Journal';
 import { WarmthPage } from './features/warmth/WarmthPage';
 import { Bench } from './features/bench/Bench';
 import { MorePage } from './features/more/MorePage';
+import { ExploreMore } from './features/more/ExploreMore'; // 🚀 NEW: Added the ExploreMore import
 import { Practice } from './features/practice/Practice';
 import { LegalDisclaimer } from './features/legal/LegalDisclaimer';
 import { Reflection } from './features/reflection/Reflection';
@@ -150,8 +151,9 @@ function AppContent() {
 
   const [selectedMood, setSelectedMood] = useState(null);
 
-  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud" };
-  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज" };
+  // 🚀 NEW: Added "exploremore" to the dictionaries
+  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud" };
+  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज" };
 
   const setPageTitle = (page) => {
     const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
@@ -225,7 +227,11 @@ function AppContent() {
             <Route path="/journal" element={<Journal setTab={setTab} T={T} lang={lang} />} />
             <Route path="/warmth" element={<WarmthPage setTab={setTab} T={T} lang={lang} />} />
             <Route path="/bench" element={<Bench setTab={setTab} T={T} lang={lang} />} />
+            
             <Route path="/more" element={<MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+            {/* 🚀 NEW: Taught App.js about the ExploreMore route */}
+            <Route path="/exploremore" element={<ExploreMore setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+            
             <Route path="/practice" element={<Practice setTab={setTab} T={T} lang={lang} />} />
             <Route path="/community" element={<CommunityRoom setTab={setTab} T={T} lang={lang} />} />
             <Route path="/legal" element={<LegalDisclaimer setTab={setTab} T={T} lang={lang} />} />
