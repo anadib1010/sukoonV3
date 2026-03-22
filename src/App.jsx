@@ -113,10 +113,11 @@ function AppContent() {
 
   const T = themeSource === "manual" ? (THEMES[themeKey] || THEMES.Void) : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
 
-  // ─── 📱 MOBILE BROWSER CAMOUFLAGE ENGINE (Safely placed after T is created) ───
+  // ─── 📱 MOBILE BROWSER CAMOUFLAGE ENGINE ───
   useEffect(() => {
-    // 1. Paint the very bottom "floor" of the browser
+    // 1. Paint the floor AND the sub-floor so no white peeks through!
     document.body.style.backgroundColor = T.bg;
+    document.documentElement.style.backgroundColor = T.bg; // 🌟 THE FIX: The HTML Sub-floor!
 
     // 2. Paint the top "ceiling" (battery/clock area)
     let metaThemeColor = document.querySelector("meta[name=theme-color]");
