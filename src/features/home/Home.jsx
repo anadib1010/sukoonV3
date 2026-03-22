@@ -16,13 +16,18 @@ export function Home({ setTab, T, lang }) {
     ? (hours < 12 ? "सुप्रभात" : hours < 17 ? "शुभ दोपहर" : "शुभ संध्या")
     : (hours < 12 ? "Good morning" : hours < 17 ? "Good afternoon" : "Good evening");
 
-  // ─── STYLES (The Architect's Precision) ───
+  // ─── 🧠 THE CONTRAST ENGINE ───
+  // This ensures text INSIDE buttons is always readable against the theme accent.
+  // If the theme background is dark, we usually want white/light text.
+  // If the theme has a specific 'text' property, we use that to stay consistent.
+  const buttonTextColor = T.text || "#ffffff"; 
+
   const s = {
     page: {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
       alignItems: "center", 
       background: T.bg, color: T.text, overflowX: "hidden", boxSizing: "border-box",
-      padding: "4vh 18px 4vh",
+      padding: "4vh 24px 4vh",
     },
 
     topSection: {
@@ -41,13 +46,13 @@ export function Home({ setTab, T, lang }) {
       margin: "0 0 30px",
     },
     greeting: {
-      fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-      fontSize: "clamp(18px, 5vw, 22px)", margin: "0 0 20px", opacity: 0.9,
+      fontFamily: "'DM Sans', sans-serif", fontSize: "12px", letterSpacing: "2px",
+      textTransform: "uppercase", margin: "0 0 16px", opacity: 0.5,
     },
     quote: {
       fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-      fontSize: "clamp(16px, 4.5vw, 18px)", margin: "0", opacity: 0.7,
-      maxWidth: "320px", lineHeight: 1.5,
+      fontSize: "clamp(22px, 6vw, 26px)", margin: "0", opacity: 0.9,
+      maxWidth: "340px", lineHeight: 1.3, fontWeight: 300,
     },
 
     midSection: {
@@ -62,12 +67,12 @@ export function Home({ setTab, T, lang }) {
       margin: "0 0 16px", textAlign: "center",
     },
     
-    // 🎨 SHARED BUTTON BASE (Dark 3-Tone Gradient)
+    // 🎨 UPDATED: TEXT COLOR NOW FOLLOWS T.text
     buttonBase: {
       background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}40 50%, ${T.bg} 100%)`,
-      border: `1px solid ${T.accent}30`, 
+      border: `1px solid ${T.accent}40`, 
       borderRadius: "12px", 
-      color: "#ffffff", 
+      color: buttonTextColor, // <--- No longer hardcoded to white!
       fontFamily: "'DM Sans', sans-serif",
       fontWeight: 600, cursor: "pointer",
       boxShadow: "0 10px 25px rgba(0, 0, 0, 0.4)", 
@@ -75,7 +80,7 @@ export function Home({ setTab, T, lang }) {
     },
 
     resetBtn: {
-      width: "100%", maxWidth: "340px", padding: "16px 0",
+      width: "100%", maxWidth: "340px", padding: "22px 0",
       fontSize: "17px", letterSpacing: "2px",
     },
 
@@ -92,9 +97,8 @@ export function Home({ setTab, T, lang }) {
     
     row: { display: "flex", gap: "12px", width: "100%" },
     
-    // 💎 UPDATED: SLEEP & EXPLORE (Same shade as Reset)
     glassBtn: {
-      flex: 1, padding: "14px 0",
+      flex: 1, padding: "18px 0",
       fontSize: "14px", letterSpacing: "1.5px",
       textTransform: "uppercase",
     },
@@ -110,7 +114,6 @@ export function Home({ setTab, T, lang }) {
     }
   };
 
-  // Helper function for the 2px hover lift
   const handleHover = (e, isEnter) => {
     if (isEnter) {
       e.currentTarget.style.background = `linear-gradient(135deg, ${T.accent}20 0%, ${T.accent}60 50%, ${T.accent}20 100%)`;
@@ -136,7 +139,7 @@ export function Home({ setTab, T, lang }) {
         <p style={s.quote}>"{quote}"</p>
       </div>
 
-      {/* 2. MIDDLE SECTION (RESET) */}
+      {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
         <p style={s.instruction}>
           {hi ? "आगे बढ़ने से पहले रीसेट करने के लिए एक पल लें" : "TAKE A MOMENT TO RESET BEFORE YOU CONTINUE"}
@@ -151,7 +154,7 @@ export function Home({ setTab, T, lang }) {
         </button>
       </div>
       
-      {/* 3. BOTTOM SECTION (SLEEP & EXPLORE - Now matching shade) */}
+      {/* 3. BOTTOM SECTION */}
       <div style={s.bottomContainer}>
         <div style={s.bottomSection}>
           <div style={s.row}>
