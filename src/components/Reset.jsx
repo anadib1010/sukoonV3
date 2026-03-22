@@ -2,198 +2,184 @@ import React, { useState, useEffect } from 'react';
 
 export function Reset({ setTab, T, lang }) {
   const hi = lang === "Hindi";
-  
-  // step 0: Blank -> 1: Pause -> 2: You're here -> 3: Tap -> 4: Regulate -> 5: Good -> 6: Now -> 7: Focus
   const [step, setStep] = useState(0);
-  const [isTapped, setIsTapped] = useState(false);
+  const [fade, setFade] = useState(true);
 
-  useEffect(() => {
-    // The 90-Second Psychological Timeline
-    const timers = [
-      setTimeout(() => setStep(1), 1000),   // 1s: "Pause."
-      setTimeout(() => setStep(2), 4000),   // 4s: "You're here."
-      setTimeout(() => setStep(3), 7000),   // 7s: "Tap with the rhythm" (Interrupt Phase)
-      setTimeout(() => setStep(4), 22000),  // 22s: "Follow this rhythm" (Regulate Phase)
-      setTimeout(() => setStep(5), 62000),  // 62s: "Good." (Clarity Phase)
-      setTimeout(() => setStep(6), 65000),  // 65s: "Now..."
-      setTimeout(() => setStep(7), 68000),  // 68s: "What matters most right now?"
-    ];
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  const handleTap = () => {
-    if (step === 3 || step === 4) {
-      setIsTapped(true);
-      setTimeout(() => setIsTapped(false), 150);
-      // Gentle haptic feedback if the device supports it
-      if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(40);
-      }
-    }
+  // Our professional-grade engine to move from screen to screen
+  const advance = (nextStep, delay) => {
+    const timer = setTimeout(() => {
+      setFade(false); 
+      setTimeout(() => {
+        setStep(nextStep); 
+        setFade(true);     
+      }, 1000); 
+    }, delay);
+    return timer;
   };
 
-  const handleFinish = () => {
-    // Optional: Save completion to localStorage for subtle habit tracking later
-    setTab('home');
+  useEffect(() => {
+    let t;
+    if (step === 1) t = advance(2, 3000); // "Pause."
+    if (step === 2) t = advance(3, 3000); // "You're here."
+    if (step === 3) t = advance(4, 12000); // "Tap with the rhythm"
+    if (step === 4) t = advance(5, 20000); // "Follow this rhythm"
+    if (step === 5) t = advance(6, 3000); // "Good."
+    if (step === 6) t = advance(7, 3000); // "Now..."
+    
+    // NOTE: Step 7 has NO automatic timer. The user MUST click the button to proceed.
+
+    // The Final Handoff to the Post-Reset page
+    if (step === 8) {
+      t = setTimeout(() => {
+        setFade(false);
+        setTimeout(() => {
+          setTab('postreset'); // Hand the keys directly to the router!
+        }, 1000);
+      }, 3000); 
+    }
+    
+    // Cleanup function to stop memory leaks
+    return () => clearTimeout(t);
+    
+    // 🛡️ THE SECURITY FIX: We removed 'setTab' from this list below so React 
+    // stops accidentally resetting your timers!
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]); 
+
+  // Manual click overrides
+  const handleStart = () => {
+    setFade(false);
+    setTimeout(() => { setStep(1); setFade(true); }, 1000);
+  };
+
+  const handleFocusClick = () => {
+    setFade(false);
+    setTimeout(() => { setStep(8); setFade(true); }, 1000);
   };
 
   // ─── STYLES (Rule of T) ───
   const s = {
     page: {
-      position: "fixed", inset: 0, zIndex: 99999, // Covers absolutely everything
-      background: "#030303", // Force deep black/dark for sensory deprivation
+      height: "100dvh", width: "100%",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      padding: "0 24px", overflow: "hidden",
-      color: "rgba(255,255,255,0.85)", // Soft white, not harsh
+      background: "#050505", 
+      color: "#ffffff",
       fontFamily: "'Cormorant Garamond', serif",
+      textAlign: "center", padding: 24, boxSizing: "border-box",
+      position: "relative"
     },
+    content: {
+      opacity: fade ? 1 : 0,
+      transition: "opacity 1s ease-in-out",
+      display: "flex", flexDirection: "column", alignItems: "center", width: "100%"
+    },
+    title: { fontSize: "16px", letterSpacing: "3px", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", opacity: 0.5, marginBottom: 40 },
+    text: { fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic", letterSpacing: "1px", margin: 0, lineHeight: 1.4 },
     
-    // Very faint abort button in case of extreme panic
-    abortBtn: {
-      position: "absolute", top: 24, right: 24,
-      background: "transparent", border: "none",
-      color: "rgba(255,255,255,0.2)", fontSize: "28px",
-      cursor: "pointer", zIndex: 10, padding: "10px",
+    startBtn: {
+      background: "transparent", border: "1px solid rgba(255,255,255,0.3)",
+      borderRadius: 99, padding: "20px 60px", color: "#fff",
+      fontSize: "18px", letterSpacing: "2px", textTransform: "uppercase",
+      cursor: "pointer", transition: "all 0.3s", marginTop: 40, fontFamily: "'DM Sans', sans-serif"
     },
 
-    textWrap: {
-      position: "absolute", top: "30%", width: "100%",
-      textAlign: "center",
-      opacity: step > 0 && step !== 3 && step !== 4 ? 1 : 0,
-      transition: "opacity 1.5s ease-in-out",
-    },
-    
-    mainText: {
-      fontSize: "clamp(28px, 8vw, 36px)",
-      fontWeight: 300, letterSpacing: "1px",
-      margin: 0, opacity: 0.9,
-    },
-
-    // The Interactive Orb
-    orbContainer: {
-      position: "absolute", top: "50%", left: "50%",
-      transform: "translate(-50%, -50%)",
-      display: "flex", flexDirection: "column", alignItems: "center",
-      opacity: (step === 3 || step === 4) ? 1 : 0,
-      transition: "opacity 2s ease",
-      pointerEvents: (step === 3 || step === 4) ? "auto" : "none",
-    },
-    
-    orbInstruction: {
-      position: "absolute", top: "-80px", width: "200px",
-      textAlign: "center", fontSize: "18px", fontStyle: "italic",
-      color: "rgba(255,255,255,0.5)", letterSpacing: "1px",
-      opacity: (step === 3 || step === 4) ? 1 : 0,
-      transition: "opacity 1s ease",
-    },
-
-    // Orb changes based on phase
+    orbWrap: { position: "relative", width: 120, height: 120, margin: "40px auto" },
     orb: {
-      width: "120px", height: "120px",
-      borderRadius: "50%",
-      background: `radial-gradient(circle, ${T.accent}40 0%, transparent 70%)`,
-      border: `1px solid ${T.accent}50`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      cursor: "pointer",
-      // Phase 1 (step 3): Quick heartbeat pulse
-      // Phase 2 (step 4): Slow inhale/exhale breath
-      animation: step === 3 ? "heartbeat 1.5s infinite" : step === 4 ? "breathe 10s ease-in-out infinite" : "none",
-      transform: isTapped ? "scale(0.92)" : "scale(1)",
-      boxShadow: isTapped ? `0 0 40px ${T.accent}60` : `0 0 20px ${T.accent}20`,
-      transition: step === 4 ? "transform 0.5s ease, box-shadow 0.5s ease" : "transform 0.1s ease, box-shadow 0.1s ease",
+      width: "100%", height: "100%", borderRadius: "50%",
+      background: `radial-gradient(circle, ${T.accent}80 0%, transparent 70%)`,
+      animation: step === 3 ? "heartbeat 1s infinite" : step === 4 ? "breathe 8s infinite" : "none",
     },
 
-    // Final Clarity Phase
-    clarityWrap: {
-      position: "absolute", top: "45%", width: "100%",
-      display: "flex", flexDirection: "column", alignItems: "center",
-      opacity: step === 7 ? 1 : 0,
-      transform: step === 7 ? "translateY(0)" : "translateY(10px)",
-      transition: "opacity 1.5s ease, transform 1.5s ease",
-      pointerEvents: step === 7 ? "auto" : "none",
+    focusWrap: { marginTop: 60, width: "100%" },
+    focusInputText: {
+      fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "rgba(255,255,255,0.5)",
+      textTransform: "uppercase", letterSpacing: "2px", marginBottom: 20
     },
-    
-    clarityText: {
-      fontSize: "clamp(24px, 6vw, 30px)",
-      fontWeight: 300, marginBottom: "40px",
-      textAlign: "center",
-    },
-
-    actionBtn: {
-      background: "linear-gradient(180deg, #f0f0f0 0%, #a0a0a0 100%)",
-      border: "none", borderRadius: "8px",
-      padding: "18px 32px", color: "#111",
-      fontFamily: "'DM Sans', sans-serif", fontSize: "16px",
-      fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase",
-      cursor: "pointer", boxShadow: "0 4px 20px rgba(255,255,255,0.15)",
-      transition: "transform 0.2s",
+    focusBtn: {
+      background: "#ffffff", color: "#000000", border: "none",
+      borderRadius: 12, padding: "20px 40px", fontSize: "16px",
+      fontWeight: 700, letterSpacing: "1px", cursor: "pointer",
+      fontFamily: "'DM Sans', sans-serif", transition: "transform 0.2s",
+      width: "100%", maxWidth: "300px", boxShadow: "0 0 30px rgba(255,255,255,0.2)"
     }
   };
 
-  // Determine what text to show in the center during text phases
-  let centerText = "";
-  if (step === 1) centerText = hi ? "ठहरें।" : "Pause.";
-  if (step === 2) centerText = hi ? "आप यहाँ हैं।" : "You're here.";
-  if (step === 5) centerText = hi ? "बहुत अच्छा।" : "Good.";
-  if (step === 6) centerText = hi ? "अब..." : "Now...";
+  useEffect(() => {
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+      @keyframes heartbeat {
+        0% { transform: scale(0.8); opacity: 0.5; }
+        20% { transform: scale(1.1); opacity: 1; }
+        40% { transform: scale(0.9); opacity: 0.7; }
+        60% { transform: scale(1.15); opacity: 1; }
+        100% { transform: scale(0.8); opacity: 0.5; }
+      }
+      @keyframes breathe {
+        0% { transform: scale(0.5); opacity: 0.3; }
+        50% { transform: scale(1.5); opacity: 0.8; }
+        100% { transform: scale(0.5); opacity: 0.3; }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+    return () => styleSheet.remove();
+  }, []);
 
   return (
     <div style={s.page}>
-      
-      {/* CSS Animations injected directly for the orb */}
-      <style>{`
-        @keyframes heartbeat {
-          0% { transform: scale(0.95); opacity: 0.6; }
-          20% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 30px ${T.accent}40; }
-          40% { transform: scale(0.95); opacity: 0.6; }
-          60% { transform: scale(1.02); opacity: 0.9; }
-          100% { transform: scale(0.95); opacity: 0.6; }
-        }
-        @keyframes breathe {
-          0% { transform: scale(0.8); opacity: 0.4; }
-          40% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 50px ${T.accent}50; }
-          50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 50px ${T.accent}50; }
-          100% { transform: scale(0.8); opacity: 0.4; }
-        }
-      `}</style>
+      <div style={s.content}>
+        
+        {step === 0 && (
+          <>
+            <div style={s.title}>90-Second Reset</div>
+            <button onClick={handleStart} style={s.startBtn}>{hi ? "टैप करें" : "Tap"}</button>
+          </>
+        )}
 
-      {/* Emergency Abort (Almost invisible, just for safety) */}
-      <button onClick={() => setTab('home')} style={s.abortBtn}>×</button>
+        {step === 1 && <p style={s.text}>{hi ? "ठहरें।" : "Pause."}</p>}
+        {step === 2 && <p style={s.text}>{hi ? "आप यहाँ हैं।" : "You're here."}</p>}
 
-      {/* Text Phases (1, 2, 5, 6) */}
-      <div style={s.textWrap}>
-        <h2 style={s.mainText}>{centerText}</h2>
+        {step === 3 && (
+          <>
+            <p style={{...s.text, fontSize: 24, opacity: 0.7}}>{hi ? "लय के साथ टैप करें" : "Tap with the rhythm"}</p>
+            <div style={s.orbWrap} onClick={() => { if(window.navigator.vibrate) window.navigator.vibrate(50); }}>
+              <div style={s.orb} />
+            </div>
+          </>
+        )}
+
+        {step === 4 && (
+          <>
+            <p style={{...s.text, fontSize: 24, opacity: 0.7}}>{hi ? "इस लय का पालन करें" : "Follow this rhythm"}</p>
+            <div style={{...s.orbWrap, width: 200, height: 200}}>
+              <div style={s.orb} />
+            </div>
+          </>
+        )}
+
+        {step === 5 && <p style={s.text}>{hi ? "बहुत अच्छा।" : "Good."}</p>}
+        {step === 6 && <p style={s.text}>{hi ? "अब..." : "Now..."}</p>}
+
+        {step === 7 && (
+          <>
+            <p style={s.text}>{hi ? "इस समय सबसे महत्वपूर्ण क्या है?" : "What matters most right now?"}</p>
+            <div style={s.focusWrap}>
+              <p style={s.focusInputText}>{hi ? "अपने मन में उत्तर सोचें" : "Hold the answer in your mind"}</p>
+              <button 
+                onClick={handleFocusClick} 
+                style={s.focusBtn}
+                onMouseDown={e => e.currentTarget.style.transform = "scale(0.95)"}
+                onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                {hi ? "एक चीज़ पर ध्यान दें" : "FOCUS ON ONE THING"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 8 && <p style={s.text}>{hi ? "आप तैयार हैं।" : "You're ready."}</p>}
+
       </div>
-
-      {/* Interactive Orb Phases (3, 4) */}
-      <div style={s.orbContainer}>
-        <p style={s.orbInstruction}>
-          {step === 3 && (hi ? "लय के साथ टैप करें" : "Tap with the rhythm")}
-          {step === 4 && (hi ? "इस लय के साथ चलें" : "Follow this rhythm")}
-        </p>
-        <div 
-          style={s.orb} 
-          onClick={handleTap}
-          onTouchStart={handleTap}
-        />
-      </div>
-
-      {/* Clarity Phase (7) */}
-      <div style={s.clarityWrap}>
-        <h2 style={s.clarityText}>
-          {hi ? "अभी सबसे ज्यादा क्या मायने रखता है?" : "What matters most right now?"}
-        </h2>
-        <button 
-          onClick={handleFinish} 
-          style={s.actionBtn}
-          onMouseDown={e => e.currentTarget.style.transform = "scale(0.95)"}
-          onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
-        >
-          {hi ? "एक चीज़ पर ध्यान दें" : "Focus on one thing"}
-        </button>
-      </div>
-
     </div>
   );
 }

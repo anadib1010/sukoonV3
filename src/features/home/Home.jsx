@@ -149,8 +149,29 @@ export function Home({ setTab, T, lang }) {
         >
           {hi ? "90 सेकंड का रीसेट शुरू करें" : "START 90 SECOND RESET"}
         </button>
+        <button
+          onClick={() => setTab('postreset')}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: T.textSoft || "rgba(255, 255, 255, 0.5)", // Soft, subtle color
+            fontSize: "12px",
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            marginTop: "16px", 
+            cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+            textDecoration: "underline",
+            textUnderlineOffset: "4px",
+            transition: "color 0.3s ease"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = T.text || "#ffffff"}
+          onMouseLeave={(e) => e.currentTarget.style.color = T.textSoft || "rgba(255, 255, 255, 0.5)"}
+        >
+          {lang === "Hindi" ? "रीसेट के बाद" : "AFTER RESET"}
+        </button>
       </div>
-
+      
       {/* 3. BOTTOM (Stays at the floor) */}
       <div style={s.bottomContainer}>
         <div style={s.bottomSection}>
