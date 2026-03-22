@@ -18,7 +18,7 @@ import { Journal } from './features/journaling/Journal';
 import { WarmthPage } from './features/warmth/WarmthPage';
 import { Bench } from './features/bench/Bench';
 import { MorePage } from './features/more/MorePage';
-import { ExploreMore } from './features/more/ExploreMore'; // 🚀 NEW: Added the ExploreMore import
+import { ExploreMore } from './features/more/ExploreMore'; 
 import { Practice } from './features/practice/Practice';
 import { LegalDisclaimer } from './features/legal/LegalDisclaimer';
 import { Reflection } from './features/reflection/Reflection';
@@ -103,7 +103,6 @@ function AppContent() {
     catch { return false; }
   });
 
-  // 🎟️ ChatGPT's Fix: The Pending Ticket State!
   const [nextRoute, setNextRoute] = useState(null);
 
   const [lang, setLang] = useLS("jsukoon_lang", "English");
@@ -113,6 +112,21 @@ function AppContent() {
   const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
   const T = themeSource === "manual" ? (THEMES[themeKey] || THEMES.Void) : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
+
+  // ─── 📱 MOBILE BROWSER CAMOUFLAGE ENGINE (Safely placed after T is created) ───
+  useEffect(() => {
+    // 1. Paint the very bottom "floor" of the browser
+    document.body.style.backgroundColor = T.bg;
+
+    // 2. Paint the top "ceiling" (battery/clock area)
+    let metaThemeColor = document.querySelector("meta[name=theme-color]");
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement("meta");
+      metaThemeColor.name = "theme-color";
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute("content", T.bg);
+  }, [T.bg]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -137,7 +151,6 @@ function AppContent() {
     return () => clearInterval(browseTimer);
   }, []);
 
-  // 🚀 ChatGPT's Fix: The Robotic Watcher (Handles navigation AFTER routes mount)
   useEffect(() => {
     if (hasOnboarded && nextRoute) {
       if (nextRoute === "reset") {
@@ -145,13 +158,12 @@ function AppContent() {
       } else {
         navigate("/", { replace: true });
       }
-      setNextRoute(null); // Destroy the ticket after using it
+      setNextRoute(null);
     }
   }, [hasOnboarded, nextRoute, navigate]);
 
   const [selectedMood, setSelectedMood] = useState(null);
 
-  // 🚀 NEW: Added "exploremore" to the dictionaries
   const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud" };
   const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज" };
 
@@ -186,7 +198,6 @@ function AppContent() {
 
   if (!session) return <Login T={T} lang={lang} />;
 
-  // 🛑 ChatGPT's Fix: The Onboarding Gate
   if (!hasOnboarded) {
     return (
       <Onboarding
@@ -194,8 +205,8 @@ function AppContent() {
           localStorage.setItem("jsukoon_onboarded", "true");
           track('Onboarding Complete');
 
-          setNextRoute(destination); // 1. Store where to go
-          setHasOnboarded(true);     // 2. Unlock the app and let the useEffect handle navigation
+          setNextRoute(destination); 
+          setHasOnboarded(true);    
         }}
         setThemeKey={setThemeKey}
         setLang={setLang}
@@ -206,7 +217,7 @@ function AppContent() {
 
   const deepLayers = ["/vault", "/resonance", "/stillness", "/quietcorner", "/soundbath", "/mandala", "/seedinmud"];
   const isProtected = deepLayers.includes(location.pathname) && !vaultUnlocked;
-
+  
   return (
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
@@ -229,7 +240,6 @@ function AppContent() {
             <Route path="/bench" element={<Bench setTab={setTab} T={T} lang={lang} />} />
             
             <Route path="/more" element={<MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
-            {/* 🚀 NEW: Taught App.js about the ExploreMore route */}
             <Route path="/exploremore" element={<ExploreMore setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
             
             <Route path="/practice" element={<Practice setTab={setTab} T={T} lang={lang} />} />
