@@ -17,9 +17,6 @@ export function Home({ setTab, T, lang }) {
     : (hours < 12 ? "Good morning" : hours < 17 ? "Good afternoon" : "Good evening");
 
   // ─── 🧠 THE CONTRAST ENGINE ───
-  // This ensures text INSIDE buttons is always readable against the theme accent.
-  // If the theme background is dark, we usually want white/light text.
-  // If the theme has a specific 'text' property, we use that to stay consistent.
   const buttonTextColor = T.text || "#ffffff"; 
 
   const s = {
@@ -27,7 +24,7 @@ export function Home({ setTab, T, lang }) {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
       alignItems: "center", 
       background: T.bg, color: T.text, overflowX: "hidden", boxSizing: "border-box",
-      padding: "4vh 24px 4vh",
+      padding: "1vh 24px 4vh",
     },
 
     topSection: {
@@ -51,7 +48,7 @@ export function Home({ setTab, T, lang }) {
     },
     quote: {
       fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-      fontSize: "clamp(22px, 6vw, 26px)", margin: "0", opacity: 0.9,
+      fontSize: "clamp(22px, 4vw, 22px)", margin: "0", opacity: 0.9,
       maxWidth: "340px", lineHeight: 1.3, fontWeight: 300,
     },
 
@@ -67,15 +64,15 @@ export function Home({ setTab, T, lang }) {
       margin: "0 0 16px", textAlign: "center",
     },
     
-    // 🎨 UPDATED: TEXT COLOR NOW FOLLOWS T.text
+    // 🎨 CHAMELEON GLOW: This magically adapts to whatever T.accent is!
     buttonBase: {
-      background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}40 50%, ${T.bg} 100%)`,
+      background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}30 50%, ${T.bg} 100%)`, 
       border: `1px solid ${T.accent}40`, 
       borderRadius: "12px", 
-      color: buttonTextColor, // <--- No longer hardcoded to white!
+      color: buttonTextColor, 
       fontFamily: "'DM Sans', sans-serif",
       fontWeight: 600, cursor: "pointer",
-      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.4)", 
+      boxShadow: `0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px ${T.accent}30`, 
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
     },
 
@@ -84,7 +81,6 @@ export function Home({ setTab, T, lang }) {
       fontSize: "17px", letterSpacing: "2px",
     },
 
-    // 🌟 NEW: The professional medical disclaimer following the Rule of T
     disclaimerText: {
       fontFamily: "'DM Sans', sans-serif", fontSize: "10px", 
       color: T.text, opacity: 0.6, letterSpacing: "0.5px", 
@@ -111,7 +107,7 @@ export function Home({ setTab, T, lang }) {
     },
 
     footerWrap: {
-      display: "flex", gap: "24px", opacity: visible ? 0.4 : 0,
+      display: "flex", gap: "24px", opacity: visible ? 0.6 : 0,
       transition: "opacity 1s ease 0.6s", marginTop: "32px",
     },
     footerLink: {
@@ -121,17 +117,18 @@ export function Home({ setTab, T, lang }) {
     }
   };
 
+  // 🎨 CHAMELEON HOVER: The glow gets brighter using the exact theme color
   const handleHover = (e, isEnter) => {
     if (isEnter) {
-      e.currentTarget.style.background = `linear-gradient(135deg, ${T.accent}20 0%, ${T.accent}60 50%, ${T.accent}20 100%)`;
+      e.currentTarget.style.background = `linear-gradient(135deg, ${T.accent}15 0%, ${T.accent}50 50%, ${T.accent}15 100%)`;
       e.currentTarget.style.border = `1px solid ${T.accent}80`;
       e.currentTarget.style.transform = "translateY(-2px)";
-      e.currentTarget.style.boxShadow = "0 15px 30px rgba(0,0,0,0.5)";
+      e.currentTarget.style.boxShadow = `0 15px 30px rgba(0,0,0,0.5), 0 0 25px ${T.accent}60`; 
     } else {
-      e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}40 50%, ${T.bg} 100%)`;
+      e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}30 50%, ${T.bg} 100%)`;
       e.currentTarget.style.border = `1px solid ${T.accent}30`;
       e.currentTarget.style.transform = "translateY(0)";
-      e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.4)";
+      e.currentTarget.style.boxShadow = `0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px ${T.accent}30`;
     }
   };
 
@@ -151,16 +148,17 @@ export function Home({ setTab, T, lang }) {
         <p style={s.instruction}>
           {hi ? "आगे बढ़ने से पहले रीसेट करने के लिए एक पल लें" : "TAKE A MOMENT TO RESET BEFORE YOU CONTINUE"}
         </p>
+        
+        {/* 🌟 The Main Front Door is Back! */}
         <button 
           onClick={() => setTab('reset')} 
           style={{...s.buttonBase, ...s.resetBtn}}
           onMouseEnter={(e) => handleHover(e, true)}
           onMouseLeave={(e) => handleHover(e, false)}
         >
-          {/* 🌟 FIX: Updated Button Text */}
           {hi ? "1-मिनट का रीसेट लें" : "TAKE A 1-MINUTE RESET"}
         </button>
-        {/* 🌟 FIX: Soft Medical Disclaimer adapting to T.text */}
+        
         <p style={s.disclaimerText}>
           {hi ? "यह एक सरल निर्देशित अनुभव है, चिकित्सा सलाह नहीं।" : "This is a simple guided experience, not medical advice."}
         </p>
