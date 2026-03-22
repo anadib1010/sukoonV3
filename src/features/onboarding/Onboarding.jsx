@@ -26,11 +26,13 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
     go(1);
   };
 
-  const handleComplete = () => {
+  const handleComplete = (destination) => {
     setLeaving(true);
-    // Default to a calming dark theme since we removed mood selection
     if (setThemeKey) setThemeKey("Void"); 
-    setTimeout(() => { document.body.style.background = "#050505"; onComplete(); }, 450);
+    setTimeout(() => { 
+      document.body.style.background = "#050505"; 
+      onComplete(destination); 
+    }, 450);
   };
 
   // ─── STYLES (Rule of T) ───
@@ -71,17 +73,40 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       fontFamily: sans, fontSize: 13, color: "rgba(255,255,255,0.4)", 
       letterSpacing: "1px", textTransform: "uppercase", marginBottom: 30
     },
-    primaryBtn: { 
-      background: "linear-gradient(180deg, #f0f0f0 0%, #a0a0a0 100%)", 
-      border: "none", borderRadius: 8, padding: "18px 24px", width: "100%",
-      color: "#111", fontSize: 16, fontFamily: sans, fontWeight: 700, 
-      letterSpacing: "1.5px", cursor: "pointer", boxShadow: "0 4px 20px rgba(255,255,255,0.15)",
-      transition: "transform 0.2s"
-    },
     ghostBtn: {
       background: "transparent", border: "1px solid rgba(255,255,255,0.2)",
       borderRadius: 99, padding: "16px 32px", color: "#e8e8e8", width: "100%",
       fontSize: 16, fontFamily: serif, cursor: "pointer", transition: "background 0.3s"
+    },
+    
+    glassResetBtn: {
+      background: "rgba(255, 255, 255, 0.08)",
+      backdropFilter: "blur(16px)",
+      WebkitBackdropFilter: "blur(16px)",
+      border: "1px solid rgba(255, 255, 255, 0.2)",
+      borderRadius: "16px",
+      padding: "24px 20px", 
+      width: "100%",
+      color: "#ffffff", 
+      fontFamily: sans, fontSize: "clamp(18px, 5vw, 22px)", 
+      fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase",
+      cursor: "pointer", transition: "all 0.3s ease",
+      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+      marginBottom: "0px" // Removed margin because Skip is now absolute
+    },
+    
+    // 📌 THE PINNED SKIP BUTTON
+    skipBtn: {
+      position: "absolute", // Rips it out of the center block
+      bottom: "40px",       // Pins it 40px from the bottom edge of the screen
+      left: "50%",
+      transform: "translateX(-50%)", // Keeps it perfectly centered horizontally
+      background: "transparent", border: "none",
+      color: "rgba(255,255,255,0.4)", 
+      fontFamily: sans, fontSize: "14px", letterSpacing: "1px",
+      textTransform: "uppercase", cursor: "pointer",
+      textDecoration: "underline", textUnderlineOffset: "4px",
+      transition: "color 0.2s"
     }
   };
 
@@ -113,28 +138,57 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
           </>
         )}
 
-        {/* SCREEN 2: Expectation & Action */}
+        {/* SCREEN 2: The Pitch */}
         {screen === 2 && (
           <>
             <p style={st.bodyText}>
-              {hi ? "जब सब कुछ भारी लगने लगे, तो आप एक मिनट से भी कम समय में रीसेट कर सकते हैं।" 
-                  : "When things feel overwhelming, you can reset in under a minute."}
+              {hi ? "जब सब कुछ भारी लगने लगे, तो आप केवल 90 सेकंड में रीसेट कर सकते हैं।" 
+                  : "When things feel overwhelming, you can reset in just 90 seconds."}
             </p>
             <p style={st.subText}>
               {hi ? "एक बार आज़माएं। किसी सेटअप की आवश्यकता नहीं है।" : "Try it once. No setup needed."}
             </p>
+            <button onClick={() => go(3)} style={st.ghostBtn}>
+              {hi ? "आगे" : "Continue"}
+            </button>
+          </>
+        )}
+
+        {/* SCREEN 3: The Choice */}
+        {screen === 3 && (
+          <>
             <button 
-              onClick={handleComplete} 
-              style={st.primaryBtn}
-              onMouseDown={e => e.currentTarget.style.transform = "scale(0.97)"}
+              onClick={() => handleComplete('reset')} 
+              style={st.glassResetBtn}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
+                e.currentTarget.style.boxShadow = "0 8px 40px rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                e.currentTarget.style.boxShadow = "0 8px 32px rgba(0, 0, 0, 0.2)";
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
               onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
             >
-              {hi ? "90-सेकंड का रीसेट शुरू करें" : "START 90 SECOND RESET"}
+              {hi ? "90 सेकंड का रीसेट शुरू करें" : "START 90 SECOND RESET"}
             </button>
           </>
         )}
 
       </div>
+
+      {/* The Skip button lives OUTSIDE the center wrapper, pinned to the bottom */}
+      {screen === 3 && (
+        <button 
+          onClick={() => handleComplete('home')} 
+          style={st.skipBtn}
+          onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.7)"}
+          onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.4)"}
+        >
+          {hi ? "स्किप करें" : "Skip"}
+        </button>
+      )}
     </div>
   );
 }
