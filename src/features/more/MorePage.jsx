@@ -190,7 +190,7 @@ export function MorePage({ setTab, T, lang }) {
         {/* VAULT SECTION */}
         <div style={s.sectionDivider}>
           <div style={s.line} />
-          <span style={s.dividerText}>{hi ? "गहरी जगहें" : "Deeper spaces"}</span>
+          <span style={s.dividerText}>{hi ? "गहरी जगहें" : "Deeper Spaces"}</span>
           <div style={s.line} />
         </div>
 
