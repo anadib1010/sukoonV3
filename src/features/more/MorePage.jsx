@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { track } from '@vercel/analytics';
+// Bringing in our LEGO bricks!
 import { BrandHeader } from '../../components/BrandHeader'; 
 import { BackButton } from '../../components/BackButton';   
 
@@ -10,15 +11,16 @@ export function MorePage({ setTab, T, lang }) {
     track('View Explore Page');
   }, []);
 
+  // ─── STYLES (Rule of T) ───
   const s = {
     page: {
       minHeight: "100dvh", width: "100%",
       background: T.bg, color: T.text, 
-      padding: "2vh 24px 100px", // 100px bottom padding so content doesn't hit the bottom button
+      padding: "2vh 24px 100px", 
       boxSizing: "border-box",
       fontFamily: "'DM Sans', sans-serif",
       display: "flex", flexDirection: "column", alignItems: "center",
-      position: "relative" // Helps keep the floating button grounded to this page
+      position: "relative" 
     },
     grid: {
       display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px",
@@ -48,10 +50,10 @@ export function MorePage({ setTab, T, lang }) {
   return (
     <div style={s.page}>
       
-      {/* THE BRANDING AT THE TOP */}
+      {/* 🧱 THE BRANDING LEGO BLOCK */}
       <BrandHeader T={T} />
 
-      {/* THE GRID OF TOOLS */}
+      {/* THE GRID */}
       <div style={s.grid}>
         {features.map((feature) => (
           <div 
@@ -73,7 +75,7 @@ export function MorePage({ setTab, T, lang }) {
         ))}
       </div>
 
-      {/* THE BACK BUTTON AT THE BOTTOM LEFT */}
+      {/* 🧱 THE BACK BUTTON LEGO BLOCK */}
       <BackButton setTab={setTab} destination="home" T={T} lang={lang} />
 
     </div>
