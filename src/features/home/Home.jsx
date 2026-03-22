@@ -20,9 +20,9 @@ export function Home({ setTab, T, lang }) {
   const s = {
     page: {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "space-between",
+      alignItems: "center", 
       background: T.bg, color: T.text, overflowX: "hidden", boxSizing: "border-box",
-      padding: "8vh 24px 6vh",
+      padding: "8vh 24px 4vh", // Padding at top and bottom
     },
 
     topSection: {
@@ -45,8 +45,12 @@ export function Home({ setTab, T, lang }) {
       maxWidth: "300px", lineHeight: 1.4,
     },
 
+    // 🎈 THE INVISIBLE BALLOON (flex: 1)
+    // This grows to take up all empty space, perfectly centering the reset button 
+    // and pushing everything else away from it.
     midSection: {
-      display: "flex", flexDirection: "column", alignItems: "center", width: "100%",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      width: "100%", flex: 1, 
       opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(16px)",
       transition: "opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s",
     },
@@ -56,31 +60,34 @@ export function Home({ setTab, T, lang }) {
       margin: "0 0 16px", textAlign: "center",
     },
     
-    // 🔆 PRIMARY BEACON BUTTON (High Contrast)
     resetBtn: {
       width: "100%", maxWidth: "340px", padding: "20px 0",
-      background: "linear-gradient(180deg, #f0f0f0 0%, #a0a0a0 100%)", // Bright silver glow
-      border: "none", 
-      borderRadius: "12px", 
-      color: "#111111", // Deep dark text so it's super easy to read
+      background: "linear-gradient(180deg, #f0f0f0 0%, #a0a0a0 100%)",
+      border: "none", borderRadius: "12px", 
+      color: "#111111", 
       fontFamily: "'DM Sans', sans-serif", fontSize: "18px",
       fontWeight: 700, letterSpacing: "1.5px", cursor: "pointer",
-      boxShadow: "0 0 30px rgba(255, 255, 255, 0.2)", // Glowing halo around it
+      boxShadow: "0 0 30px rgba(255, 255, 255, 0.2)", 
       transition: "all 0.2s ease",
     },
 
+    // 🧲 THE FLOOR MAGNET
+    // This wraps the buttons and the legal links and keeps them safely at the bottom.
+    bottomContainer: {
+      display: "flex", flexDirection: "column", alignItems: "center", 
+      width: "100%", maxWidth: "340px",
+    },
+
     bottomSection: {
-      display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "340px",
+      display: "flex", flexDirection: "column", alignItems: "center", width: "100%",
       gap: "16px", opacity: visible ? 1 : 0,
       transition: "opacity 0.8s ease 0.4s",
     },
     
-    // 🧊 SECONDARY QUIET GLASS BUTTONS
     sanctuaryBtn: {
       width: "100%", padding: "18px 0",
       background: "rgba(255, 255, 255, 0.04)",
-      backdropFilter: "blur(8px)",
-      WebkitBackdropFilter: "blur(8px)",
+      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
       border: "1px solid rgba(255, 255, 255, 0.08)",
       borderRadius: "12px", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "15px", letterSpacing: "1px",
@@ -91,8 +98,7 @@ export function Home({ setTab, T, lang }) {
     halfBtn: {
       flex: 1, padding: "18px 0",
       background: "rgba(255, 255, 255, 0.04)",
-      backdropFilter: "blur(8px)",
-      WebkitBackdropFilter: "blur(8px)",
+      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
       border: "1px solid rgba(255, 255, 255, 0.08)",
       borderRadius: "12px", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "15px", letterSpacing: "1px",
@@ -104,17 +110,31 @@ export function Home({ setTab, T, lang }) {
       color: T.textSoft, opacity: 0.6,
       fontFamily: "'DM Sans', sans-serif", fontSize: "13px", letterSpacing: "1px",
       textTransform: "uppercase", cursor: "pointer", transition: "opacity 0.2s ease",
+    },
+
+    footerWrap: {
+      display: "flex", gap: "20px", opacity: visible ? 0.4 : 0,
+      transition: "opacity 1s ease 0.6s", marginTop: "24px",
+    },
+    footerLink: {
+      background: "none", border: "none", color: T.textSoft,
+      fontFamily: "'DM Sans', sans-serif", fontSize: "10px",
+      letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer",
+      textDecoration: "underline", textUnderlineOffset: "3px",
     }
   };
 
   return (
     <div style={s.page}>
+      
+      {/* 1. TOP */}
       <div style={s.topSection}>
         <h1 style={s.title}>JSukoon</h1>
         <p style={s.greeting}>{greeting}</p>
         <p style={s.quote}>"{quote}"</p>
       </div>
 
+      {/* 2. MIDDLE (Flex: 1 pushes this to the center) */}
       <div style={s.midSection}>
         <p style={s.instruction}>
           {hi ? "आगे बढ़ने से पहले रीसेट करने के लिए एक पल लें" : "TAKE A MOMENT TO RESET BEFORE YOU CONTINUE"}
@@ -131,44 +151,37 @@ export function Home({ setTab, T, lang }) {
         </button>
       </div>
 
-      <div style={s.bottomSection}>
-        <button 
-          onClick={() => setTab('bench')} 
-          style={s.sanctuaryBtn}
-          onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
-          onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
-        >
-          {hi ? "अभयारण्य में बैठें" : "SIT IN SANCTUARY"}
-        </button>
-
-        <div style={s.row}>
-          <button 
-            onClick={() => setTab('sleep')} 
-            style={s.halfBtn}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
-          >
-            {hi ? "नींद" : "SLEEP"}
+      {/* 3. BOTTOM (Stays at the floor) */}
+      <div style={s.bottomContainer}>
+        <div style={s.bottomSection}>
+          <button onClick={() => setTab('bench')} style={s.sanctuaryBtn}>
+            {hi ? "अभयारण्य में बैठें" : "SIT IN SANCTUARY"}
           </button>
-          <button 
-            onClick={() => setTab('more')} 
-            style={s.halfBtn}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
-          >
-            {hi ? "खोजें" : "EXPLORE"}
+
+          <div style={s.row}>
+            <button onClick={() => setTab('sleep')} style={s.halfBtn}>
+              {hi ? "नींद" : "SLEEP"}
+            </button>
+            <button onClick={() => setTab('more')} style={s.halfBtn}>
+              {hi ? "खोजें" : "EXPLORE"}
+            </button>
+          </div>
+
+          <button onClick={() => setTab('warmth')} style={s.warmthBtn}>
+            {hi ? "गर्माहट भेजें" : "SEND WARMTH"}
           </button>
         </div>
 
-        <button 
-          onClick={() => setTab('warmth')} 
-          style={s.warmthBtn}
-          onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
-        >
-          {hi ? "गर्माहट भेजें" : "SEND WARMTH"}
-        </button>
+        <div style={s.footerWrap}>
+          <button onClick={() => setTab('privacy')} style={s.footerLink}>
+            {hi ? "गोपनीयता" : "Privacy"}
+          </button>
+          <button onClick={() => setTab('legal')} style={s.footerLink}>
+            {hi ? "कानूनी" : "Legal"}
+          </button>
+        </div>
       </div>
+
     </div>
   );
 }
