@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 export function Reset({ setTab, T, lang }) {
   const hi = lang === "Hindi";
   const [step, setStep] = useState(0);
-  const [fade, setFade] = useState(true);
+  const [fade, setFade] = useState(false); // Start with false for a smooth initial entry
 
   // Our professional-grade engine to move from screen to screen
   const advance = (nextStep, delay) => {
@@ -17,6 +17,17 @@ export function Reset({ setTab, T, lang }) {
     return timer;
   };
 
+  // 🚀 INSTANT START LOGIC
+  useEffect(() => {
+    // When the user enters the room, immediately fade in Step 1
+    const initialStart = setTimeout(() => {
+      setStep(1); // Set to "Pause" right away
+      setFade(true);
+    }, 100); // Tiny delay to ensure the browser has painted the black background
+    
+    return () => clearTimeout(initialStart);
+  }, []);
+
   useEffect(() => {
     let t;
     if (step === 1) t = advance(2, 3000); // "Pause."
@@ -26,31 +37,21 @@ export function Reset({ setTab, T, lang }) {
     if (step === 5) t = advance(6, 3000); // "Good."
     if (step === 6) t = advance(7, 3000); // "Now..."
     
-    // NOTE: Step 7 has NO automatic timer. The user MUST click the button to proceed.
-
+    // Step 7: Wait for manual "FOCUS ON ONE THING" click
+    
     // The Final Handoff to the Post-Reset page
     if (step === 8) {
       t = setTimeout(() => {
         setFade(false);
         setTimeout(() => {
-          setTab('postreset'); // Hand the keys directly to the router!
+          setTab('postreset'); 
         }, 1000);
       }, 3000); 
     }
     
-    // Cleanup function to stop memory leaks
     return () => clearTimeout(t);
-    
-    // 🛡️ THE SECURITY FIX: We removed 'setTab' from this list below so React 
-    // stops accidentally resetting your timers!
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]); 
-
-  // Manual click overrides
-  const handleStart = () => {
-    setFade(false);
-    setTimeout(() => { setStep(1); setFade(true); }, 1000);
-  };
 
   const handleFocusClick = () => {
     setFade(false);
@@ -74,16 +75,8 @@ export function Reset({ setTab, T, lang }) {
       transition: "opacity 1s ease-in-out",
       display: "flex", flexDirection: "column", alignItems: "center", width: "100%"
     },
-    title: { fontSize: "16px", letterSpacing: "3px", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", opacity: 0.5, marginBottom: 40 },
     text: { fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic", letterSpacing: "1px", margin: 0, lineHeight: 1.4 },
     
-    startBtn: {
-      background: "transparent", border: "1px solid rgba(255,255,255,0.3)",
-      borderRadius: 99, padding: "20px 60px", color: "#fff",
-      fontSize: "18px", letterSpacing: "2px", textTransform: "uppercase",
-      cursor: "pointer", transition: "all 0.3s", marginTop: 40, fontFamily: "'DM Sans', sans-serif"
-    },
-
     orbWrap: { position: "relative", width: 120, height: 120, margin: "40px auto" },
     orb: {
       width: "100%", height: "100%", borderRadius: "50%",
@@ -129,13 +122,6 @@ export function Reset({ setTab, T, lang }) {
     <div style={s.page}>
       <div style={s.content}>
         
-        {step === 0 && (
-          <>
-            <div style={s.title}>90-Second Reset</div>
-            <button onClick={handleStart} style={s.startBtn}>{hi ? "टैप करें" : "Tap"}</button>
-          </>
-        )}
-
         {step === 1 && <p style={s.text}>{hi ? "ठहरें।" : "Pause."}</p>}
         {step === 2 && <p style={s.text}>{hi ? "आप यहाँ हैं।" : "You're here."}</p>}
 
