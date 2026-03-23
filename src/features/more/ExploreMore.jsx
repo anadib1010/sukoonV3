@@ -395,7 +395,7 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
         </button>
 
         {/* ── VAULT ENTRY ── */}
-        <button onClick={() => setTab("vault")} style={s.vaultEntry}>
+        <button onClick={() => setTab("vaultdoor")} style={s.vaultEntry}>
           {hi ? "एक और गहरी जगह है, अगर आप तैयार हैं।" : "There is a quieter place, if you are ready."}
         </button>
 

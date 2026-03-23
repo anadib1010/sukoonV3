@@ -46,49 +46,7 @@ import { MandalaFlow } from './features/games/MandalaFlow';
 import { SeedInMud } from './features/games/SeedInMud';
 import { PostReset } from './components/PostReset';
 import { Reset } from "./components/Reset";
-
-// ─── YAKSHA GATE ───
-function YakshaGate({ lang, T, onUnlock, onCancel }) {
-  const [input, setInput] = useState("");
-  const [error, setError] = useState(false);
-  const MASTER_KEY = "SUKOON2026";
-  const isHindi = lang === "Hindi";
-
-  useEffect(() => { track('Encountered Yaksha Gate'); }, []);
-
-  const handleCheck = () => {
-    if (input.toUpperCase() === MASTER_KEY) {
-      track('Unlocked Deep Layers');
-      onUnlock();
-    } else {
-      setError(true);
-      setTimeout(() => setError(false), 500);
-    }
-  };
-
-  const ys = {
-    page: { height: "100dvh", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box", textAlign: "center", background: "#050508", position: "fixed", top: 0, left: 0, zIndex: 1000 },
-    backBtn: { position: "absolute", top: 30, left: 30, background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 14, fontFamily: "'Cormorant Garamond', serif" },
-    icon: { fontSize: 32, marginBottom: 20, opacity: 0.6 },
-    question: { fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: "#fff", fontWeight: 300, marginBottom: 50, lineHeight: 1.6, maxWidth: 320 },
-    inputWrap: { width: "100%", transform: error ? "translateX(10px)" : "none", transition: "transform 0.1s", display: "flex", flexDirection: "column", alignItems: "center" },
-    input: { background: "transparent", border: "none", borderBottom: "1px solid rgba(212,175,55,0.4)", color: "#d4af37", textAlign: "center", fontSize: 20, letterSpacing: 6, outline: "none", width: "240px", paddingBottom: 10, marginBottom: 25, borderRadius: 0 },
-    proceedBtn: { background: "transparent", border: "1px solid #d4af37", color: "#d4af37", padding: "12px 45px", borderRadius: 30, fontSize: 13, letterSpacing: 2, cursor: "pointer", transition: "background 0.2s" },
-    devKey: { marginTop: 20, opacity: 0.85, fontSize: 14, color: "#d4af37", letterSpacing: 3, fontFamily: "monospace", textAlign: "center" },
-  };
-
-  return (
-    <div style={ys.page}>
-      <button onClick={onCancel} style={ys.backBtn}>← {isHindi ? "वापस" : "Back"}</button>
-      <div style={ys.icon}>⚖️</div>
-      <h2 style={ys.question}>{isHindi ? '"क्या आपके पास अगले स्तर, शांत स्थान की कुंजी है?"' : '"Do you have the key to the next level, the Quieter Place?"'}</h2>
-      <div style={ys.inputWrap}>
-        <input autoFocus value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCheck()} placeholder={isHindi ? "कोड यहाँ लिखें" : "TYPE CODE HERE"} style={ys.input} />
-        <button onClick={handleCheck} style={ys.proceedBtn}>{isHindi ? "प्रवेश करें" : "PROCEED"}</button>
-      </div>
-    </div>
-  );
-}
+import { DeepDoor } from './components/DeepDoor';
 
 // ─── APP CONTENT ───
 function AppContent() {
@@ -109,7 +67,6 @@ function AppContent() {
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
   const [themeKey, setThemeKey] = useLS("jsukoon_theme", "Void");
   const [mood, setMood] = useState(null);
-  const [vaultUnlocked, setVaultUnlocked] = useLS("jsukoon_vault_unlocked", false);
 
   const T = themeSource === "manual" ? (THEMES[themeKey] || THEMES.Void) : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
 
@@ -165,8 +122,8 @@ function AppContent() {
 
   const [selectedMood, setSelectedMood] = useState(null);
 
-  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud" };
-  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज" };
+  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud" };
+  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज" };
 
   const setPageTitle = (page) => {
     const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
@@ -217,15 +174,11 @@ function AppContent() {
   }
 
   const deepLayers = ["/vault", "/resonance", "/stillness", "/quietcorner", "/soundbath", "/mandala", "/seedinmud"];
-  const isProtected = deepLayers.includes(location.pathname) && !vaultUnlocked;
-  
+
   return (
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
-        {isProtected ? (
-          <YakshaGate lang={lang} T={T} onUnlock={() => setVaultUnlocked(true)} onCancel={() => setTab("practice")} />
-        ) : (
-          <Routes>
+        <Routes>
             <Route path="/" element={<Home setTab={setTab} T={T} lang={lang} />} />
             <Route path="/reset" element={<Reset setTab={setTab} T={T} lang={lang} />} />
             <Route path="/postreset" element={<PostReset setTab={setTab} T={T} lang={lang} />} />
@@ -241,6 +194,7 @@ function AppContent() {
             <Route path="/bench" element={<Bench setTab={setTab} T={T} lang={lang} />} />
             
             <Route path="/more" element={<MorePage setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+            <Route path="/vaultdoor" element={<DeepDoor setTab={setTab} T={T} lang={lang} destination="vault" />} />
             <Route path="/exploremore" element={<ExploreMore setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
             
             <Route path="/practice" element={<Practice setTab={setTab} T={T} lang={lang} />} />
@@ -265,7 +219,6 @@ function AppContent() {
             <Route path="/moodaction" element={<MoodAction selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
-        )}
         <Analytics />
       </div>
     </div>
