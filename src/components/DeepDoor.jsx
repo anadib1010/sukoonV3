@@ -1,35 +1,26 @@
 import React, { useState, useEffect } from 'react';
 
-// ─── THE TRANSITION DOOR ──────────────────────────────────────────────
-// Appears when user taps "There is a quieter place" in ExploreMore.
-// Three warm lines → Enter button → Vault (The Quieter Place)
-// No skip, no auto-advance, no mystery. Just a gentle breath before
-// stepping deeper.
-
 export function DeepDoor({ setTab, T, lang }) {
   const hi = lang === "Hindi";
-  const [phase, setPhase] = useState(0);
   const [opacity, setOpacity] = useState(0);
+  const [line1, setLine1] = useState(false);
+  const [line2, setLine2] = useState(false);
+  const [line3, setLine3] = useState(false);
   const [showBtn, setShowBtn] = useState(false);
 
-  // Fade in on mount
+  // Page fades in, then lines stagger in quickly, then button appears
   useEffect(() => {
-    const t = setTimeout(() => setOpacity(1), 60);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Three lines appear one by one, then Enter button
-  useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 400);
-    const t2 = setTimeout(() => setPhase(2), 3400);
-    const t3 = setTimeout(() => setPhase(3), 6400);
-    const t4 = setTimeout(() => setShowBtn(true), 9000);
-    return () => [t1, t2, t3, t4].forEach(clearTimeout);
+    const t0 = setTimeout(() => setOpacity(1),   60);
+    const t1 = setTimeout(() => setLine1(true),  300);
+    const t2 = setTimeout(() => setLine2(true),  700);
+    const t3 = setTimeout(() => setLine3(true),  1100);
+    const t4 = setTimeout(() => setShowBtn(true), 1600);
+    return () => [t0, t1, t2, t3, t4].forEach(clearTimeout);
   }, []);
 
   const handleEnter = () => {
     setOpacity(0);
-    setTimeout(() => setTab('vault'), 1000);
+    setTimeout(() => setTab('vault'), 800);
   };
 
   const s = {
@@ -39,23 +30,24 @@ export function DeepDoor({ setTab, T, lang }) {
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "0 40px", boxSizing: "border-box",
-      opacity, transition: "opacity 1.2s ease-in-out",
       textAlign: "center",
+      opacity, transition: "opacity 0.8s ease-in-out",
+    },
+    linesWrap: {
+      display: "flex", flexDirection: "column",
+      alignItems: "center", gap: 20, marginBottom: 56,
     },
     line: (visible) => ({
       fontFamily: "'Cormorant Garamond', serif",
-      fontSize: "clamp(26px, 7vw, 34px)",
+      fontSize: "clamp(24px, 6.5vw, 32px)",
       fontWeight: 300, fontStyle: "italic",
       color: T.text, letterSpacing: "1px",
       lineHeight: 1.5, margin: 0,
       opacity: visible ? 1 : 0,
-      transform: visible ? "translateY(0)" : "translateY(12px)",
-      transition: "opacity 1s ease, transform 1s ease",
-      position: "absolute",
+      transform: visible ? "translateY(0)" : "translateY(10px)",
+      transition: "opacity 0.7s ease, transform 0.7s ease",
     }),
     enterBtn: {
-      position: "absolute",
-      bottom: "15%",
       background: "transparent",
       border: `1px solid ${T.accent}60`,
       borderRadius: 99,
@@ -63,53 +55,31 @@ export function DeepDoor({ setTab, T, lang }) {
       fontFamily: "'DM Sans', sans-serif",
       fontSize: 13, letterSpacing: "3px",
       textTransform: "uppercase",
-      padding: "14px 40px",
+      padding: "14px 48px",
       cursor: "pointer",
-      opacity: showBtn ? 0.85 : 0,
-      transform: showBtn ? "translateY(0)" : "translateY(10px)",
-      transition: "opacity 1s ease 0.3s, transform 1s ease 0.3s",
+      opacity: showBtn ? 0.9 : 0,
+      transform: showBtn ? "translateY(0)" : "translateY(8px)",
+      transition: "opacity 0.7s ease 0.1s, transform 0.7s ease 0.1s",
     },
-    dots: {
-      position: "absolute", bottom: "60px",
-      display: "flex", gap: 8, alignItems: "center",
-      opacity: showBtn ? 0 : 1,
-      transition: "opacity 0.5s ease",
-    },
-    dot: (active) => ({
-      width: active ? 6 : 4,
-      height: active ? 6 : 4,
-      borderRadius: "50%",
-      background: T.accent,
-      opacity: active ? 0.7 : 0.2,
-      transition: "all 0.6s ease",
-    }),
   };
 
   return (
     <div style={s.page}>
-
-      <p style={s.line(phase === 1)}>
-        {hi ? "यहाँ कोई जल्दी नहीं है।" : "There's no hurry here."}
-      </p>
-
-      <p style={s.line(phase === 2)}>
-        {hi ? "यह जगह आपके लिए है।" : "This place is yours."}
-      </p>
-
-      <p style={s.line(phase === 3)}>
-        {hi ? "जब तैयार हों, अंदर आएं।" : "Enter when you're ready."}
-      </p>
+      <div style={s.linesWrap}>
+        <p style={s.line(line1)}>
+          {hi ? "यहाँ कोई जल्दी नहीं है।" : "There's no hurry here."}
+        </p>
+        <p style={s.line(line2)}>
+          {hi ? "यह जगह आपके लिए है।" : "This place is yours."}
+        </p>
+        <p style={s.line(line3)}>
+          {hi ? "जब तैयार हों, अंदर आएं।" : "Enter when you're ready."}
+        </p>
+      </div>
 
       <button style={s.enterBtn} onClick={handleEnter}>
         {hi ? "प्रवेश करें" : "Enter"}
       </button>
-
-      <div style={s.dots}>
-        <div style={s.dot(phase === 1)} />
-        <div style={s.dot(phase === 2)} />
-        <div style={s.dot(phase === 3)} />
-      </div>
-
     </div>
   );
 }
