@@ -305,7 +305,7 @@ export function Reset({ setTab, T, lang }) {
         {step === 5 && (
           <>
             <p style={{ ...s.text, fontSize: "32px", opacity: 0.8 }}>
-              {hi ? "इस लय का पालन करें" : "Follow this rhythm"}
+              {hi ? "इस लय का पालन करें" : "Follow this rhythm "}
             </p>
             <div style={{
               ...s.orbWrap,
