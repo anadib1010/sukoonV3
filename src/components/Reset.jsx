@@ -158,8 +158,11 @@ export function Reset({ setTab, T, lang }) {
       transition: "opacity 0.8s ease-in-out",
     },
     orbWrap: {
-      position: "relative", margin: "40px auto",
+      position: "relative",
+      // Size the container at 1.6x the orb so scale(1.5) never overflows it
+      // margin provides breathing room from text above and bar below
       display: "flex", justifyContent: "center", alignItems: "center",
+      flexShrink: 0,
     },
     phaseBarWrap: {
       width: "clamp(90px, 28vw, 160px)", height: 2,
@@ -179,6 +182,8 @@ export function Reset({ setTab, T, lang }) {
       background: "radial-gradient(circle at 30% 30%, rgba(180, 180, 185, 0.95) 0%, rgba(100, 100, 105, 0.95) 100%)",
       boxShadow: `0 0 35px ${T.accent}60, inset -8px -8px 15px rgba(0,0,0,0.2), inset 8px 8px 15px rgba(255,255,255,0.3)`,
       willChange: "transform",
+      transformOrigin: "center",
+      flexShrink: 0,
     },
     focusWrap: {
       marginTop: 32, width: "100%",
@@ -281,7 +286,12 @@ export function Reset({ setTab, T, lang }) {
               {hi ? "लय के साथ टैप करें" : "Tap with the rhythm"}
             </p>
             <div
-              style={{ ...s.orbWrap, width: orbSizeSmall, height: orbSizeSmall }}
+              style={{
+                ...s.orbWrap,
+                width: "clamp(144px, 45vw, 192px)",
+                height: "clamp(144px, 45vw, 192px)",
+                margin: "32px auto",
+              }}
               onClick={() => { if (window.navigator.vibrate) window.navigator.vibrate(50); }}
             >
               <div style={orbStyle(orbSizeSmall, "heartbeat 1s infinite")} />
@@ -297,8 +307,12 @@ export function Reset({ setTab, T, lang }) {
             <p style={{ ...s.text, fontSize: "32px", opacity: 0.8 }}>
               {hi ? "इस लय का पालन करें" : "Follow this rhythm"}
             </p>
-            <div style={{ ...s.orbWrap, width: orbSizeLarge, height: orbSizeLarge }}>
-              {/* breathe keyframe now has 45%–55% hold at peak for micro inhale pause */}
+            <div style={{
+              ...s.orbWrap,
+              width: "clamp(224px, 72vw, 320px)",
+              height: "clamp(224px, 72vw, 320px)",
+              margin: "24px auto",
+            }}>
               <div style={orbStyle(orbSizeLarge, "breathe 8s ease-in-out infinite")} />
             </div>
             <div style={s.phaseBarWrap}><div style={s.phaseBarBreathe} /></div>
