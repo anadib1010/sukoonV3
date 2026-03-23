@@ -29,14 +29,10 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
   }, []);
 
   const MAIN_TOOLS = [
-    { id: "focus",     emoji: "🎯", label: hi ? "केंद्रित"  : "Focus",    desc: hi ? "शांत खेल"     : "Calm games"   },
-    { id: "practice",  emoji: "🧘", label: hi ? "अभ्यास"   : "Practice",  desc: hi ? "सांस"          : "Breathwork"   },
-    { id: "community", emoji: "👥", label: hi ? "समुदाय"   : "Community", desc: hi ? "जुड़ें"         : "Connect"      },
-    { id: "journal",   emoji: "📖", label: hi ? "जर्नल"    : "Journal",   desc: hi ? "लिखें, बोलें" : "Write, speak"  },
-    { id: "audio",     emoji: "🎵", label: hi ? "ऑडियो"    : "Audio",     desc: hi ? "ध्वनि"         : "Sounds"       },
-    { id: "wishes",    emoji: "✨", label: hi ? "इच्छा"    : "Wishes",    desc: hi ? "गैलरी"         : "Gallery"      },
-    { id: "progress",  emoji: "📈", label: hi ? "प्रगति"   : "Progress",  desc: hi ? "आपकी यात्रा"  : "Your journey" },
-    { id: "settings",  emoji: "⚙️", label: hi ? "सेटिंग्स" : "Settings",  desc: hi ? "थीम, भाषा"    : "Theme, lang"  },
+    { id: "practice",  emoji: "🧘", label: hi ? "अभ्यास"  : "Practice",  desc: hi ? "सांस"         : "Breathwork"   },
+    { id: "community", emoji: "👥", label: hi ? "समुदाय"  : "Community", desc: hi ? "जुड़ें"        : "Connect"      },
+    { id: "progress",  emoji: "📈", label: hi ? "प्रगति"  : "Progress",  desc: hi ? "आपकी यात्रा" : "Your journey" },
+    { id: "wishes",    emoji: "✨", label: hi ? "इच्छा"   : "Wishes",    desc: hi ? "गैलरी"        : "Gallery"      },
   ];
 
   // Detect dark/light background for glass effects
@@ -68,9 +64,6 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
     page: { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden", position: "relative" },
 
     scrollArea: { flex: 1, overflowY: "auto", padding: "16px 24px 40px" },
-    crisisIconSize: { fontSize: 24 },
-    crisisTextWrap: { textAlign: "left" },
-    themeCenterWrap: { textAlign: "center" },
 
     sectionLabel: {
       fontSize: 10,
@@ -383,20 +376,6 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
           ))}
         </div>
 
-        {/* ── CRISIS ── */}
-        <button
-          onClick={() => setTab("crisis")}
-          style={s.crisisBtn}
-          onMouseEnter={e => e.currentTarget.style.background = isDark ? "rgba(255,60,60,0.1)" : "rgba(255,60,60,0.18)"}
-          onMouseLeave={e => e.currentTarget.style.background = isDark ? "rgba(255,60,60,0.05)" : "rgba(255,60,60,0.1)"}
-        >
-          <span style={s.crisisIconSize}>🆘</span>
-          <div style={s.crisisTextWrap}>
-            <div style={s.crisisTitle}>{hi ? "संकट सहायता" : "Crisis Support"}</div>
-            <div style={s.crisisDesc}>{hi ? "तत्काल सहायता और हेल्पलाइन" : "Immediate help & helplines"}</div>
-          </div>
-        </button>
-
         {/* ── VAULT ENTRY ── */}
         <button onClick={() => setTab("vaultdoor")} style={s.vaultEntry}>
           {hi ? "एक और गहरी जगह है, अगर आप तैयार हैं।" : "There is a quieter place, if you are ready."}
@@ -414,7 +393,7 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
               <div style={s.sheetHandle} />
 
               <div style={s.sheetEmojiRow}>
-                <div style={s.themeCenterWrap}>
+                <div style={{ textAlign: "center" }}>
                   <span style={s.sheetEmoji}>{prompt.emoji}</span>
                   <p style={{ ...s.themePreviewLabel, marginTop: 4 }}>{hi ? prompt.labelH : prompt.label}</p>
                 </div>
