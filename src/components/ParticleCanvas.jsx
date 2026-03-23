@@ -131,5 +131,6 @@ export function ParticleCanvas({ mode, T }) {
     };
   }, [mode, T]);
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 5, touchAction: "none" }} />;
+  const canvasStyle = { width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 5, touchAction: "none" };
+  return <canvas ref={canvasRef} style={canvasStyle} />;
 }

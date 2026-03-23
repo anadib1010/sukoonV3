@@ -68,6 +68,9 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
     page: { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden", position: "relative" },
 
     scrollArea: { flex: 1, overflowY: "auto", padding: "16px 24px 40px" },
+    crisisIconSize: { fontSize: 24 },
+    crisisTextWrap: { textAlign: "left" },
+    themeCenterWrap: { textAlign: "center" },
 
     sectionLabel: {
       fontSize: 10,
@@ -387,8 +390,8 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
           onMouseEnter={e => e.currentTarget.style.background = isDark ? "rgba(255,60,60,0.1)" : "rgba(255,60,60,0.18)"}
           onMouseLeave={e => e.currentTarget.style.background = isDark ? "rgba(255,60,60,0.05)" : "rgba(255,60,60,0.1)"}
         >
-          <span style={{ fontSize: 24 }}>🆘</span>
-          <div style={{ textAlign: "left" }}>
+          <span style={s.crisisIconSize}>🆘</span>
+          <div style={s.crisisTextWrap}>
             <div style={s.crisisTitle}>{hi ? "संकट सहायता" : "Crisis Support"}</div>
             <div style={s.crisisDesc}>{hi ? "तत्काल सहायता और हेल्पलाइन" : "Immediate help & helplines"}</div>
           </div>
@@ -411,7 +414,7 @@ export function ExploreMore({ setTab, goBack, T, lang, setThemeKey }) {
               <div style={s.sheetHandle} />
 
               <div style={s.sheetEmojiRow}>
-                <div style={{ textAlign: "center" }}>
+                <div style={s.themeCenterWrap}>
                   <span style={s.sheetEmoji}>{prompt.emoji}</span>
                   <p style={{ ...s.themePreviewLabel, marginTop: 4 }}>{hi ? prompt.labelH : prompt.label}</p>
                 </div>

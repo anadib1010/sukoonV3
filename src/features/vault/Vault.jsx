@@ -71,12 +71,8 @@ function MysticParticleCanvas() {
     };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}
-    />
-  );
+  const cs = { width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" };
+  return <canvas ref={canvasRef} style={cs} />;
 }
 
 // ─── GLASS BUTTON ─────────────────────────────────────────────────────

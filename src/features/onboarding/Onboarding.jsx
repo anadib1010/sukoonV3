@@ -85,6 +85,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       letterSpacing: "0.5px", marginTop: "4px", width: "100%", textAlign: "center",
     },
     // FIX: skip button tap target enlarged for mobile
+    ctaWrap: { width: "100%", display: "flex", flexDirection: "column", alignItems: "center" },
     skipBtn: {
       position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)",
       background: "transparent", border: "none", color: "rgba(255,255,255,0.4)",
@@ -132,7 +133,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
           </>
         )}
         {screen === 3 && (
-          <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={st.ctaWrap}>
             <button
               onClick={() => handleComplete('reset')}
               style={st.glassResetBtn}

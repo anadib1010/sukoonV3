@@ -154,6 +154,8 @@ export function Practice({ setTab, goBack, T, lang }) {
   // ─── STYLES ───────────────────────────────────────────────────────
   const s = {
     page: { height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", background: T.bg },
+    flexFill:   { flex: 1 },
+    orbMargin:  { margin: "20px 0" },
 
     header: {
       padding: "52px 18px 0",
@@ -444,7 +446,7 @@ export function Practice({ setTab, goBack, T, lang }) {
                     onMouseLeave={e => { if (sel?.id !== m.id) e.currentTarget.style.background = T.surface; }}
                   >
                     <div style={s.medIcon(m.col)}>{m.emoji}</div>
-                    <div style={{ flex: 1 }}>
+                    <div style={s.flexFill}>
                       <p style={s.medTitle}>{hi ? (m.titleH || m.title) : m.title}</p>
                       <span style={s.medDur(m.col)}>{m.dur} {hi ? "मिनट" : "min"}</span>
                     </div>
@@ -455,7 +457,7 @@ export function Practice({ setTab, goBack, T, lang }) {
                       {running ? (
                         <>
                           <MeditationGuide sel={m} secs={secs} T={T} lang={lang} onSpeak={speakHindi} />
-                          <div style={{ margin: "20px 0" }}>
+                          <div style={s.orbMargin}>
                             <Orb size={140} col={m.col} pulse label={fmt(secs)} />
                           </div>
                           <div style={s.progressTrack}>
@@ -510,7 +512,7 @@ export function Practice({ setTab, goBack, T, lang }) {
                     onMouseLeave={e => { if (pat?.name !== p.name) e.currentTarget.style.background = T.surface; }}
                   >
                     <div style={s.breathDot(pat?.name === p.name)} />
-                    <div style={{ flex: 1 }}>
+                    <div style={s.flexFill}>
                       <p style={s.breathName}>{p.name}</p>
                       <p style={s.breathDesc}>{p.desc}</p>
                     </div>

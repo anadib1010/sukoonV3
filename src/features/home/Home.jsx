@@ -21,9 +21,8 @@ export function Home({ setTab, T, lang }) {
   const s = {
     page: {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
-      alignItems: "center",
-      background: T.bg, color: T.text, overflowX: "hidden", boxSizing: "border-box",
-      padding: "1vh 24px 4vh",
+      alignItems: "center", background: T.bg, color: T.text,
+      overflowX: "hidden", boxSizing: "border-box", padding: "1vh 24px 4vh",
     },
     topSection: {
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -37,8 +36,7 @@ export function Home({ setTab, T, lang }) {
     },
     subTitle: {
       fontFamily: "'DM Sans', sans-serif", fontSize: "11px", fontWeight: 500,
-      letterSpacing: "4px", textTransform: "uppercase", opacity: 0.6,
-      margin: "0 0 30px",
+      letterSpacing: "4px", textTransform: "uppercase", opacity: 0.6, margin: "0 0 30px",
     },
     greeting: {
       fontFamily: "'DM Sans', sans-serif", fontSize: "12px", letterSpacing: "2px",
@@ -62,46 +60,36 @@ export function Home({ setTab, T, lang }) {
     },
     buttonBase: {
       background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}30 50%, ${T.bg} 100%)`,
-      border: `1px solid ${T.accent}40`,
-      borderRadius: "12px",
-      color: T.text,
-      fontFamily: "'DM Sans', sans-serif",
-      fontWeight: 600, cursor: "pointer",
+      border: `1px solid ${T.accent}40`, borderRadius: "12px", color: T.text,
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 600, cursor: "pointer",
       boxShadow: `0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px ${T.accent}30`,
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
     },
-    resetBtn: {
-      width: "100%", maxWidth: "340px", padding: "22px 0",
-      fontSize: "17px", letterSpacing: "2px",
-    },
-    bottomContainer: {
-      display: "flex", flexDirection: "column", alignItems: "center",
-      width: "100%", maxWidth: "340px",
-    },
+    resetBtn: { width: "100%", maxWidth: "340px", padding: "22px 0", fontSize: "17px", letterSpacing: "2px" },
+    bottomContainer: { display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "340px" },
     bottomSection: {
       display: "flex", flexDirection: "column", alignItems: "center", width: "100%",
-      gap: "16px", opacity: visible ? 1 : 0,
-      transition: "opacity 0.8s ease 0.4s",
+      gap: "16px", opacity: visible ? 1 : 0, transition: "opacity 0.8s ease 0.4s",
     },
     row: { display: "flex", gap: "12px", width: "100%" },
-    glassBtn: {
-      flex: 1, padding: "18px 0",
-      fontSize: "14px", letterSpacing: "1.5px",
-      textTransform: "uppercase",
-    },
+    glassBtn: { flex: 1, padding: "18px 0", fontSize: "14px", letterSpacing: "1.5px", textTransform: "uppercase" },
     footerWrap: {
       display: "flex", flexDirection: "column", alignItems: "center",
       gap: "8px", opacity: visible ? 0.6 : 0,
       transition: "opacity 1s ease 0.6s", marginTop: "24px",
     },
-    footerLinks: {
-      display: "flex", gap: "24px",
-    },
+    footerLinks: { display: "flex", gap: "16px", flexWrap: "wrap", justifyContent: "center" },
     footerLink: {
       background: "none", border: "none", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "10px",
+      letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer", padding: "8px 10px",
+    },
+    // Crisis — same visual weight as footer links, always accessible from Home
+    crisisLink: {
+      background: "none", border: "none", color: T.textSoft,
+      fontFamily: "'DM Sans', sans-serif", fontSize: "10px",
       letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer",
-      padding: "8px 12px",
+      padding: "8px 10px", opacity: 0.7,
     },
     disclaimer: {
       fontFamily: "'DM Sans', sans-serif", fontSize: "9px",
@@ -125,7 +113,6 @@ export function Home({ setTab, T, lang }) {
   return (
     <div style={s.page}>
 
-      {/* 1. TOP SECTION */}
       <div style={s.topSection}>
         <h1 style={s.title}>JSukoon</h1>
         <p style={s.subTitle}>{hi ? "अपने लिए एक पल" : "A MOMENT FOR YOU"}</p>
@@ -133,12 +120,8 @@ export function Home({ setTab, T, lang }) {
         <p style={s.quote}>"{quote}"</p>
       </div>
 
-      {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
-        <p style={s.instruction}>
-          {hi ? "एक पल अपने लिए" : "JUST A MOMENT FOR YOURSELF"}
-        </p>
-
+        <p style={s.instruction}>{hi ? "एक पल अपने लिए" : "JUST A MOMENT FOR YOURSELF"}</p>
         <button
           onClick={() => setTab('reset')}
           style={{ ...s.buttonBase, ...s.resetBtn }}
@@ -152,13 +135,13 @@ export function Home({ setTab, T, lang }) {
         </button>
       </div>
 
-      {/* 3. BOTTOM SECTION */}
       <div style={s.bottomContainer}>
         <div style={s.bottomSection}>
           <div style={s.row}>
+            {/* Sleep opacity 0.7 — visible for real users */}
             <button
               onClick={() => setTab('sleep')}
-              style={{ ...s.buttonBase, ...s.glassBtn }}
+              style={{ ...s.buttonBase, ...s.glassBtn, opacity: 0.7 }}
               onMouseEnter={(e) => handleHover(e, true)}
               onMouseLeave={(e) => handleHover(e, false)}
               {...pressable}
@@ -182,8 +165,12 @@ export function Home({ setTab, T, lang }) {
             <button onClick={() => setTab('privacy')} style={s.footerLink}>
               {hi ? "गोपनीयता" : "Privacy"}
             </button>
+            {/* Crisis — 1 tap from Home, quiet but always present */}
+            <button onClick={() => setTab('crisis')} style={s.crisisLink}>
+              {hi ? "संकट सहायता" : "Crisis Support"}
+            </button>
             <button onClick={() => setTab('legal')} style={s.footerLink}>
-              {hi ? "कानूनी" : "Legal Disclaimer"}
+              {hi ? "कानूनी" : "Legal"}
             </button>
           </div>
           <p style={s.disclaimer}>

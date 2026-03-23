@@ -328,6 +328,7 @@ export function AudioPage({ setTab, goBack, T, lang }) {
 
     medTime: { textAlign: "center", fontSize: 12, color: T.muted, marginBottom: 16 },
 
+    hindiNote: { fontSize: 11, color: "#888", textAlign: "center", marginBottom: 12, opacity: 0.65 },
     volumeRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 },
     volumeLabel: { fontSize: 12, color: T.muted },
 
@@ -511,7 +512,7 @@ export function AudioPage({ setTab, goBack, T, lang }) {
             )}
             {/* Hindi: device TTS volume note */}
             {hi && (
-              <p style={{ fontSize: 11, color: T.muted, textAlign: "center", marginBottom: 12, opacity: 0.65 }}>
+              <p style={s.hindiNote}>
                 🔊 आवाज़ की तेज़ी अपने फ़ोन के वॉल्यूम बटन से बदलें
               </p>
             )}
