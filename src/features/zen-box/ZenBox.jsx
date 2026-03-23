@@ -59,10 +59,12 @@ export function ZenBox({ T, lang }) {
   };
 
   const drawWaveShape = (ctx, w) => {
-    const { x, y, r, shape, rotation } = w;
+    const { x, y, r, shape, color, life, rotation, lineWidth } = w;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
+    ctx.strokeStyle = `${color}${life.toFixed(2)})`;
+    ctx.lineWidth = lineWidth;
     ctx.beginPath();
     if (shape === "circle") {
       ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -74,20 +76,16 @@ export function ZenBox({ T, lang }) {
       ctx.closePath();
     } else if (shape === "star") {
       for (let i = 0; i < 10; i++) {
-        const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
-        const rad = i % 2 === 0 ? r : r * 0.45;
-        i === 0 ? ctx.moveTo(Math.cos(a)*rad, Math.sin(a)*rad) : ctx.lineTo(Math.cos(a)*rad, Math.sin(a)*rad);
+        const a = (i / 10) * Math.PI * 2;
+        const radius = i % 2 === 0 ? r : r * 0.5;
+        i === 0 ? ctx.moveTo(Math.cos(a)*radius, Math.sin(a)*radius) : ctx.lineTo(Math.cos(a)*radius, Math.sin(a)*radius);
       }
       ctx.closePath();
     } else if (shape === "square") {
       ctx.rect(-r, -r, r*2, r*2);
-    } else if (shape === "ripple") {
+    } else {
       ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.moveTo(r*0.65, 0); ctx.arc(0, 0, r*0.65, 0, Math.PI*2);
-      ctx.moveTo(r*0.32, 0); ctx.arc(0, 0, r*0.32, 0, Math.PI*2);
     }
-    ctx.strokeStyle = `${w.color}${w.life.toFixed(2)})`;
-    ctx.lineWidth = w.lineWidth;
     ctx.stroke();
     ctx.restore();
   };
@@ -135,18 +133,55 @@ export function ZenBox({ T, lang }) {
     addWave(e.clientX - rect.left, e.clientY - rect.top, canvas.width, canvas.height, 0);
   };
 
+  const s = {
+    container: (fs) => ({
+      position: fs ? "fixed" : "relative",
+      inset: fs ? 0 : "auto",
+      zIndex: fs ? 9999 : 1,
+      width: fs ? "100vw" : "100%",
+      height: fs ? "100vh" : 80,
+      background: fs ? "#000" : T.surface,
+      border: fs ? "none" : `1px solid ${T.borderWarm}`,
+      borderRadius: fs ? 0 : 18,
+      overflow: "hidden", cursor: "crosshair",
+      touchAction: "none", transition: "height 0.3s ease",
+    }),
+    canvas: { position: "absolute", inset: 0, width: "100%", height: "100%" },
+    overlay: (hasCount) => ({
+      position: "absolute", inset: 0,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
+      opacity: hasCount ? 0.25 : 0.8, transition: "opacity 0.8s ease",
+    }),
+    hint: (fs) => ({
+      fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+      color: fs ? "#fff" : T.accent, letterSpacing: 3, textAlign: "center",
+    }),
+    hintSub: { fontSize: 12, color: T.textSoft, letterSpacing: 1, marginTop: 4 },
+    closeBtn: {
+      position: "absolute", top: 20, right: 20,
+      background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
+      borderRadius: 99, color: "#fff", fontSize: 12, padding: "8px 16px",
+      letterSpacing: 1, zIndex: 10, cursor: "pointer",
+    },
+  };
+
   return (
-    <div ref={containerRef} style={{ position: fullscreen ? "fixed" : "relative", inset: fullscreen ? 0 : "auto", zIndex: fullscreen ? 9999 : 1, width: fullscreen ? "100vw" : "100%", height: fullscreen ? "100vh" : 80, background: fullscreen ? "#000" : T.surface, border: fullscreen ? "none" : `1px solid ${T.borderWarm}`, borderRadius: fullscreen ? 0 : 18, overflow: "hidden", cursor: "crosshair", touchAction: "none", transition: "height 0.3s ease" }}>
-      <canvas ref={canvasRef} onMouseDown={handleMouse} onTouchStart={handleTouch} style={{ position:"absolute", inset:0, width:"100%", height:"100%" }} />
-      <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", pointerEvents:"none", opacity: count > 0 ? 0.25 : 0.8, transition:"opacity 0.8s ease" }}>
-        <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color: fullscreen ? "#fff" : T.accent, letterSpacing:3, textAlign:"center" }}>
-          {lang==="Hindi"?"छुएं — महसूस करें":"TOUCH  ·  FEEL"}
+    <div ref={containerRef} style={s.container(fullscreen)}>
+      <canvas ref={canvasRef} onMouseDown={handleMouse} onTouchStart={handleTouch} style={s.canvas} />
+      <div style={s.overlay(count > 0)}>
+        <p style={s.hint(fullscreen)}>
+          {lang === "Hindi" ? "छुएं — महसूस करें" : "TOUCH  ·  FEEL"}
         </p>
-        {!fullscreen && <p style={{ fontSize:12, color: T.textSoft, letterSpacing:1, marginTop:4 }}>{lang==="Hindi"?"दो उंगली = पूर्ण स्क्रीन":"two fingers = full screen"}</p>}
+        {!fullscreen && (
+          <p style={s.hintSub}>
+            {lang === "Hindi" ? "दो उंगली = पूर्ण स्क्रीन" : "two fingers = full screen"}
+          </p>
+        )}
       </div>
       {fullscreen && (
-        <button onClick={() => { setFullscreen(false); wavesRef.current = []; }} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:99, color:"#fff", fontSize:12, padding:"8px 16px", letterSpacing:1, zIndex:10 }}>
-          ✕ {lang==="Hindi"?"बंद करें":"close"}
+        <button onClick={() => { setFullscreen(false); wavesRef.current = []; }} style={s.closeBtn}>
+          ✕ {lang === "Hindi" ? "बंद करें" : "close"}
         </button>
       )}
     </div>
