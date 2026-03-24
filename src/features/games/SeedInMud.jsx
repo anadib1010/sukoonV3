@@ -94,7 +94,7 @@ export function SeedInMud({ setTab, T, lang }) {
         <p style={s.subtitle}>
           {isRushing
             ? (isHindi ? "जल्दबाजी न करें। इसे समय दें।" : "Do not rush. Give it time.")
-            : (isHindi ? "दिल की धड़कन की तरह, धीरे-धीरे टैप करें।" : "Tap slowly, like a resting heartbeat.")}
+            : (isHindi ? "लंबे अंतराल से टैप करें — जल्दी करने से बीज छोटा रहता है।" : "Tap with long intervals — rush it and the seed stays small.")}
         </p>
       </div>
 

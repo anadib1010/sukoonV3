@@ -71,8 +71,12 @@ function MysticParticleCanvas() {
     };
   }, []);
 
-  const cs = { width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" };
-  return <canvas ref={canvasRef} style={cs} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}
+    />
+  );
 }
 
 // ─── GLASS BUTTON ─────────────────────────────────────────────────────
@@ -137,10 +141,10 @@ const GlassButton = ({ emoji, label, onClick, isVisible }) => {
 const VAULT_TOOLS = [
   { id: "reflection", en: "Write it. Then release it.",             hi: "लिखें। फिर जाने दें।",                tab: "reflection", emoji: "🪞" },
   { id: "descent",    en: "Let go of the day completely.",          hi: "दिन को पूरी तरह छोड़ दें।",           tab: "descent",    emoji: "🍂" },
-  { id: "bilateral",  en: "For what the mind cannot release alone.",hi: "जो मन अकेले नहीं छोड़ पाता।",         tab: null,         emoji: "⚖️" },
+  { id: "bilateral",  en: "When the body needs to help the mind.",hi: "जब मन अकेला काफ़ी नहीं होता।",         tab: null,         emoji: "⚖️" },
   { id: "nadi",       en: "Balance what words cannot reach.",       hi: "जहाँ शब्द नहीं पहुँचते, वहाँ जाएं।",  tab: null,         emoji: "🌬️" },
-  { id: "letter",     en: "Say what you never could.",              hi: "वो कहें जो कभी कह न सके।",            tab: null,         emoji: "✉️" },
-  { id: "stone",      en: "Let it sink. Let it go.",                hi: "डूब जाने दें। जाने दें।",             tab: null,         emoji: "🪨" },
+  { id: "letter",     en: "The words you never sent.",              hi: "वो शब्द जो भेजे न गए।",            tab: null,         emoji: "✉️" },
+  { id: "stone",      en: "Drop the weight. Walk lighter.",                hi: "बोझ छोड़ें। हल्के चलें।",             tab: null,         emoji: "🪨" },
 ];
 
 const RETURN_GREETINGS = [

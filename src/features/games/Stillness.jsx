@@ -10,11 +10,11 @@ export function Stillness({ setTab, T, lang }) {
   const hi = lang === "Hindi";
 
   const TOOLS = [
-    { id: "mirror",     icon: "🪞", title: hi ? "बिखरे हुए विचार" : "Shattered Thoughts",  desc: hi ? "अहंकार को पीछे छोड़ दें" : "Leave the ego behind" },
+    { id: "mirror",     icon: "🪞", title: hi ? "तोड़ो, आज़ाद हो" : "Shatter it",  desc: hi ? "देखो यह मिट जाता है" : "Watch it dissolve" },
     { id: "star",       icon: "✨", title: hi ? "स्थिर सितारा"     : "The Staring Star",     desc: hi ? "बिना हिले ध्यान केंद्रित करें" : "Focus without wavering" },
-    { id: "heavystone", icon: "🪨", title: hi ? "भारी पत्थर"       : "The Heavy Stone",      desc: hi ? "नियंत्रण को जाने दें" : "Surrender your burdens" },
-    { id: "letter",     icon: "✉️", title: hi ? "अनभेजा पत्र"      : "The Unsent Letter",    desc: hi ? "कर्म के तारों को काटें" : "Sever karmic cords" },
-    { id: "sand",       icon: "⏳", title: hi ? "रेत की पेंटिंग"   : "Sand Painting",        desc: hi ? "अनित्यता को स्वीकार करें" : "Accept impermanence" },
+    { id: "heavystone", icon: "🪨", title: hi ? "बोझ को डुबो दो"       : "Drown the weight",      desc: hi ? "खींचो नीचे। हल्के हो जाओ।" : "Drag it down. Walk free." },
+    { id: "letter",     icon: "✉️", title: hi ? "वो जो कभी न कहा"      : "Say what was never said",    desc: hi ? "जो बाँधता है उसे मुक्त करें" : "Free what holds you" },
+    { id: "sand",       icon: "⏳", title: hi ? "जाने दो"   : "Let it pass",        desc: hi ? "कुछ भी हमेशा नहीं रहता" : "Nothing stays forever" },
   ];
 
   const renderTool = () => {

@@ -35,7 +35,7 @@ export function Resonance({ setTab, T, lang }) {
       id: 'seedinmud',
       title:    hi ? "कीचड़ में बीज"      : "Seed in the Mud",
       subtitle: hi ? "धैर्य और श्वास"    : "Trust & Patience",
-      desc:     hi ? "दिव्य समय और धैर्य का अभ्यास करें।" : "A deep breathing practice to teach the concept of divine timing.",
+      desc:     hi ? "जो धीरज रखता है, उसे फल मिलता है।" : "What you tend to slowly, grows.",
       icon: "🌱",
     },
   ];
