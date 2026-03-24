@@ -3,8 +3,6 @@ import { BrandHeader } from './BrandHeader';
 import { BackButton } from './BackButton';
 
 // ─── SESSION-BASED MICROCOPY ───────────────────────────────────────────
-// Reads reset count from localStorage — no login needed.
-// Falls back gracefully if localStorage is unavailable.
 function getResetCount() {
   try { return parseInt(localStorage.getItem("jsukoon_reset_count") || "0", 10); }
   catch { return 0; }
@@ -17,44 +15,30 @@ function incrementResetCount() {
   } catch { return 1; }
 }
 
-// Closing line rotates based on session count — never repeats too quickly
-function getClosingLine(count, hi) {
-  if (count <= 1) {
-    return hi ? "आप वापस हैं।" : "You're back.";
-  }
-  if (count <= 3) {
-    // Session 2–3: light reassurance
-    return hi ? "यह यहाँ है जब आपको ज़रूरत हो।" : "This is here when you need it.";
-  }
+function getClosingLine(count) {
+  if (count <= 1) return "You're back.";
+  if (count <= 3) return "This is here when you need it.";
   if (count <= 6) {
-    // Session 4–6: rotate emotional connection lines
-    const lines = hi
-      ? ["बस इतना काफ़ी है।", "आप वापस हैं।", "इसे अपने साथ ले जाएं।"]
-      : ["That's enough for now.", "You're back.", "Take what you needed."];
+    const lines = ["That's enough for now.", "You're back.", "Take what you needed."];
     return lines[count % lines.length];
   }
-  if (count <= 10) {
-    // Session 7–10: recognition
-    return hi ? "आप वापस आए।" : "You came back.";
-  }
-  // Session 10+: ownership
-  const deepLines = hi
-    ? ["आप इस जगह को जानते हैं।", "यहाँ जितनी देर चाहें रहें।", "आप वापस आए।"]
-    : ["You know this place.", "Stay as long as you need.", "You found your way back."];
+  if (count <= 10) return "You came back.";
+  const deepLines = ["You know this place.", "Stay as long as you need.", "You found your way back."];
   return deepLines[count % deepLines.length];
 }
 
 export function Reset({ setTab, T, lang }) {
-  const hi = lang === "Hindi";
-  const [step, setStep] = useState(0);
-  const [fade, setFade] = useState(false);
+  const [step, setStep]               = useState(0);
+  const [fade, setFade]               = useState(false);
   const [showFocusBtn, setShowFocusBtn] = useState(false);
-  // "Stay with this" appears mid-tap at ~10s
-  const [showAnchor, setShowAnchor] = useState(false);
-  // 1-second silence before closing line
+  const [showAnchor, setShowAnchor]   = useState(false);
   const [showClosing, setShowClosing] = useState(false);
-  const [resetCount] = useState(() => getResetCount());
-  const closingLine = getClosingLine(resetCount + 1, hi);
+  // 3 lines stagger state
+  const [line1, setLine1]             = useState(false);
+  const [line2, setLine2]             = useState(false);
+  const [line3, setLine3]             = useState(false);
+  const [resetCount]                  = useState(() => getResetCount());
+  const closingLine                   = getClosingLine(resetCount + 1);
 
   const advance = (nextStep, delay) => {
     const timer = setTimeout(() => {
@@ -71,9 +55,9 @@ export function Reset({ setTab, T, lang }) {
     return () => clearTimeout(t);
   }, []);
 
-  // "Stay with this" anchor — isolated from step flow so it can't interfere
+  // "Stay with this" anchor — isolated so it can't interfere with step flow
   useEffect(() => {
-    if (step !== 4) { setShowAnchor(false); return; }
+    if (step !== 5) { setShowAnchor(false); return; }
     const show = setTimeout(() => setShowAnchor(true), 10000);
     const hide = setTimeout(() => setShowAnchor(false), 11500);
     return () => { clearTimeout(show); clearTimeout(hide); };
@@ -81,33 +65,43 @@ export function Reset({ setTab, T, lang }) {
 
   useEffect(() => {
     let t;
-    if (step === 1) t = advance(2, 2000);
+    if (step === 1) t = advance(2, 2500);  // "Use your other hand." — give it time to land
     if (step === 2) t = advance(3, 2000);
-    if (step === 3) t = advance(4, 2000);   // "Follow this..." 2s
+    if (step === 3) t = advance(4, 2000);
+    if (step === 4) t = advance(5, 2000);
+    if (step === 5) t = advance(6, 21000);
+    if (step === 6) t = advance(7, 24000);
+    if (step === 7) t = advance(8, 2000);
+    if (step === 8) t = advance(9, 2000);
+    if (step === 9) { setShowFocusBtn(false); t = advance(10, 100); }
+    if (step === 10) { t = setTimeout(() => setShowFocusBtn(true), 4000); }
 
-    if (step === 4) {
-      t = advance(5, 21000);
-    }
-
-    if (step === 5) t = advance(6, 24000);  // breathing 24s
-    if (step === 6) t = advance(7, 2000);   // "Good."
-    if (step === 7) t = advance(8, 2000);   // "Now..."
-    if (step === 8) { setShowFocusBtn(false); t = advance(9, 100); }
-    if (step === 9) { t = setTimeout(() => setShowFocusBtn(true), 4000); }
-
-    if (step === 10) {
-      // 1-second silence (blank), then closing line fades in
+    if (step === 12) {
+      // 1-second silence then closing line fades in
       setShowClosing(false);
       const showT = setTimeout(() => setShowClosing(true), 1000);
-      // Navigate to PostReset after closing line has landed
+      // After closing line lands, advance to step 13 (3 lines)
+      t = setTimeout(() => {
+        setFade(false);
+        setTimeout(() => { setStep(13); setFade(true); }, 1000);
+      }, 4000);
+      return () => { clearTimeout(t); clearTimeout(showT); };
+    }
+
+    if (step === 13) {
+      // 3 lines stagger in, then navigate to PostReset
+      setLine1(false); setLine2(false);
+      const t1 = setTimeout(() => setLine1(true), 300);
+      const t2 = setTimeout(() => setLine2(true), 900);
+      // Navigate after all 3 lines have been read (~4 seconds)
       t = setTimeout(() => {
         setFade(false);
         setTimeout(() => {
           incrementResetCount();
           setTab('postreset');
         }, 1000);
-      }, 4000);
-      return () => { clearTimeout(t); clearTimeout(showT); };
+      }, 4500);
+      return () => { clearTimeout(t); clearTimeout(t1); clearTimeout(t2); };
     }
 
     return () => clearTimeout(t);
@@ -116,7 +110,7 @@ export function Reset({ setTab, T, lang }) {
 
   const handleFocusClick = () => {
     setFade(false);
-    setTimeout(() => { setStep(10); setFade(true); }, 1000);
+    setTimeout(() => { setStep(12); setFade(true); }, 1000);
   };
 
   const s = {
@@ -149,7 +143,6 @@ export function Reset({ setTab, T, lang }) {
       background: T.accent, opacity: 0.4, marginTop: 32,
       animation: "breatheSoft 4s ease-in-out infinite",
     },
-    // "Stay with this" — small, soft, fades in/out
     anchorText: {
       fontFamily: "'DM Sans', sans-serif", fontSize: 12,
       letterSpacing: "2px", textTransform: "uppercase",
@@ -159,8 +152,6 @@ export function Reset({ setTab, T, lang }) {
     },
     orbWrap: {
       position: "relative",
-      // Size the container at 1.6x the orb so scale(1.5) never overflows it
-      // margin provides breathing room from text above and bar below
       display: "flex", justifyContent: "center", alignItems: "center",
       flexShrink: 0,
     },
@@ -179,7 +170,7 @@ export function Reset({ setTab, T, lang }) {
     },
     orb: {
       borderRadius: "50%",
-      background: "radial-gradient(circle at 30% 30%, rgba(180, 180, 185, 0.95) 0%, rgba(100, 100, 105, 0.95) 100%)",
+      background: "radial-gradient(circle at 30% 30%, rgba(180,180,185,0.95) 0%, rgba(100,100,105,0.95) 100%)",
       boxShadow: `0 0 35px ${T.accent}60, inset -8px -8px 15px rgba(0,0,0,0.2), inset 8px 8px 15px rgba(255,255,255,0.3)`,
       willChange: "transform",
       transformOrigin: "center",
@@ -202,14 +193,12 @@ export function Reset({ setTab, T, lang }) {
       fontFamily: "'DM Sans', sans-serif", transition: "transform 0.2s",
       width: "100%", maxWidth: "300px", boxShadow: "0 0 30px rgba(255,255,255,0.2)",
     },
-    // Closing line — softer, smaller than main text, fades in after 1s silence
     closingText: {
       fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, fontStyle: "italic",
       letterSpacing: "1px", margin: 0, lineHeight: 1.4,
       opacity: showClosing ? 1 : 0,
       transition: "opacity 1.2s ease-in-out",
     },
-    // Session line (2nd use+) — smaller, softer, below closing
     sessionLine: {
       fontFamily: "'DM Sans', sans-serif", fontSize: 11,
       letterSpacing: "2px", textTransform: "uppercase",
@@ -217,6 +206,21 @@ export function Reset({ setTab, T, lang }) {
       opacity: showClosing ? 1 : 0,
       transition: "opacity 1.5s ease-in-out 0.5s",
     },
+    // 3 lines wrap — centred, generous spacing
+    linesWrap: {
+      display: "flex", flexDirection: "column",
+      alignItems: "center", gap: 20,
+    },
+    line: (visible) => ({
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: "clamp(22px, 6vw, 28px)",
+      fontWeight: 300, fontStyle: "italic",
+      color: "rgba(255,255,255,0.85)",
+      letterSpacing: "1px", lineHeight: 1.5, margin: 0,
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(10px)",
+      transition: "opacity 0.8s ease, transform 0.8s ease",
+    }),
     headerWrap: { position: "absolute", top: "10px", left: 0, width: "100%", zIndex: 10, opacity: 0.5 },
     backWrap:   { position: "absolute", bottom: "30px", left: "24px", zIndex: 10, opacity: 0.5 },
   };
@@ -224,9 +228,7 @@ export function Reset({ setTab, T, lang }) {
   useEffect(() => {
     const styleSheet = document.createElement("style");
     styleSheet.innerText = `
-      @keyframes progressFill {
-        0% { width: 0%; } 100% { width: 100%; }
-      }
+      @keyframes progressFill { 0% { width: 0%; } 100% { width: 100%; } }
       @keyframes heartbeat {
         0%  { transform: scale(0.8); opacity: 0.5; }
         20% { transform: scale(1.1); opacity: 1; }
@@ -258,33 +260,30 @@ export function Reset({ setTab, T, lang }) {
 
   return (
     <div style={s.page}>
-
       <div style={s.progressBar} />
       <div style={s.headerWrap}><BrandHeader T={T} /></div>
       <div style={s.backWrap}><BackButton setTab={setTab} destination="home" T={T} lang={lang} /></div>
 
       <div style={s.content}>
 
-        {step === 1 && <p style={s.text}>{hi ? "ठहरें।" : "Pause."}</p>}
+        {step === 1 && <p style={s.text}>Use your other hand.</p>}
 
-        {step === 2 && (
+        {step === 2 && <p style={s.text}>Pause.</p>}
+
+        {step === 3 && (
           <>
-            <p style={s.text}>{hi ? "आप यहाँ हैं।" : "You're here."}</p>
+            <p style={s.text}>You're here.</p>
             <div style={s.breathingDot} />
           </>
         )}
 
-        {step === 3 && (
-          <p style={{ ...s.text, fontSize: "28px", opacity: 0.7 }}>
-            {hi ? "इसे महसूस करें..." : "Follow this..."}
-          </p>
+        {step === 4 && (
+          <p style={{ ...s.text, fontSize: "28px", opacity: 0.7 }}>Follow this...</p>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <>
-            <p style={{ ...s.text, fontSize: "32px", opacity: 0.8 }}>
-              {hi ? "लय के साथ टैप करें" : "Tap with the rhythm"}
-            </p>
+            <p style={{ ...s.text, fontSize: "32px", opacity: 0.8 }}>Tap with the rhythm</p>
             <div
               style={{
                 ...s.orbWrap,
@@ -297,16 +296,13 @@ export function Reset({ setTab, T, lang }) {
               <div style={orbStyle(orbSizeSmall, "heartbeat 1s infinite")} />
             </div>
             <div style={s.phaseBarWrap}><div style={s.phaseBarTap} /></div>
-            {/* "Stay with this" — emotional anchor at ~10s */}
-            <p style={s.anchorText}>{hi ? "इसके साथ रहें" : "Stay with this"}</p>
+            <p style={s.anchorText}>Stay with this</p>
           </>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <>
-            <p style={{ ...s.text, fontSize: "32px", opacity: 0.8 }}>
-              {hi ? "इस लय का पालन करें" : "Follow this rhythm "}
-            </p>
+            <p style={{ ...s.text, fontSize: "32px", opacity: 0.8 }}>Follow this rhythm</p>
             <div style={{
               ...s.orbWrap,
               width: "clamp(224px, 72vw, 320px)",
@@ -319,16 +315,14 @@ export function Reset({ setTab, T, lang }) {
           </>
         )}
 
-        {step === 6 && <p style={s.text}>{hi ? "बहुत अच्छा।" : "Good."}</p>}
-        {step === 7 && <p style={s.text}>{hi ? "अब..." : "Now..."}</p>}
+        {step === 7 && <p style={s.text}>Good.</p>}
+        {step === 8 && <p style={s.text}>Now...</p>}
 
-        {step === 9 && (
+        {step === 10 && (
           <>
-            <p style={s.text}>{hi ? "अभी सबसे ज़रूरी क्या है?" : "What matters most right now?"}</p>
+            <p style={s.text}>What matters most right now?</p>
             <div style={s.focusWrap}>
-              <p style={s.focusInputText}>
-                {hi ? "अपने मन में उत्तर सोचें" : "Hold the answer in your mind"}
-              </p>
+              <p style={s.focusInputText}>Hold the answer in your mind</p>
               <button
                 onClick={handleFocusClick}
                 style={s.focusBtn}
@@ -337,23 +331,28 @@ export function Reset({ setTab, T, lang }) {
                 onTouchStart={e => e.currentTarget.style.transform = "scale(0.95)"}
                 onTouchEnd={e => e.currentTarget.style.transform = "scale(1)"}
               >
-                {hi ? "एक चीज़ पर ध्यान दें" : "FOCUS ON ONE THING"}
+                FOCUS ON ONE THING
               </button>
             </div>
           </>
         )}
 
-        {/* 1-second silence then closing line fades in — session-aware */}
-        {step === 10 && (
+        {/* Step 12 — 1-second silence then closing line */}
+        {step === 12 && (
           <>
             <p style={s.closingText}>{closingLine}</p>
-            {/* Session 2+ only: soft reinforcement line below */}
             {resetCount >= 1 && (
-              <p style={s.sessionLine}>
-                {hi ? "यह यहाँ है।" : "This is here."}
-              </p>
+              <p style={s.sessionLine}>This is here.</p>
             )}
           </>
+        )}
+
+        {/* Step 13 — 3 lines, staggered fade-in, then PostReset */}
+        {step === 13 && (
+          <div style={s.linesWrap}>
+            <p style={s.line(line1)}>This is your space.</p>
+            <p style={s.line(line2)}>No pressure. No noise.</p>
+          </div>
         )}
 
       </div>
