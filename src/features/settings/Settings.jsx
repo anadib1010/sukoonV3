@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../../supabase';
 import { PageNav } from '../../components/SharedUI';
 import { THEMES } from '../../utils/theme';
 
@@ -7,7 +8,9 @@ export function Settings({
   setThemeKey, setThemeSource, setLang,
   themeSource, themeKey
 }) {
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear]   = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting]           = useState(false);
   const [prevThemeKey, setPrevThemeKey] = useState(null);
   const [visible, setVisible] = useState(false);
   const hi = lang === "Hindi";
@@ -31,6 +34,27 @@ export function Settings({
   };
 
   // ─── STYLES ───
+  const handleDeleteAccount = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    try {
+      // Delete all user data from Supabase then sign out
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Delete journal entries
+        await supabase.from('journal_entries').delete().eq('user_id', user.id);
+        // Delete user row if exists
+        await supabase.from('users').delete().eq('id', user.id);
+      }
+      await supabase.auth.signOut();
+      localStorage.clear();
+      window.location.reload();
+    } catch (err) {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const s = {
     page: { height: "100%", display: "flex", flexDirection: "column", background: T.bg, color: T.text, overflow: "hidden" },
 
@@ -165,6 +189,16 @@ export function Settings({
     },
 
     // Footer links
+    deleteBtn: {
+      width: "100%", padding: "14px", borderRadius: 12,
+      background: "rgba(180,30,30,0.08)",
+      border: "1px solid rgba(180,30,30,0.25)",
+      color: "rgba(220,80,80,0.9)",
+      fontFamily: "'DM Sans', sans-serif",
+      fontSize: 13, letterSpacing: "0.5px",
+      cursor: "pointer", transition: "background 0.2s",
+      marginTop: 8,
+    },
     footer: { display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingBottom: 40 },
 
     footerLink: { background: "none", border: "none", color: T.textSoft, fontSize: 13, textDecoration: "underline", cursor: "pointer" },
@@ -297,6 +331,21 @@ export function Settings({
               {confirmClear
                 ? (hi ? "निश्चित? सब कुछ मिटाएं" : "Sure? Erase Everything")
                 : (hi ? "सारा डेटा मिटाएं" : "Clear All App Data")}
+            </button>
+
+            {/* Delete Account (Now safely inside the data section) */}
+            <button
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              style={s.deleteBtn}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(180,30,30,0.18)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(180,30,30,0.08)"}
+            >
+              {deleting
+                ? "Deleting..."
+                : confirmDelete
+                  ? "Tap again to permanently delete account & all data"
+                  : "Delete My Account & All Data"}
             </button>
           </div>
 

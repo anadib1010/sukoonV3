@@ -11,6 +11,7 @@ export function Login({ onLogin, T, lang }) {
   const [message, setMessage]       = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
   const [visible, setVisible]       = useState(false);
+  const [consent, setConsent]       = useState(false);
   const captchaRef = useRef(null);
 
   useEffect(() => {
@@ -45,6 +46,15 @@ export function Login({ onLogin, T, lang }) {
   }, []);
 
   const handleGoogleLogin = async () => {
+    // STEP 1: The Security Check! 
+    // If they are signing up, but haven't checked the box, stop them here.
+    if (isSignUp && !consent) {
+      setMessage(hi 
+        ? "खाता बनाने से पहले कृपया गोपनीयता नीति से सहमत हों।" 
+        : "Please agree to the Privacy Policy before creating an account.");
+      return; // This 'return' stops the code so they don't go to Google
+    }
+
     setLoading(true);
     setMessage("");
     const { error } = await supabase.auth.signInWithOAuth({
@@ -122,7 +132,6 @@ export function Login({ onLogin, T, lang }) {
       overflow: "hidden",
     },
 
-    // Ambient glow behind the title
     ambientGlow: {
       position: "absolute",
       top: "15%",
@@ -285,7 +294,42 @@ export function Login({ onLogin, T, lang }) {
           {/* Message banner */}
           {message && <div style={s.messageBanner}>{message}</div>}
 
-          {/* Google */}
+          {/* STEP 2: The Layout Move! 
+              We moved the DPDP Consent up here so it is the very first thing 
+              they see before clicking Google OR typing an email. */}
+          {isSignUp && (
+            <label style={{
+              display: "flex", alignItems: "flex-start", gap: 10,
+              cursor: "pointer", margin: "0 0 4px 0", textAlign: "left"
+            }}>
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={e => {
+                  setConsent(e.target.checked);
+                  // Clear the warning message if they finally check the box
+                  if (e.target.checked && message) setMessage(""); 
+                }}
+                style={{ marginTop: 3, accentColor: T.accent, flexShrink: 0, width: 15, height: 15 }}
+              />
+              <span style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 12, color: "rgba(255,255,255,0.55)",
+                lineHeight: 1.5,
+              }}>
+                I agree to the{" "}
+                <span
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                  style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+                >
+                  Privacy Policy
+                </span>
+                {" "}and consent to my data being processed as described. Data may be processed on servers outside India.
+              </span>
+            </label>
+          )}
+
+          {/* Google Button */}
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -334,7 +378,7 @@ export function Login({ onLogin, T, lang }) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isSignUp && !consent)}
               style={s.submitBtn}
               onMouseEnter={e => { e.currentTarget.style.background = `${T.accent}18`; e.currentTarget.style.transform = "translateY(-1px)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.transform = "translateY(0)"; }}
@@ -349,7 +393,7 @@ export function Login({ onLogin, T, lang }) {
 
           {/* Toggle sign in / sign up */}
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => { setIsSignUp(!isSignUp); setConsent(false); setMessage(""); }}
             style={s.toggleBtn}
             onMouseEnter={e => e.currentTarget.style.opacity = "1"}
             onMouseLeave={e => e.currentTarget.style.opacity = "0.7"}

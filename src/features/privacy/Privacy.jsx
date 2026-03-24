@@ -7,58 +7,88 @@ export function Privacy({ setTab, goBack, T, lang }) {
   const SECTIONS = [
     {
       icon: "☁️",
-      en: "Your Data is on Secure Cloud",
-      hi: "आपका डेटा सुरक्षित क्लाउड पर है",
-      enD: "Your journal entries, mood logs, reflections, and session history are stored securely on Supabase — a trusted cloud platform. Your data is tied to your account and protected by row-level security.",
-      hiD: "आपकी जर्नल प्रविष्टियां, मूड लॉग, चिंतन और सत्र इतिहास Supabase पर सुरक्षित रूप से संग्रहीत हैं — एक विश्वसनीय क्लाउड प्लेटफ़ॉर्म। आपका डेटा आपके खाते से जुड़ा है और row-level security द्वारा सुरक्षित है।",
+      en: "What We Collect",
+      hi: "हम क्या एकत्र करते हैं",
+      enD: "We collect your email address (for account creation), journal entries, mood logs, reflections, and session history. This data is stored securely on Supabase — a trusted cloud platform — protected by row-level security and tied only to your account.",
+      hiD: "हम आपका ईमेल पता (खाता बनाने के लिए), जर्नल प्रविष्टियां, मूड लॉग, चिंतन और सत्र इतिहास एकत्र करते हैं। यह डेटा Supabase पर सुरक्षित रूप से संग्रहीत है।",
+    },
+    {
+      icon: "🎯",
+      en: "Why We Collect It",
+      hi: "हम इसे क्यों एकत्र करते हैं",
+      enD: "Your data is used solely to operate the app — to save your journal, remember your session progress, and personalise your experience. We do not use your personal data for advertising or sell it to any third party.",
+      hiD: "आपका डेटा केवल ऐप चलाने के लिए उपयोग किया जाता है — आपकी जर्नल सहेजने, सत्र प्रगति याद रखने और अनुभव को व्यक्तिगत बनाने के लिए। हम विज्ञापन के लिए आपके व्यक्तिगत डेटा का उपयोग नहीं करते।",
     },
     {
       icon: "🤖",
       en: "AI Processing",
       hi: "AI प्रोसेसिंग",
-      enD: "When you Seek a Reflection, your text is sent to the Google Gemini API. This data is used only to generate the reflection and is not stored.",
-      hiD: "जब आप कोई प्रतिबिंब (Reflection) खोजते हैं, तो आपका टेक्स्ट Google Gemini API को भेजा जाता है। इस डेटा का उपयोग केवल उत्तर उत्पन्न करने के लिए किया जाता है और इसे सहेजा नहीं जाता है।",
+      enD: "When you use the AI journal feature, your text is sent to the AI API solely to generate a response. It is not stored by the AI provider and is not used to train any model.",
+      hiD: "जब आप AI जर्नल सुविधा का उपयोग करते हैं, तो आपका टेक्स्ट केवल उत्तर उत्पन्न करने के लिए AI API को भेजा जाता है। इसे AI प्रदाता द्वारा संग्रहीत नहीं किया जाता है।",
     },
     {
       icon: "📊",
-      en: "Analytics & Tracking",
-      hi: "एनालिटिक्स और ट्रैकिंग",
-      enD: "JSukoon uses PostHog to collect anonymous usage data — pages visited, features used, and actions like completing a meditation or submitting a journal entry. This data is linked to your account ID and helps us improve the app. Your journal entries, thoughts, and personal writing are never tracked or stored in analytics.",
-      hiD: "JSukoon बेहतर बनाने के लिए PostHog एनालिटिक्स का उपयोग करता है — देखे गए पेज, उपयोग की गई सुविधाएं, और ध्यान पूरा करने या जर्नल सबमिट करने जैसी क्रियाएं। यह डेटा आपके खाता ID से जुड़ा है। आपकी जर्नल प्रविष्टियां, विचार और व्यक्तिगत लेखन कभी ट्रैक नहीं किया जाता।",
+      en: "Analytics",
+      hi: "एनालिटिक्स",
+      enD: "JSukoon uses PostHog to collect anonymous usage data — pages visited and features used. Your journal entries, thoughts, and personal writing are never tracked or stored in analytics.",
+      hiD: "JSukoon PostHog एनालिटिक्स का उपयोग करता है। आपकी जर्नल प्रविष्टियां और व्यक्तिगत लेखन कभी ट्रैक नहीं किया जाता।",
+    },
+    {
+      icon: "🌍",
+      en: "Data Processing Outside India",
+      hi: "भारत के बाहर डेटा प्रोसेसिंग",
+      enD: "JSukoon uses services including Supabase, Vercel, PostHog, and AI providers — which may process data on servers outside India. By using JSukoon, you consent to this processing. We ensure each provider maintains appropriate data protection standards.",
+      hiD: "JSukoon Supabase, Vercel, PostHog जैसी सेवाओं का उपयोग करता है जो भारत के बाहर सर्वर पर डेटा प्रोसेस कर सकती हैं। JSukoon का उपयोग करके आप इस प्रोसेसिंग के लिए सहमति देते हैं।",
+    },
+    {
+      icon: "🗓️",
+      en: "How Long We Keep It",
+      hi: "हम इसे कितने समय तक रखते हैं",
+      enD: "Your data is retained as long as your account is active. If your account is inactive for 2 years, data may be deleted. You can delete your account and all associated data at any time from Settings.",
+      hiD: "आपका डेटा तब तक रखा जाता है जब तक आपका खाता सक्रिय है। आप किसी भी समय Settings से अपना खाता और सभी डेटा हटा सकते हैं।",
+    },
+    {
+      icon: "🗑️",
+      en: "Your Right to Delete",
+      hi: "हटाने का आपका अधिकार",
+      enD: "Under India's Digital Personal Data Protection Act 2023 (DPDP), you have the right to request deletion of your personal data. You can delete your account and all data directly from Settings → Delete My Account. For any data requests, contact: selfhelp97power@gmail.com",
+      hiD: "भारत के DPDP अधिनियम 2023 के तहत, आपको अपना व्यक्तिगत डेटा हटाने का अधिकार है। Settings → Delete My Account से सीधे हटाएं। किसी भी डेटा अनुरोध के लिए: selfhelp97power@gmail.com",
     },
     {
       icon: "🚫",
-      en: "No Ad Tracking",
-      hi: "कोई विज्ञापन ट्रैकिंग नहीं",
-      enD: "JSukoon does not use third-party tracking cookies or sell your data to advertisers.",
-      hiD: "JSukoon थर्ड-पार्टी ट्रैकिंग कुकीज़ का उपयोग नहीं करता है या आपका डेटा विज्ञापनदाताओं को नहीं बेचता है।",
+      en: "No Ad Tracking. No Data Sales.",
+      hi: "कोई विज्ञापन ट्रैकिंग नहीं। कोई डेटा बिक्री नहीं।",
+      enD: "JSukoon does not use third-party tracking cookies, does not sell your data to advertisers, and does not share your personal data with any third party except as required to operate the app.",
+      hiD: "JSukoon थर्ड-पार्टी ट्रैकिंग कुकीज़ का उपयोग नहीं करता, आपका डेटा विज्ञापनदाताओं को नहीं बेचता।",
     },
     {
       icon: "🛡️",
       en: "Security",
       hi: "सुरक्षा",
-      enD: "While we take every precaution to protect your data, no method of transmission over the internet is 100% secure.",
-      hiD: "हालांकि हम आपके डेटा की सुरक्षा के लिए हर सावधानी बरतते हैं, लेकिन इंटरनेट पर ट्रांसमिशन का कोई भी तरीका 100% सुरक्षित नहीं है।",
+      enD: "We take every reasonable precaution to protect your data including encryption in transit and row-level security in our database. No method of internet transmission is 100% secure, but we commit to notifying you of any breach that affects your data.",
+      hiD: "हम आपके डेटा की सुरक्षा के लिए हर उचित सावधानी बरतते हैं। कोई भी उल्लंघन होने पर हम आपको सूचित करेंगे।",
     },
   ];
 
   const s = {
-    page:       { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" },
-    scroll:     { flex: 1, overflowY: "auto", padding: "10px 24px 80px" },
-    header:     { textAlign: "center", marginBottom: 40, marginTop: 10 },
-    iconCircle: { width: 64, height: 64, borderRadius: "50%", background: `${T.accent}15`, border: `1px solid ${T.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, boxShadow: `0 4px 20px ${T.accent}20` },
-    heading:    { fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: T.text, fontWeight: 500, marginBottom: 8 },
-    updated:    { fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase" },
-    highlight:  { marginBottom: 32, lineHeight: 1.6, padding: 20, borderLeft: `3px solid ${T.accent}`, background: 'rgba(255,255,255,0.03)', borderRadius: '0 12px 12px 0' },
-    hlTitle:    { marginBottom: 12, fontWeight: 600, color: T.text, fontSize: 18, fontFamily: "'Cormorant Garamond',serif" },
-    hlText:     { marginBottom: 10, color: T.textSoft, fontSize: 15 },
-    sectionCard:{ marginBottom: 32, background: T.surfaceAlt, borderRadius: 20, padding: 24, border: `1px solid ${T.borderWarm}` },
-    sectionHead:{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
-    sectionIcon:{ fontSize: 24 },
+    page:        { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" },
+    scroll:      { flex: 1, overflowY: "auto", padding: "10px 24px 80px" },
+    header:      { textAlign: "center", marginBottom: 40, marginTop: 10 },
+    iconCircle:  { width: 64, height: 64, borderRadius: "50%", background: `${T.accent}15`, border: `1px solid ${T.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, boxShadow: `0 4px 20px ${T.accent}20` },
+    heading:     { fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: T.text, fontWeight: 500, marginBottom: 8 },
+    updated:     { fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase" },
+    highlight:   { marginBottom: 32, lineHeight: 1.6, padding: 20, borderLeft: `3px solid ${T.accent}`, background: "rgba(255,255,255,0.03)", borderRadius: "0 12px 12px 0" },
+    hlTitle:     { marginBottom: 12, fontWeight: 600, color: T.text, fontSize: 18, fontFamily: "'Cormorant Garamond',serif" },
+    hlText:      { marginBottom: 10, color: T.textSoft, fontSize: 15, margin: 0 },
+    sectionCard: { marginBottom: 24, background: T.surfaceAlt, borderRadius: 20, padding: 24, border: `1px solid ${T.borderWarm}` },
+    sectionHead: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
+    sectionIcon: { fontSize: 24 },
     sectionTitle:{ fontSize: 16, color: T.text, fontWeight: 600, margin: 0 },
-    sectionDesc:{ fontSize: 14, color: T.textSoft, lineHeight: 1.8, margin: 0 },
-    closing:    { textAlign: "center", marginTop: 48, marginBottom: 32 },
-    closingText:{ fontSize: 18, color: T.accent, fontFamily: "'Cormorant Garamond',serif", fontStyle: "italic", lineHeight: 1.6 },
+    sectionDesc: { fontSize: 14, color: T.textSoft, lineHeight: 1.8, margin: 0 },
+    grievance:   { marginTop: 8, padding: "16px 20px", background: `${T.accent}08`, borderRadius: 12, border: `1px solid ${T.accent}20` },
+    grievanceText:{ fontSize: 13, color: T.textSoft, lineHeight: 1.7, margin: 0 },
+    closing:     { textAlign: "center", marginTop: 48, marginBottom: 32 },
+    closingText: { fontSize: 18, color: T.accent, fontFamily: "'Cormorant Garamond',serif", fontStyle: "italic", lineHeight: 1.6 },
   };
 
   return (
@@ -74,16 +104,11 @@ export function Privacy({ setTab, goBack, T, lang }) {
         </div>
 
         <div style={s.highlight}>
-          <h3 style={s.hlTitle}>{hi ? "आपकी गोपनीयता और एनालिटिक्स" : "Your Privacy & Analytics"}</h3>
+          <h3 style={s.hlTitle}>{hi ? "आपकी गोपनीयता" : "Your Privacy"}</h3>
           <p style={s.hlText}>
             {hi
-              ? "यह एक निजी स्थान है। आपका जर्नल, मूड, और सत्र डेटा Supabase क्लाउड पर सुरक्षित रूप से संग्रहीत होता है — केवल आपके खाते से जुड़ा।"
-              : "This is a private space. Your journal, mood, and session data is securely stored on Supabase cloud — linked only to your account."}
-          </p>
-          <p style={{ ...s.hlText, margin: 0 }}>
-            {hi
-              ? "JSukoon को बेहतर बनाने के लिए हम PostHog एनालिटिक्स का उपयोग करते हैं। यह आपकी जर्नल सामग्री, विचार या व्यक्तिगत लेखन को कभी रिकॉर्ड नहीं करता।"
-              : "To improve JSukoon, we use PostHog analytics. It never records your journal content, thoughts, or personal writing."}
+              ? "यह एक निजी स्थान है। आपका डेटा आपका है। हम इसे नहीं बेचते, विज्ञापनों के लिए उपयोग नहीं करते।"
+              : "This is a private space. Your data is yours. We do not sell it, we do not use it for ads."}
           </p>
         </div>
 
@@ -96,6 +121,18 @@ export function Privacy({ setTab, goBack, T, lang }) {
             <p style={s.sectionDesc}>{hi ? sec.hiD : sec.enD}</p>
           </div>
         ))}
+
+        {/* Grievance Officer — DPDP requirement */}
+        <div style={s.grievance}>
+          <p style={s.grievanceText}>
+            <strong>{hi ? "शिकायत अधिकारी, डिजिटल व्यक्तिगत डेटा संरक्षण (डीपीडीपी) अधिनियम, 2023" : "Grievance Officer (DPDP Act 2023)"}</strong><br />
+            {hi
+              ? "किसी भी डेटा संबंधी शिकायत के लिए संपर्क करें:"
+              : "For any data-related concerns or requests:"}<br />
+            selfhelp97power@gmail.com<br />
+            {hi ? "हम 30 दिनों के भीतर उत्तर देंगे।" : "We will respond within 30 days."}
+          </p>
+        </div>
 
         <div style={s.closing}>
           <p style={s.closingText}>
