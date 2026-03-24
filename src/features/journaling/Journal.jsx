@@ -3,7 +3,100 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PageNav } from '../../components/SharedUI';
 import { readEmotionalCtx, clearEmotionalCtx } from '../../utils/context';
 import { supabase } from '../../supabase';
+import { CRISIS_WORDS, CRISIS_RESOURCES } from '../../utils/crisisData';
 
+// ─── CRISIS OVERLAY COMPONENTS ──────────────────────────────────────────────
+function TwoTapDismiss({ lang, onDismiss }) {
+  const [taps, setTaps] = useState(0);
+  const [msg, setMsg] = useState("");
+  const handle = () => {
+    if (taps === 0) {
+      setTaps(1);
+      setMsg(lang === "Hindi" ? "क्या आप वाकई बंद करना चाहते हैं? एक बार और टैप करें।" : "Are you sure? Tap once more to close.");
+      setTimeout(() => { setTaps(0); setMsg(""); }, 4000);
+    } else {
+      onDismiss();
+    }
+  };
+  return (
+    <div style={{ textAlign: "center" }}>
+      {msg && <p style={{ fontSize: 12, color: "rgba(255,150,150,0.8)", marginBottom: 10, lineHeight: 1.6 }}>{msg}</p>}
+      <button onClick={handle} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 11, letterSpacing: 1, padding: "10px 20px", cursor: "pointer" }}>
+        {taps === 0
+          ? (lang === "Hindi" ? "मैं ठीक हूँ — वापस जाएं" : "I am safe — go back")
+          : (lang === "Hindi" ? "हाँ, बंद करें" : "Yes, close this")}
+      </button>
+    </div>
+  );
+}
+
+function CrisisOverlay({ lang, onDismiss }) {
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => setPulse(p => !p), 1500);
+    if (navigator.vibrate) navigator.vibrate([100, 80, 100, 80, 200]);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 99999,
+      background: pulse ? "rgba(10,0,0,0.97)" : "rgba(20,5,5,0.97)",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      padding: "0 24px", transition: "background 0.8s ease",
+    }}>
+      <div style={{
+        width: 80, height: 80, borderRadius: "50%",
+        border: pulse ? "3px solid rgba(255,60,60,0.9)" : "3px solid rgba(255,60,60,0.3)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        marginBottom: 24, transition: "border 0.8s ease",
+        boxShadow: pulse ? "0 0 30px rgba(255,60,60,0.4)" : "0 0 8px rgba(255,60,60,0.1)",
+      }}>
+        <span style={{ fontSize: 36 }}>🆘</span>
+      </div>
+
+      <p style={{ fontSize: 10, color: "rgba(255,100,100,0.7)", letterSpacing: 3, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }}>
+        {lang === "Hindi" ? "कृपया रुकें — बाहरी सहायता लें" : "PLEASE STOP — SEEK REAL HELP NOW"}
+      </p>
+
+      <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 300, color: "#fff", textAlign: "center", lineHeight: 1.5, marginBottom: 12, maxWidth: 300 }}>
+        {lang === "Hindi" ? "कृपया अभी किसी प्रशिक्षित व्यक्ति से बात करें।" : "Please speak to a trained person right now."}
+      </h2>
+
+      <p style={{ fontSize: 13, color: "rgba(255,200,200,0.7)", textAlign: "center", lineHeight: 1.7, marginBottom: 32, maxWidth: 280 }}>
+        {lang === "Hindi"
+          ? "यह ऐप संकट सहायता के लिए नहीं है। नीचे दी गई हेल्पलाइन पर अभी कॉल करें — वे सुनने के लिए प्रशिक्षित हैं।"
+          : "This app is not equipped for crisis support. Please call one of the helplines below — they are trained to help."}
+      </p>
+
+      <div style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+        {CRISIS_RESOURCES.map(r => (
+          <a key={r.name} href={`tel:${r.number}`} style={{ textDecoration: "none" }}>
+            <div style={{
+              background: pulse ? "rgba(255,60,60,0.18)" : "rgba(255,60,60,0.10)",
+              border: `2px solid ${pulse ? "rgba(255,80,80,0.6)" : "rgba(255,80,80,0.3)"}`,
+              borderRadius: 18, padding: "18px 22px",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              transition: "all 0.8s ease",
+            }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 3px" }}>{r.name}</p>
+                <p style={{ fontSize: 13, color: "rgba(255,180,180,0.8)", margin: 0 }}>{r.desc}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ fontSize: 18, fontWeight: 700, color: "#ff6b6b", margin: "0 0 2px", letterSpacing: 0.5 }}>{r.number}</p>
+                <p style={{ fontSize: 10, color: "rgba(255,100,100,0.6)", letterSpacing: 1 }}>TAP TO CALL</p>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+      <TwoTapDismiss lang={lang} onDismiss={onDismiss} />
+    </div>
+  );
+}
+
+// ─── MAIN JOURNAL COMPONENT ─────────────────────────────────────────────────
 export function Journal({ setTab, T, lang }) {
   const hi = lang === "Hindi";
 
@@ -17,6 +110,9 @@ export function Journal({ setTab, T, lang }) {
   const [isRecording, setIsRecording] = useState(false);
   const [contextData, setContextData] = useState(null);
   const [visible, setVisible] = useState(false);
+  
+  // ── CRISIS STATE ──
+  const [crisisDetected, setCrisisDetected] = useState(false);
 
   const recognitionRef = useRef(null);
 
@@ -39,6 +135,18 @@ export function Journal({ setTab, T, lang }) {
     }
     return () => { if (recognitionRef.current) recognitionRef.current.stop(); };
   }, []);
+
+  // ── CRISIS SCANNER ──
+  const checkCrisis = (textToCheck) => {
+    const lower = textToCheck.toLowerCase();
+    return CRISIS_WORDS.some(w => lower.includes(w.toLowerCase()));
+  };
+
+  const handleTextChange = (e) => {
+    const val = e.target.value;
+    setEntry(val);
+    if (checkCrisis(val)) setCrisisDetected(true);
+  };
 
   const fetchCloudHistory = async () => {
     setIsLoadingCloud(true);
@@ -71,7 +179,16 @@ export function Journal({ setTab, T, lang }) {
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) final += event.results[i][0].transcript + ' ';
           }
-          if (final) setEntry(prev => prev + final);
+          if (final) {
+            // Check for crisis in voice input
+            if (checkCrisis(final)) {
+              setCrisisDetected(true);
+              recognitionRef.current.stop();
+              setIsRecording(false);
+              return;
+            }
+            setEntry(prev => prev + final);
+          }
         };
         recognitionRef.current.onerror = (event) => {
           setIsRecording(false);
@@ -130,6 +247,13 @@ export function Journal({ setTab, T, lang }) {
 
   const askGemini = async () => {
     if (!entry.trim()) return;
+    
+    // Final check before sending to backend
+    if (checkCrisis(entry)) {
+      setCrisisDetected(true);
+      return;
+    }
+
     if (isRecording) toggleRecording();
     setIsThinking(true);
     if ('speechSynthesis' in window) {
@@ -196,7 +320,6 @@ export function Journal({ setTab, T, lang }) {
       flexDirection: "column",
     },
 
-    // Landing screen
     landing: {
       flex: 1,
       display: "flex",
@@ -267,7 +390,6 @@ export function Journal({ setTab, T, lang }) {
 
     btnEmoji: { fontSize: "22px" },
 
-    // Editor screen
     editor: {
       flex: 1,
       display: "flex",
@@ -448,7 +570,6 @@ export function Journal({ setTab, T, lang }) {
       transition: "opacity 0.2s",
     }),
 
-    // History tab
     historyHeader: {
       fontSize: "12px",
       opacity: 0.5,
@@ -517,11 +638,25 @@ export function Journal({ setTab, T, lang }) {
     },
   };
 
+  // ── RENDER CRISIS OVERLAY INSTEAD OF NORMAL PAGE IF DANGER IS DETECTED ──
+  if (crisisDetected) {
+    return (
+      <CrisisOverlay 
+        lang={lang} 
+        onDismiss={() => { 
+          setCrisisDetected(false); 
+          setEntry(""); 
+          setIsComposing(false);
+          if (isRecording) toggleRecording();
+        }} 
+      />
+    );
+  }
+
   return (
     <div style={s.page}>
       <PageNav onBack={() => setTab("home")} onHome={() => setTab("home")} T={T} lang={lang} />
 
-      {/* Tab bar — only shown on landing/history, not while composing */}
       {!isComposing && (
         <div style={s.tabBar}>
           <button onClick={() => setActiveTab("write")} style={s.tab(activeTab === "write")}>
@@ -537,7 +672,6 @@ export function Journal({ setTab, T, lang }) {
         {activeTab === "write" ? (
           !isComposing ? (
 
-            /* ── LANDING ── */
             <div className="fade-in" style={s.landing}>
               {contextData && (
                 <p style={s.contextHint}>
@@ -572,7 +706,6 @@ export function Journal({ setTab, T, lang }) {
 
           ) : (
 
-            /* ── EDITOR ── */
             <div className="fade-in" style={s.editor}>
 
               <div style={s.promptBox}>
@@ -587,7 +720,7 @@ export function Journal({ setTab, T, lang }) {
                 <textarea
                   autoFocus
                   value={entry}
-                  onChange={e => setEntry(e.target.value)}
+                  onChange={handleTextChange} /* <-- Scanner added here! */
                   placeholder={hi ? "स्वतंत्र रूप से लिखें या बोलें..." : "Write or speak freely..."}
                   style={s.textarea}
                 />
@@ -648,7 +781,6 @@ export function Journal({ setTab, T, lang }) {
           )
         ) : (
 
-          /* ── HISTORY ── */
           <div className="fade-in">
             <h3 style={s.historyHeader}>
               {hi ? "क्लाउड यादें" : "CLOUD MEMORIES"}
