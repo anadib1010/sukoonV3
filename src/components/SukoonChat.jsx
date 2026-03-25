@@ -57,8 +57,14 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(channel); };
   }, [activeRoom]);
 
-  // 3. SEARCH & PRIVATE CHAT LOGIC (With X-Ray Vision!)
+  // 3. SEARCH & PRIVATE CHAT LOGIC (With X-Ray Vision & Safety Net!)
   const handleSearch = async () => {
+    // 🛡️ THE SAFETY NET: This stops the app from crashing if you are logged out!
+    if (!currentUser) {
+      alert("You are logged out! Please go back to Home and log in again.");
+      return;
+    }
+
     console.log("🔍 1. Search Button Clicked!");
     console.log("🔍 2. You typed:", searchTerm);
 
@@ -88,6 +94,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   // ─── THE MISSING TOOL: START PRIVATE CHAT ─────────────────────────────────
   const startPrivateChat = async (friend) => {
+    if (!currentUser) return; // 🛡️ Another safety net
+
     // 1. Check if a private room already exists between these two users
     const { data: existing } = await supabase
       .from('rooms')
