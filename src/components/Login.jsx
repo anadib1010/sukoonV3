@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 
-export function Login({ onLogin, T, lang }) {
+export function Login({ onLogin, T, lang, embedded = false }) {
   const hi = lang === "Hindi";
 
   const [email, setEmail]           = useState('');
@@ -12,6 +12,7 @@ export function Login({ onLogin, T, lang }) {
   const [captchaToken, setCaptchaToken] = useState('');
   const [visible, setVisible]       = useState(false);
   const [consent, setConsent]       = useState(false);
+  const [forgotSent, setForgotSent]   = useState(false);
   const captchaRef = useRef(null);
 
   useEffect(() => {
@@ -46,15 +47,6 @@ export function Login({ onLogin, T, lang }) {
   }, []);
 
   const handleGoogleLogin = async () => {
-    // STEP 1: The Security Check! 
-    // If they are signing up, but haven't checked the box, stop them here.
-    if (isSignUp && !consent) {
-      setMessage(hi 
-        ? "खाता बनाने से पहले कृपया गोपनीयता नीति से सहमत हों।" 
-        : "Please agree to the Privacy Policy before creating an account.");
-      return; // This 'return' stops the code so they don't go to Google
-    }
-
     setLoading(true);
     setMessage("");
     const { error } = await supabase.auth.signInWithOAuth({
@@ -103,11 +95,25 @@ export function Login({ onLogin, T, lang }) {
     }
   };
 
+  const handleForgot = async () => {
+    if (!email.trim()) {
+      setMessage("Enter your email above first, then tap Forgot password.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    setLoading(false);
+    if (error) { setMessage(error.message); }
+    else { setForgotSent(true); setMessage(""); }
+  };
+
   // ─── STYLES ───
   const s = {
     outer: {
-      height: "100vh",
-      width: "100vw",
+      height: embedded ? "auto" : "100vh",
+      width: embedded ? "100%" : "100vw",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -132,6 +138,7 @@ export function Login({ onLogin, T, lang }) {
       overflow: "hidden",
     },
 
+    // Ambient glow behind the title
     ambientGlow: {
       position: "absolute",
       top: "15%",
@@ -260,6 +267,24 @@ export function Login({ onLogin, T, lang }) {
       letterSpacing: "0.5px",
     },
 
+    forgotLink: {
+      background: "none", border: "none",
+      color: "rgba(255,255,255,0.4)",
+      fontFamily: "'DM Sans', sans-serif",
+      fontSize: 12, letterSpacing: "0.5px",
+      cursor: "pointer", textDecoration: "underline",
+      textUnderlineOffset: 3,
+      alignSelf: "flex-end", marginTop: -8,
+      padding: "4px 0",
+    },
+    sentMsg: {
+      fontFamily: "'DM Sans', sans-serif",
+      fontSize: 13, color: "rgba(100,220,140,0.9)",
+      textAlign: "center", lineHeight: 1.5,
+      padding: "12px 16px",
+      background: "rgba(100,220,140,0.08)",
+      borderRadius: 10, border: "1px solid rgba(100,220,140,0.2)",
+    },
     toggleBtn: {
       background: "none",
       border: "none",
@@ -294,42 +319,7 @@ export function Login({ onLogin, T, lang }) {
           {/* Message banner */}
           {message && <div style={s.messageBanner}>{message}</div>}
 
-          {/* STEP 2: The Layout Move! 
-              We moved the DPDP Consent up here so it is the very first thing 
-              they see before clicking Google OR typing an email. */}
-          {isSignUp && (
-            <label style={{
-              display: "flex", alignItems: "flex-start", gap: 10,
-              cursor: "pointer", margin: "0 0 4px 0", textAlign: "left"
-            }}>
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={e => {
-                  setConsent(e.target.checked);
-                  // Clear the warning message if they finally check the box
-                  if (e.target.checked && message) setMessage(""); 
-                }}
-                style={{ marginTop: 3, accentColor: T.accent, flexShrink: 0, width: 15, height: 15 }}
-              />
-              <span style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: 12, color: "rgba(255,255,255,0.55)",
-                lineHeight: 1.5,
-              }}>
-                I agree to the{" "}
-                <span
-                  onClick={e => { e.preventDefault(); e.stopPropagation(); }}
-                  style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
-                >
-                  Privacy Policy
-                </span>
-                {" "}and consent to my data being processed as described. Data may be processed on servers outside India.
-              </span>
-            </label>
-          )}
-
-          {/* Google Button */}
+          {/* Google */}
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -373,8 +363,55 @@ export function Login({ onLogin, T, lang }) {
               onBlur={e => { e.currentTarget.style.borderColor = T.borderWarm || 'rgba(212,175,55,0.25)'; e.currentTarget.style.background = `${T.accent}06`; }}
             />
 
+            {/* Forgot password — login mode only */}
+            {!isSignUp && (
+              forgotSent ? (
+                <div style={s.sentMsg}>
+                  ✓ Reset link sent — check your inbox.{" "}
+                  <span style={{opacity:0.6}}>Check spam if you don't see it.</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleForgot}
+                  style={s.forgotLink}
+                >
+                  Forgot password?
+                </button>
+              )
+            )}
+
             {/* Turnstile CAPTCHA */}
             <div ref={captchaRef} style={s.captchaWrap} />
+
+            {/* DPDP Consent — signup only */}
+            {isSignUp && (
+              <label style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                cursor: "pointer", margin: "4px 0 8px",
+              }}>
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={e => setConsent(e.target.checked)}
+                  style={{ marginTop: 3, accentColor: T.accent, flexShrink: 0, width: 15, height: 15 }}
+                />
+                <span style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 12, color: "rgba(255,255,255,0.55)",
+                  lineHeight: 1.5,
+                }}>
+                  I agree to the{" "}
+                  <span
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                    style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    Privacy Policy
+                  </span>
+                  {" "}and consent to my data being processed as described. Data may be processed on servers outside India.
+                </span>
+              </label>
+            )}
 
             <button
               type="submit"
@@ -393,7 +430,7 @@ export function Login({ onLogin, T, lang }) {
 
           {/* Toggle sign in / sign up */}
           <button
-            onClick={() => { setIsSignUp(!isSignUp); setConsent(false); setMessage(""); }}
+            onClick={() => { setIsSignUp(!isSignUp); setConsent(false); }}
             style={s.toggleBtn}
             onMouseEnter={e => e.currentTarget.style.opacity = "1"}
             onMouseLeave={e => e.currentTarget.style.opacity = "0.7"}
