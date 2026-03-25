@@ -86,6 +86,40 @@ export default function SukoonChat({ T, lang, setTab }) {
     setSearchResults(data || []);
   };
 
+  // ─── THE MISSING TOOL: START PRIVATE CHAT ─────────────────────────────────
+  const startPrivateChat = async (friend) => {
+    // 1. Check if a private room already exists between these two users
+    const { data: existing } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('is_private', true)
+      .contains('participants', [currentUser.id, friend.id]);
+
+    if (existing && existing.length > 0) {
+      setActiveRoom(existing[0]);
+    } else {
+      // 2. Create a brand new private room
+      const roomName = `Chat: ${friend.email.split('@')[0]}`;
+      const { data: newRoom, error } = await supabase
+        .from('rooms')
+        .insert([{ 
+          name: roomName, 
+          is_private: true, 
+          participants: [currentUser.id, friend.id] 
+        }])
+        .select();
+      
+      if (error) alert("Could not create room: " + error.message);
+      if (newRoom) {
+        setRooms(prev => [...prev, newRoom[0]]);
+        setActiveRoom(newRoom[0]);
+      }
+    }
+    setSearchTerm("");
+    setSearchResults([]);
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   // ─── THE SECRET SCRAMBLER (SPY TOOLS) ─────────────────────────────────────
   
   // Encrypt: Mixes the text with the secret key
