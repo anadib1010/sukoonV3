@@ -217,6 +217,8 @@ function AppContent() {
     wishes:    "Share and see wishes — create a free account.",
     community: "Join the community — create a free account.",
     warmth:    "Save your warmth — create a free account.",
+    // NEW: Telling the bouncer to check IDs for the chat room!
+    chat:      "Join the team conversation — create a free account.",
   };
 
   const setTab = (newTab) => {
