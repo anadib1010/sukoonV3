@@ -57,45 +57,33 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(channel); };
   }, [activeRoom]);
 
-  // 3. SEARCH & PRIVATE CHAT LOGIC
+  // 3. SEARCH & PRIVATE CHAT LOGIC (With X-Ray Vision!)
   const handleSearch = async () => {
-    if (searchTerm.length < 3) return;
-    const { data } = await supabase
+    console.log("🔍 1. Search Button Clicked!");
+    console.log("🔍 2. You typed:", searchTerm);
+
+    if (searchTerm.length < 3) {
+      alert("Please type at least 3 letters of the email!");
+      return;
+    }
+
+    // Ask the database for the profile
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .ilike('email', `%${searchTerm}%`)
       .neq('id', currentUser.id);
-    setSearchResults(data || []);
-  };
 
-  const startPrivateChat = async (friend) => {
-    const { data: existing } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('is_private', true)
-      .contains('participants', [currentUser.id, friend.id]);
+    console.log("🔍 3. Did the Security Guard block us? Error:", error);
+    console.log("🔍 4. What did the database find?", data);
 
-    if (existing && existing.length > 0) {
-      setActiveRoom(existing[0]);
-    } else {
-      const roomName = `Chat: ${friend.email.split('@')[0]}`;
-      const { data: newRoom, error } = await supabase
-        .from('rooms')
-        .insert([{ 
-          name: roomName, 
-          is_private: true, 
-          participants: [currentUser.id, friend.id] 
-        }])
-        .select();
-      
-      if (error) alert("Could not create room: " + error.message);
-      if (newRoom) {
-        setRooms(prev => [...prev, newRoom[0]]);
-        setActiveRoom(newRoom[0]);
-      }
+    if (error) {
+      alert("Database Error: " + error.message);
+    } else if (data && data.length === 0) {
+      alert("No friend found! Are you sure their email is in the 'profiles' table?");
     }
-    setSearchTerm("");
-    setSearchResults([]);
+
+    setSearchResults(data || []);
   };
 
   // ─── THE SECRET SCRAMBLER (SPY TOOLS) ─────────────────────────────────────
