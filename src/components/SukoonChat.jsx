@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// We are importing our Supabase "Postman" so we can talk to the database
 import { supabase } from '../supabase';
 
 // STEP 1: STATIC STYLES (Outside)
 const staticStyles = {
-  // We updated the header to be a 'flex' box so the Home button and Title sit nicely together
   header: {
     display: 'flex',
     alignItems: 'center',
@@ -20,7 +18,6 @@ const staticStyles = {
     flex: 1,
     textAlign: 'center'
   },
-  // The shape and font of our new Home button
   homeBtn: {
     padding: '8px 16px',
     borderRadius: '20px',
@@ -36,7 +33,9 @@ const staticStyles = {
     flex: 1,
     padding: '20px',
     overflowY: 'scroll',
-    fontFamily: "'DM Sans', sans-serif"
+    fontFamily: "'DM Sans', sans-serif",
+    display: 'flex',
+    flexDirection: 'column'
   },
   inputField: {
     flex: 1,
@@ -59,11 +58,13 @@ const staticStyles = {
 };
 
 // STEP 2: THE COMPONENT
-// NOTICE: We added 'setTab' inside the parentheses here so the page knows how to teleport!
 export default function SukoonChat({ T, lang, setTab }) {
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]); 
   const [loading, setLoading] = useState(true);
+  
+  // NEW: Our Magic Memory Box! It starts empty (null).
+  const [activeRoom, setActiveRoom] = useState(null);
 
   // STEP 3: THE MAGIC FETCH
   useEffect(() => {
@@ -104,10 +105,9 @@ export default function SukoonChat({ T, lang, setTab }) {
       backgroundColor: T.bg,
       color: T.text
     },
-    // Adding dynamic colors to our new Home button
     combinedHomeBtn: {
       ...staticStyles.homeBtn,
-      backgroundColor: `${T.accent}20`, // A soft, transparent background
+      backgroundColor: `${T.accent}20`, 
       color: T.text,
       border: `1px solid ${T.accent}50`
     },
@@ -133,7 +133,19 @@ export default function SukoonChat({ T, lang, setTab }) {
       borderRadius: '12px',
       border: `1px solid ${T.accent}40`,
       backgroundColor: `${T.accent}10`,
-      cursor: 'pointer'
+      cursor: 'pointer',
+      transition: 'transform 0.2s ease'
+    }
+  };
+
+  // NEW: A smart function for our top-left button
+  const handleBackOrHome = () => {
+    if (activeRoom) {
+      // If we are inside a room, just go back to the folder list
+      setActiveRoom(null);
+    } else {
+      // If we are looking at the folders, go back to the Sukoon Home screen
+      setTab('home');
     }
   };
 
@@ -142,54 +154,72 @@ export default function SukoonChat({ T, lang, setTab }) {
       
       {/* The Header Area */}
       <div style={staticStyles.header}>
-        {/* OUR NEW HOME BUTTON */}
+        {/* Our Smart Back/Home Button */}
         <button 
           style={dynamicStyles.combinedHomeBtn}
-          onClick={() => setTab('home')} // This is the teleportation spell!
+          onClick={handleBackOrHome} 
         >
-          {lang === "Hindi" ? "होम" : "HOME"}
+          {lang === "Hindi" 
+            ? (activeRoom ? "पीछे" : "होम") 
+            : (activeRoom ? "BACK" : "HOME")}
         </button>
 
-        {/* The Title */}
+        {/* The Title changes depending on where we are! */}
         <div style={staticStyles.headerTitle}>
-          {lang === "Hindi" ? "सुकून टीम चैट" : "SUKOON TEAM CHAT"}
+          {activeRoom 
+            ? activeRoom.name 
+            : (lang === "Hindi" ? "सुकून टीम चैट" : "SUKOON TEAM CHAT")}
         </div>
         
-        {/* An empty invisible box on the right to keep the title perfectly centered */}
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* The Area where messages or rooms show up */}
+      {/* The Middle Area (Where the magic happens) */}
       <div style={staticStyles.chatBox}>
         {loading ? (
           <p style={{ textAlign: 'center', opacity: 0.5 }}>Loading secure connection...</p>
-        ) : (
+        ) : !activeRoom ? (
+          /* --- VIEW 1: THE HALLWAY (Folder List) --- */
           <>
             <p style={{ opacity: 0.7, fontSize: '14px', marginBottom: '20px' }}>
               Available Rooms:
             </p>
             {rooms.map((room) => (
-              <div key={room.id} style={dynamicStyles.roomCard}>
+              <div 
+                key={room.id} 
+                style={dynamicStyles.roomCard}
+                onClick={() => setActiveRoom(room)} // NEW: Clicking this puts the room in the Memory Box!
+              >
                 📁 {room.name}
               </div>
             ))}
           </>
+        ) : (
+          /* --- VIEW 2: INSIDE THE ROOM --- */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '14px', marginTop: '20px' }}>
+              You are now inside the secure {activeRoom.name}.<br/>
+              Messages will appear here soon!
+            </p>
+          </div>
         )}
       </div>
 
-      {/* The Area where you type */}
-      <div style={dynamicStyles.inputArea}>
-        <input 
-          style={dynamicStyles.combinedInput} 
-          type="text" 
-          placeholder={lang === "Hindi" ? "एक सुरक्षित संदेश टाइप करें..." : "Type a secure message..."} 
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-        <button style={dynamicStyles.combinedButton}>
-          {lang === "Hindi" ? "भेजें" : "Send"}
-        </button>
-      </div>
+      {/* The Bottom Area where you type (Only show if inside a room!) */}
+      {activeRoom && (
+        <div style={dynamicStyles.inputArea}>
+          <input 
+            style={dynamicStyles.combinedInput} 
+            type="text" 
+            placeholder={lang === "Hindi" ? "एक सुरक्षित संदेश टाइप करें..." : "Type a secure message..."} 
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <button style={dynamicStyles.combinedButton}>
+            {lang === "Hindi" ? "भेजें" : "Send"}
+          </button>
+        </div>
+      )}
 
     </div>
   );
