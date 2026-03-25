@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
-// ─── STATIC STYLES (Outside the component) ─────────────────────────────────
+// ─── STATIC STYLES (Stay Outside) ──────────────────────────────────────────
 const staticStyles = {
   header: {
     display: 'flex',
@@ -63,17 +63,15 @@ const staticStyles = {
   }
 };
 
-// ─── THE COMPONENT ────────────────────────────────────────────────────────
+// ─── THE COMPONENT ─────────────────────────────────────────────────────────
 export default function SukoonChat({ T, lang, setTab }) {
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]); 
   const [activeRoom, setActiveRoom] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // NEW: A memory box to hold all the text messages for the room we are inside!
   const [messages, setMessages] = useState([]);
 
-  // 1. Fetch the Rooms (Runs once when the app opens)
+  // 1. Fetch Rooms
   useEffect(() => {
     async function setupRooms() {
       let { data: existingRooms, error } = await supabase.from('rooms').select('*');
@@ -88,68 +86,54 @@ export default function SukoonChat({ T, lang, setTab }) {
     setupRooms();
   }, []);
 
-  // 2. THE WALKIE-TALKIE (Runs every time you click into a different room)
+  // 2. Fetch Messages & Realtime Listener
   useEffect(() => {
-    // If we are not in a room, do nothing.
     if (!activeRoom) return;
 
-    // First, ask the Postman for all old messages from this specific room
     const fetchMessages = async () => {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .eq('room_id', activeRoom.id) // Only get messages for THIS room
-        .order('created_at', { ascending: true }); // Oldest at the top, newest at the bottom
-      
-      if (!error && data) {
-        setMessages(data);
-      }
+        .eq('room_id', activeRoom.id)
+        .order('created_at', { ascending: true });
+      if (!error && data) setMessages(data);
     };
 
     fetchMessages();
 
-    // Next, turn on the Walkie-Talkie to listen for brand new messages instantly
     const channel = supabase
-      .channel('room-messages')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
-        (payload) => {
-          // When a new message arrives, add it to our list!
-          setMessages((prevMessages) => [...prevMessages, payload.new]);
-        }
-      )
+      .channel(`room-${activeRoom.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
+      (payload) => {
+        setMessages((prev) => [...prev, payload.new]);
+      })
       .subscribe();
 
-    // When we leave the room, turn the Walkie-Talkie off so we don't waste battery
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeRoom]); // This magic trick tells the Walkie-Talkie to reset if we change rooms
+    return () => { supabase.removeChannel(channel); };
+  }, [activeRoom]);
 
-  // 3. THE STAMP (Sending a message)
+  // 3. THE SEND FUNCTION (Now with error alerts for debugging)
   const handleSendMessage = async () => {
-    // If the box is empty, don't send anything
     if (!message.trim()) return;
 
-    // Create the package
+    // Package the letter
     const newMessage = {
-      content: message,           // The words you typed
-      room_id: activeRoom.id      // The bridge we built earlier!
+      content: message, // Make sure this matches your Supabase column name!
+      room_id: activeRoom.id
     };
 
-    // Send it to the Post Office
     const { error } = await supabase.from('messages').insert([newMessage]);
 
     if (error) {
+      // This is the Teacher's Note: it will tell us if Supabase is rejecting the message
+      alert("Database Error: " + error.message);
       console.error("Error sending message:", error);
     } else {
-      // Clear the typing box so you can type the next message
-      setMessage("");
+      setMessage(""); // Clear the box on success
     }
   };
 
-  // ─── DYNAMIC STYLES (Rule of T: Must stay inside) ────────────────────────
+  // ─── DYNAMIC STYLES (Rule of T) ──────────────────────────────────────────
   const dynamicStyles = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text },
     combinedHomeBtn: { ...staticStyles.homeBtn, backgroundColor: `${T.accent}20`, color: T.text, border: `1px solid ${T.accent}50` },
@@ -157,8 +141,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     combinedInput: { ...staticStyles.inputField, backgroundColor: T.bg, color: T.text, border: `1px solid ${T.accent}40` },
     combinedButton: { ...staticStyles.sendButton, backgroundColor: T.accent, color: T.bg },
     roomCard: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px solid ${T.accent}40`, backgroundColor: `${T.accent}10`, cursor: 'pointer' },
-    // A beautiful style for the message bubbles
-    messageBubble: { padding: '10px 15px', borderRadius: '15px', backgroundColor: `${T.accent}20`, border: `1px solid ${T.accent}30`, maxWidth: '80%', alignSelf: 'flex-start', wordBreak: 'break-word' }
+    messageBubble: { padding: '10px 15px', borderRadius: '15px', backgroundColor: `${T.accent}20`, border: `1px solid ${T.accent}30`, maxWidth: '80%', alignSelf: 'flex-start' }
   };
 
   const handleBackOrHome = () => {
@@ -179,12 +162,11 @@ export default function SukoonChat({ T, lang, setTab }) {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* MIDDLE AREA */}
+      {/* CHAT AREA */}
       <div style={staticStyles.chatBox}>
         {loading ? (
-          <p style={{ textAlign: 'center', opacity: 0.5 }}>Loading secure connection...</p>
+          <p style={{ textAlign: 'center', opacity: 0.5 }}>Connecting...</p>
         ) : !activeRoom ? (
-          /* THE HALLWAY (Folder List) */
           <>
             <p style={{ opacity: 0.7, fontSize: '14px', marginBottom: '20px' }}>Available Rooms:</p>
             {rooms.map((room) => (
@@ -194,12 +176,9 @@ export default function SukoonChat({ T, lang, setTab }) {
             ))}
           </>
         ) : (
-          /* INSIDE THE ROOM (Showing the Messages) */
           <div style={staticStyles.messageList}>
             {messages.length === 0 ? (
-              <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '14px', marginTop: '20px' }}>
-                This room is empty. Be the first to say hello!
-              </p>
+              <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '14px', marginTop: '20px' }}>This room is empty.</p>
             ) : (
               messages.map((msg) => (
                 <div key={msg.id} style={dynamicStyles.messageBubble}>
@@ -211,16 +190,17 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
-      {/* BOTTOM AREA (Typing Box) */}
+      {/* INPUT AREA */}
       {activeRoom && (
         <div style={dynamicStyles.inputArea}>
           <input 
             style={dynamicStyles.combinedInput} 
             type="text" 
-            placeholder={lang === "Hindi" ? "एक सुरक्षित संदेश टाइप करें..." : "Type a secure message..."} 
+            placeholder={lang === "Hindi" ? "टाइप करें..." : "Type a message..."} 
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }} // Let's you press 'Enter' on the keyboard to send!
+            // This enables the "Enter" key to send
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
           />
           <button style={dynamicStyles.combinedButton} onClick={handleSendMessage}>
             {lang === "Hindi" ? "भेजें" : "Send"}
