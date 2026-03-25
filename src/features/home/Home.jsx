@@ -89,6 +89,23 @@ export function Home({ setTab, T, lang }) {
       fontSize: "14px", letterSpacing: "1.5px",
       textTransform: "uppercase",
     },
+    chatBtn: {
+      width: "calc(50% - 6px)",
+      padding: "18px 0",
+      backgroundColor: "transparent",
+      color: T.text,
+      border: `1px solid ${T.accent}50`,
+      borderRadius: "12px",
+      cursor: "pointer",
+      fontFamily: "'DM Sans', sans-serif",
+      fontSize: "14px",
+      fontWeight: 600,
+      letterSpacing: "1.5px",
+      transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", // Updated transition for smooth rise
+      transform: "translateY(0px)",
+      // ADDED: Small shadow for a less flat look using the Rule of T
+      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`,
+    },
     footerWrap: {
       display: "flex", flexDirection: "column", alignItems: "center",
       gap: "8px", opacity: visible ? 0.6 : 0,
@@ -175,6 +192,27 @@ export function Home({ setTab, T, lang }) {
               {hi ? "खोजें" : "EXPLORE"}
             </button>
           </div>
+          
+          <button
+            onClick={() => setTab('chat')}
+            style={s.chatBtn}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${T.accent}20`;
+              e.currentTarget.style.transform = "translateY(-2px)";
+              // ADDED: Increased shadow on hover for a floating 3D effect
+              e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px ${T.accent}40`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.transform = "translateY(0px)";
+              // ADDED: Reset back to standard small shadow
+              e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`;
+            }}
+            {...pressable}
+          >
+            {hi ? "टीम चैट" : "TEAM CHAT"}
+          </button>
+          
         </div>
 
         <div style={s.footerWrap}>
