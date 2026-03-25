@@ -1,69 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
-// ─── STATIC STYLES (Stay Outside) ──────────────────────────────────────────
+// ─── STATIC STYLES (Outside) ──────────────────────────────────────────────
 const staticStyles = {
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '15px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.1)'
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    fontSize: '18px',
-    fontFamily: "'Cormorant Garamond', serif",
-    letterSpacing: '2px',
-    flex: 1,
-    textAlign: 'center'
-  },
-  homeBtn: {
-    padding: '8px 16px',
-    borderRadius: '20px',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '12px',
-    fontFamily: "'DM Sans', sans-serif",
-    letterSpacing: '1px',
-    textTransform: 'uppercase'
-  },
-  chatBox: {
-    flex: 1,
-    padding: '20px',
-    overflowY: 'scroll',
-    fontFamily: "'DM Sans', sans-serif",
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  messageList: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px'
-  },
-  inputField: {
-    flex: 1,
-    padding: '12px',
-    borderRadius: '25px',
-    border: 'none',
-    marginRight: '10px',
-    fontSize: '16px',
-    fontFamily: "'DM Sans', sans-serif"
-  },
-  sendButton: {
-    padding: '12px 24px',
-    borderRadius: '25px',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '16px',
-    fontFamily: "'DM Sans', sans-serif"
-  }
+  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' },
+  headerTitle: { fontWeight: 'bold', fontSize: '18px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '2px', flex: 1, textAlign: 'center' },
+  homeBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '1px', textTransform: 'uppercase' },
+  chatBox: { flex: 1, padding: '20px', overflowY: 'scroll', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' },
+  messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' },
+  inputField: { flex: 1, padding: '12px', borderRadius: '25px', border: 'none', marginRight: '10px', fontSize: '16px', fontFamily: "'DM Sans', sans-serif" },
+  sendButton: { padding: '12px 24px', borderRadius: '25px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', fontFamily: "'DM Sans', sans-serif" }
 };
 
-// ─── THE COMPONENT ─────────────────────────────────────────────────────────
+// ─── THE COMPONENT ────────────────────────────────────────────────────────
 export default function SukoonChat({ T, lang, setTab }) {
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]); 
@@ -86,7 +35,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     setupRooms();
   }, []);
 
-  // 2. Fetch Messages & Realtime Listener
+  // 2. FETCH MESSAGES & WALKIE-TALKIE
   useEffect(() => {
     if (!activeRoom) return;
 
@@ -98,38 +47,35 @@ export default function SukoonChat({ T, lang, setTab }) {
         .order('created_at', { ascending: true });
       if (!error && data) setMessages(data);
     };
-
     fetchMessages();
 
+    // The Walkie-Talkie Listener
     const channel = supabase
       .channel(`room-${activeRoom.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, 
       (payload) => {
-        setMessages((prev) => [...prev, payload.new]);
+        // Only add if it's for this room
+        if (payload.new.room_id === activeRoom.id) {
+          setMessages((prev) => [...prev, payload.new]);
+        }
       })
-      .subscribe();
+      .subscribe((status) => {
+        // WATCH THIS IN YOUR BROWSER CONSOLE!
+        console.log(`Walkie-Talkie Status for ${activeRoom.name}:`, status);
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [activeRoom]);
 
-  // 3. THE SEND FUNCTION (Now with error alerts for debugging)
+  // 3. SEND FUNCTION
   const handleSendMessage = async () => {
     if (!message.trim()) return;
-
-    // Package the letter
-    const newMessage = {
-      content: message, // Make sure this matches your Supabase column name!
-      room_id: activeRoom.id
-    };
-
+    const newMessage = { content: message, room_id: activeRoom.id };
     const { error } = await supabase.from('messages').insert([newMessage]);
-
     if (error) {
-      // This is the Teacher's Note: it will tell us if Supabase is rejecting the message
       alert("Database Error: " + error.message);
-      console.error("Error sending message:", error);
     } else {
-      setMessage(""); // Clear the box on success
+      setMessage("");
     }
   };
 
@@ -151,7 +97,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={dynamicStyles.container}>
-      {/* HEADER */}
       <div style={staticStyles.header}>
         <button style={dynamicStyles.combinedHomeBtn} onClick={handleBackOrHome}>
           {lang === "Hindi" ? (activeRoom ? "पीछे" : "होम") : (activeRoom ? "BACK" : "HOME")}
@@ -162,7 +107,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* CHAT AREA */}
       <div style={staticStyles.chatBox}>
         {loading ? (
           <p style={{ textAlign: 'center', opacity: 0.5 }}>Connecting...</p>
@@ -190,7 +134,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
-      {/* INPUT AREA */}
       {activeRoom && (
         <div style={dynamicStyles.inputArea}>
           <input 
@@ -199,7 +142,6 @@ export default function SukoonChat({ T, lang, setTab }) {
             placeholder={lang === "Hindi" ? "टाइप करें..." : "Type a message..."} 
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            // This enables the "Enter" key to send
             onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
           />
           <button style={dynamicStyles.combinedButton} onClick={handleSendMessage}>
