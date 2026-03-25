@@ -1,21 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+// We are importing our Supabase "Postman" so we can talk to the database
+import { supabase } from '../supabase';
 
-// STEP 1: STATIC STYLES (Outside the component)
-// These never change. We put them here to keep the code clean and professional.
+// STEP 1: STATIC STYLES (Outside)
 const staticStyles = {
+  // We updated the header to be a 'flex' box so the Home button and Title sit nicely together
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '15px 20px',
+    borderBottom: '1px solid rgba(255,255,255,0.1)'
+  },
+  headerTitle: {
+    fontWeight: 'bold',
+    fontSize: '18px',
+    fontFamily: "'Cormorant Garamond', serif",
+    letterSpacing: '2px',
+    flex: 1,
+    textAlign: 'center'
+  },
+  // The shape and font of our new Home button
+  homeBtn: {
+    padding: '8px 16px',
+    borderRadius: '20px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '12px',
+    fontFamily: "'DM Sans', sans-serif",
+    letterSpacing: '1px',
+    textTransform: 'uppercase'
+  },
   chatBox: {
     flex: 1,
     padding: '20px',
     overflowY: 'scroll',
-    fontFamily: 'Arial, sans-serif'
+    fontFamily: "'DM Sans', sans-serif"
   },
   inputField: {
     flex: 1,
     padding: '12px',
-    borderRadius: '25px', // Nice round, friendly corners
+    borderRadius: '25px',
     border: 'none',
     marginRight: '10px',
-    fontSize: '16px'
+    fontSize: '16px',
+    fontFamily: "'DM Sans', sans-serif"
   },
   sendButton: {
     padding: '12px 24px',
@@ -23,66 +53,142 @@ const staticStyles = {
     border: 'none',
     cursor: 'pointer',
     fontWeight: 'bold',
-    fontSize: '16px'
+    fontSize: '16px',
+    fontFamily: "'DM Sans', sans-serif"
   }
 };
 
-// STEP 2: THE COMPONENT FUNCTION
-// We pass our magic 'T' inside the parentheses so the component can use it.
-export default function SukoonChat({ T }) {
-  
-  // This helps us remember what the user is typing in the box
+// STEP 2: THE COMPONENT
+// NOTICE: We added 'setTab' inside the parentheses here so the page knows how to teleport!
+export default function SukoonChat({ T, lang, setTab }) {
   const [message, setMessage] = useState("");
+  const [rooms, setRooms] = useState([]); 
+  const [loading, setLoading] = useState(true);
 
-  // STEP 3: DYNAMIC STYLES (Inside the component)
-  // These use the Rule of T! They must stay inside so they can see T.bg, T.accent, etc.
+  // STEP 3: THE MAGIC FETCH
+  useEffect(() => {
+    async function setupChat() {
+      let { data: existingRooms, error } = await supabase
+        .from('rooms')
+        .select('*');
+
+      if (error) {
+        console.error("Error fetching rooms:", error);
+        return;
+      }
+
+      if (existingRooms.length === 0) {
+        const { data: newRoom, insertError } = await supabase
+          .from('rooms')
+          .insert([{ name: 'Main Team Board', type: 'public' }])
+          .select();
+
+        if (!insertError && newRoom) {
+          setRooms(newRoom);
+        }
+      } else {
+        setRooms(existingRooms);
+      }
+      setLoading(false);
+    }
+
+    setupChat();
+  }, []);
+
+  // STEP 4: DYNAMIC STYLES (Rule of T)
   const dynamicStyles = {
     container: {
       display: 'flex',
       flexDirection: 'column',
-      height: '100vh',
-      backgroundColor: T.bg, // Dynamic background!
-      color: T.text          // Dynamic text color!
+      height: '100%', 
+      backgroundColor: T.bg,
+      color: T.text
+    },
+    // Adding dynamic colors to our new Home button
+    combinedHomeBtn: {
+      ...staticStyles.homeBtn,
+      backgroundColor: `${T.accent}20`, // A soft, transparent background
+      color: T.text,
+      border: `1px solid ${T.accent}50`
     },
     inputArea: {
       display: 'flex',
       padding: '15px',
-      backgroundColor: T.accent // Dynamic accent color for the typing area!
+      backgroundColor: `${T.accent}15` 
     },
-    
-    // Here we combine the outside static rules with the inside dynamic colors
     combinedInput: {
-      ...staticStyles.inputField, // Grab the shape and size from outside
-      backgroundColor: T.bg,      // Add the dynamic background color
-      color: T.text               // Add the dynamic text color
+      ...staticStyles.inputField,
+      backgroundColor: T.bg,
+      color: T.text,
+      border: `1px solid ${T.accent}40`
     },
     combinedButton: {
-      ...staticStyles.sendButton,   // Grab the shape and size from outside
-      backgroundColor: T.buttonBg,  // Add the dynamic button color
-      color: T.buttonText           // Add the dynamic button text color
+      ...staticStyles.sendButton,
+      backgroundColor: T.accent,
+      color: T.bg 
+    },
+    roomCard: {
+      padding: '15px',
+      margin: '10px 0',
+      borderRadius: '12px',
+      border: `1px solid ${T.accent}40`,
+      backgroundColor: `${T.accent}10`,
+      cursor: 'pointer'
     }
   };
 
-  // STEP 4: DRAWING THE SCREEN
-  // We use the styles we just built to draw the chat app on the screen.
   return (
     <div style={dynamicStyles.container}>
       
-      {/* The large box where all the messages will appear */}
-      <div style={staticStyles.chatBox}>
-        <p>Welcome to the highly secure Sukoon Team Chat.</p>
+      {/* The Header Area */}
+      <div style={staticStyles.header}>
+        {/* OUR NEW HOME BUTTON */}
+        <button 
+          style={dynamicStyles.combinedHomeBtn}
+          onClick={() => setTab('home')} // This is the teleportation spell!
+        >
+          {lang === "Hindi" ? "होम" : "HOME"}
+        </button>
+
+        {/* The Title */}
+        <div style={staticStyles.headerTitle}>
+          {lang === "Hindi" ? "सुकून टीम चैट" : "SUKOON TEAM CHAT"}
+        </div>
+        
+        {/* An empty invisible box on the right to keep the title perfectly centered */}
+        <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* The bottom bar where you type a new message */}
+      {/* The Area where messages or rooms show up */}
+      <div style={staticStyles.chatBox}>
+        {loading ? (
+          <p style={{ textAlign: 'center', opacity: 0.5 }}>Loading secure connection...</p>
+        ) : (
+          <>
+            <p style={{ opacity: 0.7, fontSize: '14px', marginBottom: '20px' }}>
+              Available Rooms:
+            </p>
+            {rooms.map((room) => (
+              <div key={room.id} style={dynamicStyles.roomCard}>
+                📁 {room.name}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* The Area where you type */}
       <div style={dynamicStyles.inputArea}>
         <input 
           style={dynamicStyles.combinedInput} 
           type="text" 
-          placeholder="Type a secure message..." 
+          placeholder={lang === "Hindi" ? "एक सुरक्षित संदेश टाइप करें..." : "Type a secure message..."} 
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
-        <button style={dynamicStyles.combinedButton}>Send</button>
+        <button style={dynamicStyles.combinedButton}>
+          {lang === "Hindi" ? "भेजें" : "Send"}
+        </button>
       </div>
 
     </div>
