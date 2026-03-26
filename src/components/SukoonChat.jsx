@@ -30,14 +30,22 @@ export default function SukoonChat({ T, lang, setTab }) {
   const presenceChannelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // ─── ENTERPRISE MESH WEBRTC STATE ───
+  // ─── ENTERPRISE MESH WEBRTC STATE (BUG FIXED 🛠️) ───
   const [isInCall, setIsInCall] = useState(false);
+  const isInCallRef = useRef(false); // <-- THE FIX: A secret memory box that doesn't trigger restarts!
   const [incomingCall, setIncomingCall] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState([]); 
+  
   const localStream = useRef(null);
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
   const ringtoneRef = useRef(null); 
+
+  // Function to safely update call status without breaking WebRTC
+  const safeSetIsInCall = (status) => {
+    setIsInCall(status);
+    isInCallRef.current = status;
+  };
 
   // ─── AUTO-SCROLL TRACKERS ───
   const chatBoxRef = useRef(null);
@@ -54,36 +62,45 @@ export default function SukoonChat({ T, lang, setTab }) {
     greenDot: { width: '8px', height: '8px', backgroundColor: '#4ade80', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #4ade80' },
     backBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', backgroundColor: `${T.accent}20`, color: T.accent, transition: '0.2s' },
     callBtn: { padding: '10px', background: `${T.accent}15`, border: `1px solid ${T.accent}40`, borderRadius: '50%', cursor: 'pointer', fontSize: '18px', color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' },
+    callBtnDisabled: { padding: '10px', background: 'transparent', border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.4 },
     chatBox: { flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' },
     
-    // Sleek Room List
-    searchRow: { display: 'flex', gap: '10px', marginBottom: '20px' },
+    // UI Elements
+    searchRow: { display: 'flex', gap: '10px', marginBottom: '15px' },
     searchInput: { flex: 1, padding: '14px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
     actionBtn: { padding: '14px 20px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg, boxShadow: `0 4px 15px ${T.accent}40`, transition: '0.2s' },
-    roomCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', margin: '8px 0', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}`, boxShadow: `0 2px 10px rgba(0,0,0,0.05)`, cursor: 'pointer', color: T.text, transition: 'transform 0.2s', fontWeight: '500' },
+    
+    // BIG NEW GROUP BUTTON (Moved here!)
+    bigGroupBtn: { width: '100%', padding: '15px', borderRadius: '16px', border: `2px dashed ${T.accent}`, backgroundColor: `${T.accent}10`, color: T.accent, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' },
+    
+    roomCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', margin: '8px 0', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}`, boxShadow: `0 2px 10px rgba(0,0,0,0.05)`, cursor: 'pointer', color: T.text, fontWeight: '500' },
+    roomCardSearch: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px dashed ${T.accent}`, backgroundColor: `${T.accent}05`, cursor: 'pointer', color: T.text },
     unreadBadge: { backgroundColor: '#ef4444', color: '#fff', borderRadius: '20px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' },
     
-    // Modern Chat Bubbles
     messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' },
+    emptyRoom: { textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.5, color: T.text },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
-    getBubble: (isMe) => ({ padding: '12px 18px', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', backgroundColor: isMe ? T.accent : `${T.accent}15`, color: isMe ? T.bg : T.text, border: isMe ? 'none' : `1px solid ${T.accent}20`, maxWidth: '75%', fontSize: '15px', lineHeight: '1.4', boxShadow: `0 2px 5px rgba(0,0,0,0.05)` }),
+    getBubble: (isMe) => ({ padding: '12px 18px', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', backgroundColor: isMe ? T.accent : `${T.accent}15`, color: isMe ? T.bg : T.text, border: isMe ? 'none' : `1px solid ${T.accent}20`, maxWidth: '75%', fontSize: '15px', lineHeight: '1.4' }),
     senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.7, fontWeight: 'bold', color: T.text, marginLeft: '5px' },
     statusBar: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', marginRight: '5px' },
     timestamp: { fontSize: '10px', opacity: 0.5, color: T.text },
     readTick: (isRead) => ({ fontSize: '12px', color: isRead ? '#3b82f6' : T.text, opacity: isRead ? 1 : 0.4 }),
+    deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 },
     
-    // Floating Input Area
     inputArea: { display: 'flex', padding: '15px 20px', alignItems: 'center', gap: '10px', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}15` },
     inputField: { flex: 1, padding: '15px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
-    sendBtn: { padding: '15px 25px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg, boxShadow: `0 4px 15px ${T.accent}40` },
+    sendBtn: { padding: '15px 25px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg },
     
-    // Group Modal Overlay
     modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
     modalBox: { backgroundColor: T.bg, padding: '25px', borderRadius: '20px', width: '90%', maxWidth: '400px', border: `1px solid ${T.accent}40`, boxShadow: `0 10px 40px rgba(0,0,0,0.2)` },
-    selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '12px', margin: '2px', fontWeight: 'bold' }
+    selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '12px', margin: '2px', fontWeight: 'bold' },
+    
+    callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px' },
+    acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', marginRight: '8px' },
+    declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
   };
 
-  // 1. INITIALIZATION & PUSH NOTIFICATION PERMISSION
+  // 1. INITIALIZATION & PUSH NOTIFICATION
   useEffect(() => {
     async function initialize() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
@@ -96,7 +113,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
-  // 1.5 THE GLOBAL RADAR (Rooms + Unread Badges)
+  // 1.5 THE GLOBAL RADAR
   useEffect(() => {
     if (!currentUser) return;
     const fetchInitialUnread = async () => {
@@ -130,6 +147,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   }, [currentUser?.id]);
 
   // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
+  // FIX: We removed `isInCall` from the dependency array at the bottom so it stops destroying the connection!
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -170,11 +188,12 @@ export default function SukoonChat({ T, lang, setTab }) {
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
-        if (payload.type === 'call-started' && !isInCall) {
+        // FIX: We check `isInCallRef.current` which doesn't trigger React re-renders!
+        if (payload.type === 'call-started' && !isInCallRef.current) {
           setIncomingCall(payload);
           if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Blocked"));
         } 
-        else if (payload.type === 'user-joined' && isInCall) {
+        else if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -202,8 +221,9 @@ export default function SukoonChat({ T, lang, setTab }) {
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
 
+    // REMOVED isInCall FROM HERE!
     return () => { supabase.removeChannel(chatChannel); supabase.removeChannel(presenceRoom); supabase.removeChannel(sigChannel); stopRinging(); };
-  }, [activeRoom, currentUser, isInCall]);
+  }, [activeRoom, currentUser]); 
 
   const stopRinging = () => { if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current.currentTime = 0; } };
 
@@ -243,10 +263,10 @@ export default function SukoonChat({ T, lang, setTab }) {
   const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
   const startCall = async () => {
-    if (isInCall) return;
+    if (isInCallRef.current) return;
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      setIsInCall(true);
+      safeSetIsInCall(true); // SAFE UPDATE!
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
     } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
@@ -256,7 +276,8 @@ export default function SukoonChat({ T, lang, setTab }) {
     stopRinging(); 
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      setIsInCall(true); setIncomingCall(null);
+      safeSetIsInCall(true); // SAFE UPDATE!
+      setIncomingCall(null);
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id } });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
@@ -265,7 +286,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const endCall = () => { if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); cleanupCall(); };
 
-  const cleanupCall = () => { Object.values(peers.current).forEach(pc => pc.close()); peers.current = {}; if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } setRemoteStreams([]); setIsInCall(false); stopRinging(); };
+  const cleanupCall = () => { Object.values(peers.current).forEach(pc => pc.close()); peers.current = {}; if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } setRemoteStreams([]); safeSetIsInCall(false); stopRinging(); };
 
   // ─── CHAT ACTIONS ───
   const handleSendMessage = async () => {
@@ -325,11 +346,11 @@ export default function SukoonChat({ T, lang, setTab }) {
       const parts = room.name.split(':::');
       return currentUser?.email === parts[1] ? `✨ ${parts[0].split('@')[0]}` : `✨ ${parts[1].split('@')[0]}`;
     }
-    return `👥 ${room.name}`; // Group chat icon!
+    return `👥 ${room.name}`;
   };
 
   const handleBackOrHome = () => {
-    setIsAutoScrolling(false); if (isInCall) endCall();
+    setIsAutoScrolling(false); if (isInCallRef.current) endCall();
     if (activeRoom) setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
@@ -377,16 +398,39 @@ export default function SukoonChat({ T, lang, setTab }) {
             <div style={s.onlineStatus}><span style={s.greenDot}></span> {Object.keys(presentUsers).length} {hi ? "ऑनलाइन" : "Online"}</div>
           )}
         </div>
-        {activeRoom ? (
+        
+        {/* We moved the Group button out of here, so only the Call button shows if in a room! */}
+        {activeRoom && (
           <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall}>📞</button>
-        ) : (
-          <button style={{...s.actionBtn, padding: '8px 15px', fontSize: '12px'}} onClick={() => setShowGroupModal(true)}>+ {hi ? "नया ग्रुप" : "NEW GROUP"}</button>
         )}
+        {!activeRoom && <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
       </div>
+
+      {incomingCall && !isInCall && (
+        <div style={s.callBanner}>
+          <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
+          <div>
+            <button onClick={joinCall} style={s.acceptBtn}>{hi ? "जुड़ें" : "Join"}</button>
+            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Decline"}</button>
+          </div>
+        </div>
+      )}
+
+      {isInCall && (
+        <div style={s.callBanner}>
+          <span style={{ color: '#4ade80' }}>🟢 {hi ? `कॉल कनेक्टेड` : `Secure Call Active`}</span>
+          <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "End Call"}</button>
+        </div>
+      )}
 
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
+            {/* ✨ THE NEW, IMPOSSIBLE-TO-MISS GROUP BUTTON ✨ */}
+            <button style={s.bigGroupBtn} onClick={() => setShowGroupModal(true)}>
+              <span>👥</span> {hi ? "+ नया ग्रुप बनाएं" : "+ CREATE NEW GROUP"}
+            </button>
+
             <div style={s.searchRow}>
               <input style={s.searchInput} placeholder={hi ? "ईमेल से खोजें..." : "Find friend by email..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
               <button style={s.actionBtn} onClick={handleSearch}>{hi ? "खोजें" : "FIND"}</button>
