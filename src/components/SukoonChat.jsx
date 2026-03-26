@@ -30,9 +30,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   const presenceChannelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // ─── ENTERPRISE MESH WEBRTC STATE (BUG FIXED 🛠️) ───
+  // ─── ENTERPRISE MESH WEBRTC STATE ───
   const [isInCall, setIsInCall] = useState(false);
-  const isInCallRef = useRef(false); // <-- THE FIX: A secret memory box that doesn't trigger restarts!
+  const isInCallRef = useRef(false); 
   const [incomingCall, setIncomingCall] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState([]); 
   
@@ -41,7 +41,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const ringtoneRef = useRef(null); 
 
-  // Function to safely update call status without breaking WebRTC
   const safeSetIsInCall = (status) => {
     setIsInCall(status);
     isInCallRef.current = status;
@@ -61,16 +60,15 @@ export default function SukoonChat({ T, lang, setTab }) {
     onlineStatus: { fontSize: '11px', color: '#4ade80', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' },
     greenDot: { width: '8px', height: '8px', backgroundColor: '#4ade80', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #4ade80' },
     backBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', backgroundColor: `${T.accent}20`, color: T.accent, transition: '0.2s' },
+    logoutBtn: { padding: '8px 16px', borderRadius: '20px', border: `1px solid ${T.accent}30`, cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', background: 'transparent', color: T.text, opacity: 0.8 },
     callBtn: { padding: '10px', background: `${T.accent}15`, border: `1px solid ${T.accent}40`, borderRadius: '50%', cursor: 'pointer', fontSize: '18px', color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' },
     callBtnDisabled: { padding: '10px', background: 'transparent', border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.4 },
     chatBox: { flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' },
     
-    // UI Elements
     searchRow: { display: 'flex', gap: '10px', marginBottom: '15px' },
     searchInput: { flex: 1, padding: '14px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
     actionBtn: { padding: '14px 20px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg, boxShadow: `0 4px 15px ${T.accent}40`, transition: '0.2s' },
     
-    // BIG NEW GROUP BUTTON (Moved here!)
     bigGroupBtn: { width: '100%', padding: '15px', borderRadius: '16px', border: `2px dashed ${T.accent}`, backgroundColor: `${T.accent}10`, color: T.accent, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' },
     
     roomCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', margin: '8px 0', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}`, boxShadow: `0 2px 10px rgba(0,0,0,0.05)`, cursor: 'pointer', color: T.text, fontWeight: '500' },
@@ -147,7 +145,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   }, [currentUser?.id]);
 
   // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
-  // FIX: We removed `isInCall` from the dependency array at the bottom so it stops destroying the connection!
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -188,7 +185,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
-        // FIX: We check `isInCallRef.current` which doesn't trigger React re-renders!
         if (payload.type === 'call-started' && !isInCallRef.current) {
           setIncomingCall(payload);
           if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Blocked"));
@@ -221,7 +217,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
 
-    // REMOVED isInCall FROM HERE!
     return () => { supabase.removeChannel(chatChannel); supabase.removeChannel(presenceRoom); supabase.removeChannel(sigChannel); stopRinging(); };
   }, [activeRoom, currentUser]); 
 
@@ -247,6 +242,11 @@ export default function SukoonChat({ T, lang, setTab }) {
     catch (e) { return scrambled; }
   };
 
+  const formatTime = (dateString) => {
+    if (!dateString) return "Just now";
+    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   // ─── WEBRTC MESH ENGINE ───
   const STUN_SERVERS = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
 
@@ -266,7 +266,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (isInCallRef.current) return;
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      safeSetIsInCall(true); // SAFE UPDATE!
+      safeSetIsInCall(true);
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
     } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
@@ -276,7 +276,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     stopRinging(); 
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      safeSetIsInCall(true); // SAFE UPDATE!
+      safeSetIsInCall(true);
       setIncomingCall(null);
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id } });
     } catch (error) { alert("Failed to join call: " + error.message); }
@@ -349,13 +349,19 @@ export default function SukoonChat({ T, lang, setTab }) {
     return `👥 ${room.name}`;
   };
 
+  const handleLogout = async () => {
+    if (!window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?")) return;
+    await supabase.auth.signOut();
+    setTab('home'); 
+    window.location.reload();
+  };
+
   const handleBackOrHome = () => {
     setIsAutoScrolling(false); if (isInCallRef.current) endCall();
     if (activeRoom) setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
-  const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const typingUsers = Object.values(presentUsers).filter(user => user.is_typing);
 
   // ─── RENDER ───
@@ -399,7 +405,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           )}
         </div>
         
-        {/* We moved the Group button out of here, so only the Call button shows if in a room! */}
         {activeRoom && (
           <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall}>📞</button>
         )}
@@ -426,7 +431,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
-            {/* ✨ THE NEW, IMPOSSIBLE-TO-MISS GROUP BUTTON ✨ */}
             <button style={s.bigGroupBtn} onClick={() => setShowGroupModal(true)}>
               <span>👥</span> {hi ? "+ नया ग्रुप बनाएं" : "+ CREATE NEW GROUP"}
             </button>
@@ -466,6 +470,8 @@ export default function SukoonChat({ T, lang, setTab }) {
           </div>
         )}
       </div>
+
+      {activeRoom && messages.length > 5 && ( <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={s.autoScrollBtn(isAutoScrolling)}>{isAutoScrolling ? "⏸️" : "⏬"}</button> )}
 
       {activeRoom && typingUsers.length > 0 && (
         <div style={{ fontSize: '11px', color: T.accent, padding: '0 20px 5px 20px', fontStyle: 'italic', fontWeight: 'bold' }}>
