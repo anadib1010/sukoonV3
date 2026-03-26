@@ -40,6 +40,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
   const ringtoneRef = useRef(null); 
+  
+  // ─── NEW: AUTO-JOIN MEMORY (For Global Calls) ───
+  const autoJoinRef = useRef(false);
 
   const safeSetIsInCall = (status) => {
     setIsInCall(status);
@@ -64,17 +67,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     callBtn: { padding: '10px', background: `${T.accent}15`, border: `1px solid ${T.accent}40`, borderRadius: '50%', cursor: 'pointer', fontSize: '18px', color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' },
     callBtnDisabled: { padding: '10px', background: 'transparent', border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.4 },
     chatBox: { flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' },
-    
     searchRow: { display: 'flex', gap: '10px', marginBottom: '15px' },
     searchInput: { flex: 1, padding: '14px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
     actionBtn: { padding: '14px 20px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg, boxShadow: `0 4px 15px ${T.accent}40`, transition: '0.2s' },
-    
     bigGroupBtn: { width: '100%', padding: '15px', borderRadius: '16px', border: `2px dashed ${T.accent}`, backgroundColor: `${T.accent}10`, color: T.accent, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' },
-    
     roomCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', margin: '8px 0', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}`, boxShadow: `0 2px 10px rgba(0,0,0,0.05)`, cursor: 'pointer', color: T.text, fontWeight: '500' },
     roomCardSearch: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px dashed ${T.accent}`, backgroundColor: `${T.accent}05`, cursor: 'pointer', color: T.text },
     unreadBadge: { backgroundColor: '#ef4444', color: '#fff', borderRadius: '20px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' },
-    
     messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' },
     emptyRoom: { textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.5, color: T.text },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
@@ -84,21 +83,18 @@ export default function SukoonChat({ T, lang, setTab }) {
     timestamp: { fontSize: '10px', opacity: 0.5, color: T.text },
     readTick: (isRead) => ({ fontSize: '12px', color: isRead ? '#3b82f6' : T.text, opacity: isRead ? 1 : 0.4 }),
     deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 },
-    
     inputArea: { display: 'flex', padding: '15px 20px', alignItems: 'center', gap: '10px', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}15` },
     inputField: { flex: 1, padding: '15px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
     sendBtn: { padding: '15px 25px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg },
-    
     modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
     modalBox: { backgroundColor: T.bg, padding: '25px', borderRadius: '20px', width: '90%', maxWidth: '400px', border: `1px solid ${T.accent}40`, boxShadow: `0 10px 40px rgba(0,0,0,0.2)` },
     selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '12px', margin: '2px', fontWeight: 'bold' },
-    
-    callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px' },
+    callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', zIndex: 50 },
     acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', marginRight: '8px' },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
   };
 
-  // 1. INITIALIZATION & PUSH NOTIFICATION
+  // 1. INITIALIZATION & GLOBAL EARS 🌍
   useEffect(() => {
     async function initialize() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
@@ -111,43 +107,66 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
-  // 1.5 THE GLOBAL RADAR
+  // 1.5 THE GLOBAL RADARS (Messages AND Global Calls)
   useEffect(() => {
     if (!currentUser) return;
+    
+    // Unread Badges Logic
     const fetchInitialUnread = async () => {
       const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
       const counts = {};
-      if (data) {
-        data.forEach(msg => { counts[msg.room_id] = (counts[msg.room_id] || 0) + 1; });
-        setUnreadCounts(counts);
-      }
+      if (data) { data.forEach(msg => { counts[msg.room_id] = (counts[msg.room_id] || 0) + 1; }); setUnreadCounts(counts); }
     };
     fetchInitialUnread();
 
-    const roomChannel = supabase.channel('live-rooms-radar')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' },
-        (payload) => {
-          if (payload.new.participants && payload.new.participants.includes(currentUser.id)) setRooms((prev) => [...prev, payload.new]);
-        }).subscribe();
+    const roomChannel = supabase.channel('live-rooms-radar').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' },
+      (payload) => { if (payload.new.participants && payload.new.participants.includes(currentUser.id)) setRooms((prev) => [...prev, payload.new]); }).subscribe();
 
-    const globalMessageScanner = supabase.channel('global-message-scanner')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+    const globalMessageScanner = supabase.channel('global-message-scanner').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const newMsg = payload.new;
         if (newMsg.user_id !== currentUser.id && activeRoomRef.current?.id !== newMsg.room_id) {
           setUnreadCounts(prev => ({ ...prev, [newMsg.room_id]: (prev[newMsg.room_id] || 0) + 1 }));
-          if (Notification.permission === "granted") {
-            new Notification(hi ? "सुकून ऐप" : "Sukoon App", { body: hi ? "नया सुरक्षित संदेश 🔒" : "New secure message 🔒" });
-          }
+          if (Notification.permission === "granted") new Notification(hi ? "सुकून ऐप" : "Sukoon App", { body: hi ? "नया सुरक्षित संदेश 🔒" : "New secure message 🔒" });
         }
       }).subscribe();
 
-    return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); };
-  }, [currentUser?.id]);
+    // 🌍 NEW: THE GLOBAL CALL ANTENNA
+    const globalCallRadar = supabase.channel('global-call-radar', { config: { broadcast: { ack: false } } });
+    globalCallRadar.on('broadcast', { event: 'global-ring' }, (payload) => {
+      const data = payload.payload;
+      
+      // Am I part of this group? And am I NOT the person who is calling?
+      if (data.participants.includes(currentUser.id) && data.callerId !== currentUser.id) {
+        
+        if (data.action === 'start') {
+          setIncomingCall(data);
+          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Ringtone blocked by browser"));
+          
+          // Force a sticky push notification with vibration!
+          if (Notification.permission === "granted") {
+            new Notification(hi ? "सुकून कॉल" : "Sukoon Call", { 
+              body: `${data.callerEmail.split('@')[0]} is calling you! 📞`, 
+              requireInteraction: true, // Forces it to stay on screen
+              vibrate: [200, 100, 200, 100, 200] 
+            });
+          }
+        } 
+        // THE GHOST FIX: If the caller hangs up, clear the screen and stop the ring!
+        else if (data.action === 'cancel' && data.roomId === incomingCall?.roomId) {
+          setIncomingCall(null);
+          stopRinging();
+        }
+      }
+    }).subscribe();
+
+    return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); supabase.removeChannel(globalCallRadar); };
+  }, [currentUser?.id, incomingCall]);
 
   // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
+    // A. Chat Message Fetching
     const fetchMessages = async () => {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       if (data) {
@@ -159,8 +178,8 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
     fetchMessages();
 
-    const chatChannel = supabase.channel(`room-${activeRoom.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
+    // B. Chat Listener
+    const chatChannel = supabase.channel(`room-${activeRoom.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setMessages((prev) => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new]);
@@ -170,6 +189,7 @@ export default function SukoonChat({ T, lang, setTab }) {
           }
         }).subscribe();
 
+    // C. Presence Engine
     const presenceRoom = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
     presenceChannelRef.current = presenceRoom;
     presenceRoom.on('presence', { event: 'sync' }, () => {
@@ -179,17 +199,14 @@ export default function SukoonChat({ T, lang, setTab }) {
       setPresentUsers(activeUsers);
     }).subscribe(async (status) => { if (status === 'SUBSCRIBED') await presenceRoom.track({ email: currentUser.email, is_typing: false }); });
 
+    // D. Room Signaling (Inside the Room)
     const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
     signalingChannelRef.current = sigChannel;
 
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
-        if (payload.type === 'call-started' && !isInCallRef.current) {
-          setIncomingCall(payload);
-          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Blocked"));
-        } 
-        else if (payload.type === 'user-joined' && isInCallRef.current) {
+        if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -212,12 +229,18 @@ export default function SukoonChat({ T, lang, setTab }) {
         } 
         else if (payload.type === 'user-left') {
           removePeer(payload.sender);
-          if (incomingCall?.sender === payload.sender) { setIncomingCall(null); stopRinging(); }
         }
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
 
-    return () => { supabase.removeChannel(chatChannel); supabase.removeChannel(presenceRoom); supabase.removeChannel(sigChannel); stopRinging(); };
+    // ─── TELEPORTATION AUTO-JOINER ───
+    // If we clicked "Accept" from the Global Radar, autoJoinRef will be true!
+    if (autoJoinRef.current) {
+      autoJoinRef.current = false;
+      joinCall(); 
+    }
+
+    return () => { supabase.removeChannel(chatChannel); supabase.removeChannel(presenceRoom); supabase.removeChannel(sigChannel); };
   }, [activeRoom, currentUser]); 
 
   const stopRinging = () => { if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current.currentTime = 0; } };
@@ -232,20 +255,9 @@ export default function SukoonChat({ T, lang, setTab }) {
     typingTimeoutRef.current = setTimeout(() => { setIsTyping(false); if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false }); }, 2000);
   };
 
-  const encrypt = (text, key) => {
-    const stringKey = String(key);
-    return btoa(encodeURIComponent(text).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
-  };
-
-  const decrypt = (scrambled, key) => {
-    try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ String(key).charCodeAt(i % String(key).length))).join('')); } 
-    catch (e) { return scrambled; }
-  };
-
-  const formatTime = (dateString) => {
-    if (!dateString) return "Just now";
-    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const encrypt = (text, key) => { return btoa(encodeURIComponent(text).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ String(key).charCodeAt(i % String(key).length))).join('')); };
+  const decrypt = (scrambled, key) => { try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ String(key).charCodeAt(i % String(key).length))).join('')); } catch (e) { return scrambled; } };
+  const formatTime = (dateString) => { if (!dateString) return "Just now"; return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
   // ─── WEBRTC MESH ENGINE ───
   const STUN_SERVERS = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
@@ -263,16 +275,32 @@ export default function SukoonChat({ T, lang, setTab }) {
   const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
   const startCall = async () => {
-    if (isInCallRef.current) return;
+    if (isInCallRef.current || !activeRoom) return;
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
+      
+      // 1. Tell people inside the room
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
+      
+      // 2. SHOUT TO THE GLOBAL RADAR (For people on the Home Screen!)
+      supabase.channel('global-call-radar').send({ 
+        type: 'broadcast', event: 'global-ring', 
+        payload: { action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom }
+      });
+
     } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
 
-  const joinCall = async () => {
+  const handleGlobalAccept = async () => {
     if (!incomingCall) return;
+    stopRinging();
+    autoJoinRef.current = true; // Tell the room to instantly open our microphone
+    setActiveRoom(incomingCall.roomDetails); // Teleport to the room!
+    setIncomingCall(null);
+  };
+
+  const joinCall = async () => {
     stopRinging(); 
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -284,7 +312,18 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const declineCall = () => { setIncomingCall(null); stopRinging(); };
 
-  const endCall = () => { if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); cleanupCall(); };
+  const endCall = () => { 
+    if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
+    
+    // GHOST RING FIX: Shout the Cancel signal to the Global Radar!
+    if (activeRoom) {
+      supabase.channel('global-call-radar').send({ 
+        type: 'broadcast', event: 'global-ring', 
+        payload: { action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants }
+      });
+    }
+    cleanupCall(); 
+  };
 
   const cleanupCall = () => { Object.values(peers.current).forEach(pc => pc.close()); peers.current = {}; if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } setRemoteStreams([]); safeSetIsInCall(false); stopRinging(); };
 
@@ -335,10 +374,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (!groupName.trim() || selectedFriends.length === 0) return alert(hi ? "एक नाम और मित्र की आवश्यकता है!" : "Need a group name and at least 1 friend!");
     const participantIds = [currentUser.id, ...selectedFriends.map(f => f.id)];
     const { data: newRoom } = await supabase.from('rooms').insert([{ name: groupName, is_private: false, participants: participantIds }]).select();
-    if (newRoom) {
-      setRooms(prev => [...prev, newRoom[0]]);
-      setShowGroupModal(false); setGroupName(""); setSelectedFriends([]); setActiveRoom(newRoom[0]);
-    }
+    if (newRoom) { setRooms(prev => [...prev, newRoom[0]]); setShowGroupModal(false); setGroupName(""); setSelectedFriends([]); setActiveRoom(newRoom[0]); }
   };
 
   const getRoomDisplayName = (room) => {
@@ -370,24 +406,28 @@ export default function SukoonChat({ T, lang, setTab }) {
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop style={{ display: 'none' }} />
       {remoteStreams.map(peer => ( <audio key={peer.userId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} /> ))}
 
-      {/* NEW GROUP MODAL OVERLAY */}
+      {/* THE GLOBAL INCOMING CALL BANNER (Shows anywhere in the app!) */}
+      {incomingCall && !isInCallRef.current && (
+        <div style={{...s.callBanner, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000}}>
+          <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
+          <div>
+            <button onClick={handleGlobalAccept} style={s.acceptBtn}>{hi ? "जुड़ें" : "Join"}</button>
+            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Decline"}</button>
+          </div>
+        </div>
+      )}
+
       {showGroupModal && (
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
             <h3 style={{ margin: '0 0 15px 0', color: T.text }}>{hi ? "नया ग्रुप बनाएं" : "Create New Group"}</h3>
             <input style={{...s.searchInput, width: '100%', marginBottom: '10px'}} placeholder={hi ? "ग्रुप का नाम..." : "Group Name..."} value={groupName} onChange={(e) => setGroupName(e.target.value)} />
-            
             <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
               <input style={{...s.searchInput, flex: 1}} placeholder={hi ? "मित्र खोजें..." : "Find friends..."} value={groupSearchTerm} onChange={(e) => setGroupSearchTerm(e.target.value)} />
               <button style={s.actionBtn} onClick={searchForGroup}>🔍</button>
             </div>
-            
             {groupSearchResults.map(u => ( <div key={u.id} onClick={() => addFriendToGroupList(u)} style={s.roomCardSearch}>+ Add {u.email.split('@')[0]}</div> ))}
-            
-            <div style={{ margin: '10px 0' }}>
-              {selectedFriends.map(f => ( <span key={f.id} style={s.selectedFriendPill}>{f.email.split('@')[0]} ✕</span> ))}
-            </div>
-            
+            <div style={{ margin: '10px 0' }}>{selectedFriends.map(f => ( <span key={f.id} style={s.selectedFriendPill}>{f.email.split('@')[0]} ✕</span> ))}</div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button style={{...s.actionBtn, flex: 1}} onClick={createGroupChat}>{hi ? "बनाएं" : "Create"}</button>
               <button style={{...s.backBtn, flex: 1}} onClick={() => setShowGroupModal(false)}>{hi ? "रद्द करें" : "Cancel"}</button>
@@ -406,22 +446,12 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
         
         {activeRoom && (
-          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall}>📞</button>
+          <button style={isInCallRef.current ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCallRef.current}>📞</button>
         )}
         {!activeRoom && <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
       </div>
 
-      {incomingCall && !isInCall && (
-        <div style={s.callBanner}>
-          <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
-          <div>
-            <button onClick={joinCall} style={s.acceptBtn}>{hi ? "जुड़ें" : "Join"}</button>
-            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Decline"}</button>
-          </div>
-        </div>
-      )}
-
-      {isInCall && (
+      {isInCallRef.current && (
         <div style={s.callBanner}>
           <span style={{ color: '#4ade80' }}>🟢 {hi ? `कॉल कनेक्टेड` : `Secure Call Active`}</span>
           <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "End Call"}</button>
@@ -431,10 +461,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
-            <button style={s.bigGroupBtn} onClick={() => setShowGroupModal(true)}>
-              <span>👥</span> {hi ? "+ नया ग्रुप बनाएं" : "+ CREATE NEW GROUP"}
-            </button>
-
+            <button style={s.bigGroupBtn} onClick={() => setShowGroupModal(true)}><span>👥</span> {hi ? "+ नया ग्रुप बनाएं" : "+ CREATE NEW GROUP"}</button>
             <div style={s.searchRow}>
               <input style={s.searchInput} placeholder={hi ? "ईमेल से खोजें..." : "Find friend by email..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
               <button style={s.actionBtn} onClick={handleSearch}>{hi ? "खोजें" : "FIND"}</button>
