@@ -16,16 +16,14 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         properties: {
           exp: Math.round(Date.now() / 1000) + (2 * 60 * 60),
-          enable_video: callType === 'video', 
           start_video_off: callType === 'voice',
+          start_audio_off: false,
         },
       }),
     });
 
     const roomData = await response.json();
-    
-    // Return everything so we can see what Daily.co said
-    return res.status(200).json({ url: roomData.url, debug: roomData });
+    return res.status(200).json({ url: roomData.url });
     
   } catch (error) {
     return res.status(500).json({ error: error.message });
