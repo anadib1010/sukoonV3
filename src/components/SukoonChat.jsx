@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 
 // ─── STATIC STYLES ─────────────────────────────────────────────────────────
@@ -6,7 +6,7 @@ const staticStyles = {
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' },
   headerTitle: { fontWeight: 'bold', fontSize: '16px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '2px', flex: 1, textAlign: 'center' },
   homeBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '11px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '1px' },
-  chatBox: { flex: 1, padding: '20px', overflowY: 'scroll', display: 'flex', flexDirection: 'column' },
+  chatBox: { flex: 1, padding: '20px', overflowY: 'scroll', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' }, // Added smooth scrolling here
   messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '15px' },
   inputArea: { display: 'flex', padding: '15px', alignItems: 'center' },
   inputField: { flex: 1, padding: '12px 18px', borderRadius: '25px', border: 'none', fontSize: '16px', fontFamily: "'DM Sans', sans-serif" },
@@ -24,6 +24,11 @@ export default function SukoonChat({ T, lang, setTab }) {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+
+  // ─── NEW: AUTO-SCROLL TRACKERS ───
+  const chatBoxRef = useRef(null); // Tracks the scrollable window
+  const messagesEndRef = useRef(null); // Tracks the very bottom of the messages
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
   // 1. IDENTITY & INITIAL ROOMS
   useEffect(() => {
@@ -91,6 +96,33 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     return () => { supabase.removeChannel(channel); };
   }, [activeRoom, currentUser]);
+
+  // ─── NEW: THE AUTO-SCROLL MOTORS ───
+  
+  // Motor 1: Instantly jump to the bottom when a new message arrives
+  useEffect(() => {
+    if (!isAutoScrolling && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeRoom]); // Triggers when messages change or you open a room
+
+  // Motor 2: The slow reading play/pause scroller
+  useEffect(() => {
+    let motor;
+    if (isAutoScrolling && chatBoxRef.current) {
+      motor = setInterval(() => {
+        if (chatBoxRef.current) {
+          chatBoxRef.current.scrollTop += 1; // Move down 1 pixel
+          
+          // Stop automatically if we hit the bottom
+          const isBottom = chatBoxRef.current.scrollHeight - chatBoxRef.current.scrollTop <= chatBoxRef.current.clientHeight + 1;
+          if (isBottom) setIsAutoScrolling(false);
+        }
+      }, 40); // Smooth reading speed
+    }
+    return () => clearInterval(motor);
+  }, [isAutoScrolling]);
+
 
   // 3. SEARCH & PRIVATE CHAT LOGIC
   const handleSearch = async () => {
@@ -189,7 +221,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   // ─── DYNAMIC STYLES ───────────────────────────────────────────────────────
   const dynamicStyles = {
-    container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text },
+    container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative' },
     combinedHomeBtn: { ...staticStyles.homeBtn, backgroundColor: `${T.accent}20`, color: T.text },
     logoutBtn: { ...staticStyles.homeBtn, backgroundColor: 'transparent', color: T.text, opacity: 0.6, fontSize: '10px', border: `1px solid ${T.accent}30` },
     combinedInput: { ...staticStyles.inputField, backgroundColor: `${T.accent}10`, color: T.text, border: `1px solid ${T.accent}30` },
@@ -205,10 +237,34 @@ export default function SukoonChat({ T, lang, setTab }) {
       maxWidth: '75%',
       fontSize: '15px'
     }),
-    senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.6, fontWeight: 'bold' }
+    senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.6, fontWeight: 'bold' },
+    
+    // NEW: The floating play/pause button for the slow scroller
+    autoScrollBtn: (active) => ({
+      position: 'absolute',
+      bottom: '90px', // Sits perfectly right above the typing area
+      right: '20px',
+      width: '40px',
+      height: '40px',
+      borderRadius: '50%',
+      background: active ? `${T.accent}40` : `${T.accent}15`,
+      border: `1px solid ${T.accent}`,
+      color: T.accent,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      boxShadow: active ? `0 0 15px ${T.accent}40` : '0 4px 10px rgba(0,0,0,0.2)',
+      transition: 'all 0.3s ease',
+      zIndex: 100,
+      fontSize: '16px',
+    })
   };
 
-  const handleBackOrHome = () => activeRoom ? setActiveRoom(null) : setTab('home');
+  const handleBackOrHome = () => {
+    setIsAutoScrolling(false); // Stop scrolling when leaving room
+    activeRoom ? setActiveRoom(null) : setTab('home');
+  };
 
   return (
     <div style={dynamicStyles.container}>
@@ -218,7 +274,8 @@ export default function SukoonChat({ T, lang, setTab }) {
         <button style={dynamicStyles.logoutBtn} onClick={handleLogout}>{lang === "Hindi" ? "लॉग आउट" : "LOGOUT"}</button>
       </div>
 
-      <div style={staticStyles.chatBox}>
+      {/* Attach the chatBoxRef tracker here so the motor knows what to scroll */}
+      <div style={staticStyles.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
             <div style={staticStyles.searchContainer}>
@@ -272,9 +329,21 @@ export default function SukoonChat({ T, lang, setTab }) {
                 );
               })
             )}
+            {/* The Invisible Bottom Tracker */}
+            <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>
         )}
       </div>
+
+      {activeRoom && messages.length > 5 && (
+        <button 
+          onClick={() => setIsAutoScrolling(!isAutoScrolling)}
+          style={dynamicStyles.autoScrollBtn(isAutoScrolling)}
+          title={hi ? "ऑटो-स्क्रॉल" : "Auto-Scroll"}
+        >
+          {isAutoScrolling ? "⏸️" : "⏬"}
+        </button>
+      )}
 
       {activeRoom && (
         <div style={staticStyles.inputArea}>
