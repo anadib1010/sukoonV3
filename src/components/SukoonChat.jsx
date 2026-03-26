@@ -12,12 +12,13 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
-  // ─── WEBRTC STATE & REFS ───
+  // ─── ENTERPRISE MESH WEBRTC STATE ───
   const [isInCall, setIsInCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
+  const [remoteStreams, setRemoteStreams] = useState([]); // Array to hold multiple family members' audio
+  
   const localStream = useRef(null);
-  const peerConnection = useRef(null);
-  const remoteAudioRef = useRef(null);
+  const peers = useRef({}); // Dictionary holding multiple RTCPeerConnections: { [userId]: RTCPeerConnection }
   const signalingChannelRef = useRef(null);
 
   // ─── AUTO-SCROLL TRACKERS ───
@@ -63,7 +64,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
   };
 
-  // 1. INITIALIZATION & IDENTITY
+  // 1. INITIALIZATION
   useEffect(() => {
     async function initialize() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -88,7 +89,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(roomChannel); };
   }, [currentUser?.id]);
 
-  // 2. CHAT & WEBRTC SIGNALING LISTENER
+  // 2. CHAT & MESH SIGNALING LISTENER
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -117,24 +118,48 @@ export default function SukoonChat({ T, lang, setTab }) {
         })
       .subscribe();
 
-    // B. WebRTC Signaling Channel (Supabase Broadcast)
-    const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, {
-      config: { broadcast: { ack: false } }
-    });
+    // B. Enterprise Mesh Signaling Channel
+    const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
 
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; // Ignore our own signals
 
       try {
-        if (payload.type === 'offer') {
+        if (payload.type === 'call-started' && !isInCall) {
           setIncomingCall(payload);
-        } else if (payload.type === 'answer' && peerConnection.current) {
-          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        } else if (payload.type === 'ice-candidate' && peerConnection.current) {
-          await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-        } else if (payload.type === 'end-call') {
-          cleanupCall();
-          setIncomingCall(null);
+        } 
+        else if (payload.type === 'user-joined' && isInCall) {
+          // A new person joined the mesh. Create a connection just for them and send an Offer.
+          const pc = createPeerConnection(payload.sender);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sigChannel.send({
+            type: 'broadcast', event: 'webrtc',
+            payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender }
+          });
+        } 
+        else if (payload.type === 'offer' && payload.target === currentUser.id) {
+          // Someone sent us a direct offer. Answer it to complete their tunnel.
+          const pc = createPeerConnection(payload.sender);
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          sigChannel.send({
+            type: 'broadcast', event: 'webrtc',
+            payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender }
+          });
+        } 
+        else if (payload.type === 'answer' && payload.target === currentUser.id) {
+          const pc = peers.current[payload.sender];
+          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        } 
+        else if (payload.type === 'ice-candidate' && payload.target === currentUser.id) {
+          const pc = peers.current[payload.sender];
+          if (pc) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+        } 
+        else if (payload.type === 'user-left') {
+          removePeer(payload.sender);
+          if (incomingCall?.sender === payload.sender) setIncomingCall(null);
         }
       } catch (err) {
         console.error("Signaling Error:", err);
@@ -147,13 +172,11 @@ export default function SukoonChat({ T, lang, setTab }) {
       supabase.removeChannel(chatChannel); 
       supabase.removeChannel(sigChannel);
     };
-  }, [activeRoom, currentUser]);
+  }, [activeRoom, currentUser, isInCall]); // Re-bind when call state changes
 
   // ─── AUTO-SCROLL MOTORS ───
   useEffect(() => {
-    if (!isAutoScrolling && chatBoxRef.current) {
-      chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
-    }
+    if (!isAutoScrolling && chatBoxRef.current) chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, activeRoom]);
 
   useEffect(() => {
@@ -189,105 +212,109 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
-  // ─── ENTERPRISE WEBRTC IMPLEMENTATION ───
+  // ─── ENTERPRISE MESH WEBRTC IMPLEMENTATION ───
   const STUN_SERVERS = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+    iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ]
   };
 
-  const initializeWebRTC = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    localStream.current = stream;
-    
+  const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(STUN_SERVERS);
-    peerConnection.current = pc;
+    peers.current[peerId] = pc;
 
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    // Attach local microphone
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
+    }
 
+    // Receive their audio and add it to our array of remote streams
     pc.ontrack = (event) => {
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0];
+      setRemoteStreams(prev => {
+        if (prev.find(p => p.userId === peerId)) return prev;
+        return [...prev, { userId: peerId, stream: event.streams[0] }];
+      });
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate && signalingChannelRef.current) {
         signalingChannelRef.current.send({
           type: 'broadcast', event: 'webrtc',
-          payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id }
+          payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId }
         });
       }
     };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        removePeer(peerId);
+      }
+    };
+
     return pc;
+  };
+
+  const removePeer = (peerId) => {
+    if (peers.current[peerId]) {
+      peers.current[peerId].close();
+      delete peers.current[peerId];
+    }
+    setRemoteStreams(prev => prev.filter(p => p.userId !== peerId));
   };
 
   const startCall = async () => {
     if (isInCall) return;
-    setIsInCall(true);
     try {
-      const pc = await initializeWebRTC();
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStream.current = stream;
+      setIsInCall(true);
 
+      // Tell everyone in the room that an active call has started so they can join
       signalingChannelRef.current.send({
         type: 'broadcast', event: 'webrtc',
-        payload: { type: 'offer', sdp: offer, sender: currentUser.id, callerEmail: currentUser.email }
+        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email }
       });
     } catch (error) {
-      alert("Call Initialization Failed: " + error.message);
-      cleanupCall();
+      alert("Microphone Access Failed: " + error.message);
     }
   };
 
-  const answerCall = async () => {
+  const joinCall = async () => {
     if (!incomingCall) return;
-    setIsInCall(true);
     try {
-      const pc = await initializeWebRTC();
-      await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'answer', sdp: answer, sender: currentUser.id }
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStream.current = stream;
+      setIsInCall(true);
       setIncomingCall(null);
+
+      // Tell the mesh network we have arrived. They will instantly send us Offers.
+      signalingChannelRef.current.send({
+        type: 'broadcast', event: 'webrtc',
+        payload: { type: 'user-joined', sender: currentUser.id }
+      });
     } catch (error) {
-      alert("Failed to answer call: " + error.message);
-      cleanupCall();
+      alert("Failed to join call: " + error.message);
     }
   };
 
-  const declineCall = () => {
-    if (signalingChannelRef.current) {
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'end-call', sender: currentUser.id }
-      });
-    }
-    setIncomingCall(null);
-  };
+  const declineCall = () => setIncomingCall(null);
 
   const endCall = () => {
     if (signalingChannelRef.current) {
       signalingChannelRef.current.send({
         type: 'broadcast', event: 'webrtc',
-        payload: { type: 'end-call', sender: currentUser.id }
+        payload: { type: 'user-left', sender: currentUser.id }
       });
     }
     cleanupCall();
   };
 
   const cleanupCall = () => {
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
+    Object.values(peers.current).forEach(pc => pc.close());
+    peers.current = {};
     if (localStream.current) {
       localStream.current.getTracks().forEach(track => track.stop());
       localStream.current = null;
     }
+    setRemoteStreams([]);
     setIsInCall(false);
   };
 
@@ -361,36 +388,45 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ─── RENDER ───
   return (
     <div style={s.container}>
-      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
+      
+      {/* MESH NETWORK SPEAKERS: Dynamically render an audio tag for every person in the call */}
+      {remoteStreams.map(peer => (
+        <audio 
+          key={peer.userId} 
+          autoPlay 
+          ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} 
+          style={{ display: 'none' }} 
+        />
+      ))}
 
       <div style={s.header}>
         <button style={s.backBtn} onClick={handleBackOrHome}>{activeRoom ? (hi ? "वापस" : "BACK") : (hi ? "होम" : "HOME")}</button>
         <div style={s.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : (hi ? "सुकून चैट" : "SUKOON CHAT")}</div>
         
-        {activeRoom && activeRoom.is_private && (
-          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall} title="Secure WebRTC Call">
+        {activeRoom && (
+          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall} title="Start Secure Group Call">
             📞
           </button>
         )}
         {!activeRoom && <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
       </div>
 
-      {/* INCOMING CALL BANNER */}
+      {/* ACTIVE CALL NOTIFICATION BANNER */}
       {incomingCall && !isInCall && (
         <div style={s.callBanner}>
-          <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling...</span>
+          <span>📞 {incomingCall.callerEmail?.split('@')[0]} started a call!</span>
           <div>
-            <button onClick={answerCall} style={s.acceptBtn}>{hi ? "स्वीकार" : "Accept"}</button>
-            <button onClick={declineCall} style={s.declineBtn}>{hi ? "अस्वीकार" : "Decline"}</button>
+            <button onClick={joinCall} style={s.acceptBtn}>{hi ? "जुड़ें" : "Join"}</button>
+            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Dismiss"}</button>
           </div>
         </div>
       )}
 
-      {/* ACTIVE CALL BANNER */}
+      {/* IN-CALL BANNER */}
       {isInCall && (
         <div style={s.callBanner}>
-          <span style={{ color: '#4ade80' }}>🟢 {hi ? "कॉल सुरक्षित रूप से कनेक्टेड" : "Secure Call Active"}</span>
-          <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "End Call"}</button>
+          <span style={{ color: '#4ade80' }}>🟢 {hi ? `कॉल कनेक्टेड (${remoteStreams.length + 1} लोग)` : `Secure Call Active (${remoteStreams.length + 1} in room)`}</span>
+          <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "Leave Call"}</button>
         </div>
       )}
 
