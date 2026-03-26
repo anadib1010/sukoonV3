@@ -59,7 +59,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   // 3. SEARCH & PRIVATE CHAT LOGIC (With X-Ray Vision & Safety Net!)
   const handleSearch = async () => {
-    // 🛡️ THE SAFETY NET: This stops the app from crashing if you are logged out!
     if (!currentUser) {
       alert("You are logged out! Please go back to Home and log in again.");
       return;
@@ -73,7 +72,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       return;
     }
 
-    // Ask the database for the profile
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -94,9 +92,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   // ─── THE MISSING TOOL: START PRIVATE CHAT ─────────────────────────────────
   const startPrivateChat = async (friend) => {
-    if (!currentUser) return; // 🛡️ Another safety net
+    if (!currentUser) return; 
 
-    // 1. Check if a private room already exists between these two users
     const { data: existing } = await supabase
       .from('rooms')
       .select('*')
@@ -106,7 +103,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (existing && existing.length > 0) {
       setActiveRoom(existing[0]);
     } else {
-      // 2. Create a brand new private room
       const roomName = `Chat: ${friend.email.split('@')[0]}`;
       const { data: newRoom, error } = await supabase
         .from('rooms')
@@ -132,23 +128,23 @@ export default function SukoonChat({ T, lang, setTab }) {
   
   // Encrypt: Mixes the text with the secret key
   const encrypt = (text, key) => {
-    if (!text) return "";
+    if (!text || !key) return "";
+    const stringKey = String(key); // 🛠️ FIX: Forces numbers to act like words!
     return btoa(text.split('').map((char, i) => 
-      String.fromCharCode(char.charCodeAt(0) ^ key.charCodeAt(i % key.length))
+      String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))
     ).join(''));
   };
 
   // Decrypt: Unmixes the text using the exact same secret key
   const decrypt = (scrambled, key) => {
-    if (!scrambled) return "";
+    if (!scrambled || !key) return "";
+    const stringKey = String(key); // 🛠️ FIX: Forces numbers to act like words!
     try {
       const decoded = atob(scrambled);
       return decoded.split('').map((char, i) => 
-        String.fromCharCode(char.charCodeAt(0) ^ key.charCodeAt(i % key.length))
+        String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))
       ).join('');
     } catch (e) {
-      // Teacher's Note: If it fails to unscramble (like for old messages), 
-      // just show the normal text so the app doesn't crash!
       return scrambled; 
     }
   };
