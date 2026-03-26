@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
+import { requestFirebaseToken } from '../firebaseSetup'; // 🌟 THE NEW VIP BADGE IMPORTER!
 
 export default function SukoonChat({ T, lang, setTab }) {
   const hi = lang === "Hindi";
@@ -40,8 +41,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
   const ringtoneRef = useRef(null); 
-  
-  // ─── NEW: AUTO-JOIN MEMORY (For Global Calls) ───
   const autoJoinRef = useRef(false);
 
   const safeSetIsInCall = (status) => {
@@ -49,7 +48,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     isInCallRef.current = status;
   };
 
-  // ─── AUTO-SCROLL TRACKERS ───
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
@@ -94,24 +92,39 @@ export default function SukoonChat({ T, lang, setTab }) {
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
   };
 
-  // 1. INITIALIZATION & GLOBAL EARS 🌍
+  // 1. INITIALIZATION & NIGHTWATCHMAN REGISTRATION 🌍
   useEffect(() => {
     async function initialize() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+      
       const { data } = await supabase.from('rooms').select('*');
       if (data) setRooms(data);
+      
+      // 🌟 THE FINAL BOSS MAGIC: Registering with Google!
+      if (user) {
+        try {
+          const token = await requestFirebaseToken();
+          if (token) {
+            // Save this user's specific Google Address to their profile in Supabase
+            await supabase.from('profiles').update({ fcm_token: token }).eq('id', user.id);
+            console.log("Nightwatchman successfully registered and saved!");
+          }
+        } catch (e) {
+          console.log("Could not register Nightwatchman: ", e);
+        }
+      }
+
       setLoading(false);
     }
     initialize();
   }, []);
 
-  // 1.5 THE GLOBAL RADARS (Messages AND Global Calls)
+  // 1.5 THE GLOBAL RADARS
   useEffect(() => {
     if (!currentUser) return;
     
-    // Unread Badges Logic
     const fetchInitialUnread = async () => {
       const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
       const counts = {};
@@ -126,32 +139,18 @@ export default function SukoonChat({ T, lang, setTab }) {
         const newMsg = payload.new;
         if (newMsg.user_id !== currentUser.id && activeRoomRef.current?.id !== newMsg.room_id) {
           setUnreadCounts(prev => ({ ...prev, [newMsg.room_id]: (prev[newMsg.room_id] || 0) + 1 }));
-          if (Notification.permission === "granted") new Notification(hi ? "सुकून ऐप" : "Sukoon App", { body: hi ? "नया सुरक्षित संदेश 🔒" : "New secure message 🔒" });
         }
       }).subscribe();
 
-    // 🌍 NEW: THE GLOBAL CALL ANTENNA
     const globalCallRadar = supabase.channel('global-call-radar', { config: { broadcast: { ack: false } } });
     globalCallRadar.on('broadcast', { event: 'global-ring' }, (payload) => {
       const data = payload.payload;
       
-      // Am I part of this group? And am I NOT the person who is calling?
       if (data.participants.includes(currentUser.id) && data.callerId !== currentUser.id) {
-        
         if (data.action === 'start') {
           setIncomingCall(data);
-          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Ringtone blocked by browser"));
-          
-          // Force a sticky push notification with vibration!
-          if (Notification.permission === "granted") {
-            new Notification(hi ? "सुकून कॉल" : "Sukoon Call", { 
-              body: `${data.callerEmail.split('@')[0]} is calling you! 📞`, 
-              requireInteraction: true, // Forces it to stay on screen
-              vibrate: [200, 100, 200, 100, 200] 
-            });
-          }
+          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Ringtone blocked"));
         } 
-        // THE GHOST FIX: If the caller hangs up, clear the screen and stop the ring!
         else if (data.action === 'cancel' && data.roomId === incomingCall?.roomId) {
           setIncomingCall(null);
           stopRinging();
@@ -166,7 +165,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
-    // A. Chat Message Fetching
     const fetchMessages = async () => {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       if (data) {
@@ -178,7 +176,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
     fetchMessages();
 
-    // B. Chat Listener
     const chatChannel = supabase.channel(`room-${activeRoom.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
@@ -189,7 +186,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           }
         }).subscribe();
 
-    // C. Presence Engine
     const presenceRoom = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
     presenceChannelRef.current = presenceRoom;
     presenceRoom.on('presence', { event: 'sync' }, () => {
@@ -199,7 +195,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       setPresentUsers(activeUsers);
     }).subscribe(async (status) => { if (status === 'SUBSCRIBED') await presenceRoom.track({ email: currentUser.email, is_typing: false }); });
 
-    // D. Room Signaling (Inside the Room)
     const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
     signalingChannelRef.current = sigChannel;
 
@@ -233,8 +228,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
 
-    // ─── TELEPORTATION AUTO-JOINER ───
-    // If we clicked "Accept" from the Global Radar, autoJoinRef will be true!
     if (autoJoinRef.current) {
       autoJoinRef.current = false;
       joinCall(); 
@@ -280,10 +273,8 @@ export default function SukoonChat({ T, lang, setTab }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
-      // 1. Tell people inside the room
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
       
-      // 2. SHOUT TO THE GLOBAL RADAR (For people on the Home Screen!)
       supabase.channel('global-call-radar').send({ 
         type: 'broadcast', event: 'global-ring', 
         payload: { action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom }
@@ -295,8 +286,8 @@ export default function SukoonChat({ T, lang, setTab }) {
   const handleGlobalAccept = async () => {
     if (!incomingCall) return;
     stopRinging();
-    autoJoinRef.current = true; // Tell the room to instantly open our microphone
-    setActiveRoom(incomingCall.roomDetails); // Teleport to the room!
+    autoJoinRef.current = true; 
+    setActiveRoom(incomingCall.roomDetails); 
     setIncomingCall(null);
   };
 
@@ -315,7 +306,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const endCall = () => { 
     if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
     
-    // GHOST RING FIX: Shout the Cancel signal to the Global Radar!
     if (activeRoom) {
       supabase.channel('global-call-radar').send({ 
         type: 'broadcast', event: 'global-ring', 
@@ -406,7 +396,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop style={{ display: 'none' }} />
       {remoteStreams.map(peer => ( <audio key={peer.userId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} /> ))}
 
-      {/* THE GLOBAL INCOMING CALL BANNER (Shows anywhere in the app!) */}
       {incomingCall && !isInCallRef.current && (
         <div style={{...s.callBanner, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000}}>
           <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
