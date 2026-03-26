@@ -27,14 +27,7 @@ export function Privacy({ setTab, goBack, T, lang }) {
       enD: "Your private messages are secured with End-to-End Encryption (E2EE) before they ever leave your device. Our database only stores scrambled, unreadable text. We cannot read your private messages, and neither can anyone else.",
       hiD: "आपके निजी संदेश आपके डिवाइस से निकलने से पहले एंड-टू-एंड एन्क्रिप्शन (E2EE) से सुरक्षित होते हैं। हमारा डेटाबेस केवल अव्यवस्थित, अपठनीय टेक्स्ट संग्रहीत करता है। हम आपके निजी संदेश नहीं पढ़ सकते, और न ही कोई और।",
     },
-    {
-      icon: "📞",
-      en: "Secure Peer-to-Peer Calls",
-      hi: "सुरक्षित पीयर-टू-पीयर कॉल",
-      enD: "Voice calls are powered by WebRTC technology, creating a direct connection between you and your friend. Your audio stream is encrypted by default, travels directly between devices, and is never recorded, listened to, or stored on our servers.",
-      hiD: "वॉयस कॉल WebRTC तकनीक द्वारा संचालित होते हैं, जो आपके और आपके मित्र के बीच सीधा संपर्क बनाते हैं। आपका ऑडियो स्ट्रीम डिफ़ॉल्ट रूप से एन्क्रिप्टेड है, सीधे उपकरणों के बीच यात्रा करता है, और हमारे सर्वर पर कभी रिकॉर्ड या संग्रहीत नहीं किया जाता है।",
-    },
-    // ───────────────────────────────────────────
+
     {
       icon: "🤖",
       en: "AI Processing",
