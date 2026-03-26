@@ -164,18 +164,22 @@ export default function SukoonChat({ T, lang, setTab }) {
     return room.is_private ? `👤 ${room.name}` : `📁 ${room.name}`;
   };
 
-  // ─── THE SECRET SCRAMBLER ─────────────────────────────────────────────────
+  // ─── THE UPGRADED SECRET SCRAMBLER ─────────────────────────────────────────
   const encrypt = (text, key) => {
     if (!text || !key) return "";
     const stringKey = String(key); 
-    return btoa(text.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
+    // encodeURIComponent safely turns emojis and Hindi into pure ASCII text first!
+    const safeText = encodeURIComponent(text);
+    return btoa(safeText.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
   };
 
   const decrypt = (scrambled, key) => {
     if (!scrambled || !key) return "";
     const stringKey = String(key); 
     try {
-      return atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
+      const decodedXor = atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
+      // decodeURIComponent safely turns the ASCII back into beautiful emojis and Hindi
+      return decodeURIComponent(decodedXor);
     } catch (e) {
       return scrambled; 
     }
