@@ -6,7 +6,7 @@ const staticStyles = {
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' },
   headerTitle: { fontWeight: 'bold', fontSize: '16px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '2px', flex: 1, textAlign: 'center' },
   homeBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '11px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '1px' },
-  chatBox: { flex: 1, padding: '20px', overflowY: 'scroll', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' }, // Added smooth scrolling here
+  chatBox: { flex: 1, padding: '20px', overflowY: 'scroll', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' }, 
   messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '15px' },
   inputArea: { display: 'flex', padding: '15px', alignItems: 'center' },
   inputField: { flex: 1, padding: '12px 18px', borderRadius: '25px', border: 'none', fontSize: '16px', fontFamily: "'DM Sans', sans-serif" },
@@ -26,9 +26,13 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
-  // ─── NEW: AUTO-SCROLL TRACKERS ───
-  const chatBoxRef = useRef(null); // Tracks the scrollable window
-  const messagesEndRef = useRef(null); // Tracks the very bottom of the messages
+  // ─── NEW: VOICE CALL STATE ───
+  const [callUrl, setCallUrl] = useState(null);
+  const [isStartingCall, setIsStartingCall] = useState(false);
+
+  // ─── AUTO-SCROLL TRACKERS ───
+  const chatBoxRef = useRef(null); 
+  const messagesEndRef = useRef(null); 
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
   // 1. IDENTITY & INITIAL ROOMS
@@ -43,7 +47,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
-  // 1.5 ROOM RADAR (Instantly pops up invites)
+  // 1.5 ROOM RADAR
   useEffect(() => {
     if (!currentUser) return;
     const roomChannel = supabase.channel('live-rooms-radar')
@@ -57,7 +61,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(roomChannel); };
   }, [currentUser?.id]);
 
-  // 2. LIVE MESSAGE LISTENER (With Auto-Reader!)
+  // 2. LIVE MESSAGE LISTENER 
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -65,7 +69,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       if (data) {
         setMessages(data);
-        // THE AUTO-READER: Find messages sent to me that I haven't read yet
         const unreadMessages = data.filter(m => !m.is_read && m.user_id !== currentUser.id);
         if (unreadMessages.length > 0) {
           const unreadIds = unreadMessages.map(m => m.id);
@@ -75,13 +78,11 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
     fetchMessages();
 
-    // THE UPGRADED RADAR: Listens for Inserts, Updates, and Deletes
     const channel = supabase.channel(`room-${activeRoom.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
       (payload) => {
         if (payload.eventType === 'INSERT') {
           setMessages((prev) => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new]);
-          // Automatically check the box to turn ticks blue for the sender
           if (payload.new.user_id !== currentUser.id) {
             supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
           }
@@ -98,32 +99,26 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(channel); };
   }, [activeRoom, currentUser]);
 
-  // ─── NEW: THE AUTO-SCROLL MOTORS ───
-  
-  // Motor 1: Instantly jump to the bottom when a new message arrives
+  // ─── THE AUTO-SCROLL MOTORS ───
   useEffect(() => {
-    if (!isAutoScrolling && chatBoxRef.current) {
-      // This safely scrolls ONLY the inside of the chat box, not the whole page!
+    if (!isAutoScrolling && chatBoxRef.current && !callUrl) {
       chatBoxRef.current.scrollTo({
         top: chatBoxRef.current.scrollHeight,
         behavior: 'smooth'
       });
     }
-  }, [messages, activeRoom]); // Triggers when messages change or you open a room
+  }, [messages, activeRoom, callUrl]); 
 
-  // Motor 2: The slow reading play/pause scroller
   useEffect(() => {
     let motor;
     if (isAutoScrolling && chatBoxRef.current) {
       motor = setInterval(() => {
         if (chatBoxRef.current) {
-          chatBoxRef.current.scrollTop += 1; // Move down 1 pixel
-          
-          // Stop automatically if we hit the bottom
+          chatBoxRef.current.scrollTop += 1; 
           const isBottom = chatBoxRef.current.scrollHeight - chatBoxRef.current.scrollTop <= chatBoxRef.current.clientHeight + 1;
           if (isBottom) setIsAutoScrolling(false);
         }
-      }, 40); // Smooth reading speed
+      }, 40); 
     }
     return () => clearInterval(motor);
   }, [isAutoScrolling]);
@@ -186,6 +181,35 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
+  // ─── NEW: THE BOUNCER CALL LOGIC ───
+  const handleStartCall = async () => {
+    setIsStartingCall(true);
+    try {
+      // 1. Ask the Bouncer for a room
+      const response = await fetch('/api/daily', { method: 'POST' });
+      const data = await response.json();
+      
+      if (data.url) {
+        // 2. Open the call for myself
+        setCallUrl(data.url);
+        
+        // 3. Secretly send the invite link to the chat!
+        const inviteText = `📞 [SUKOON_CALL]:::${data.url}`;
+        const scrambledText = encrypt(inviteText, activeRoom.id);
+        const newMessage = { content: scrambledText, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email };
+        await supabase.from('messages').insert([newMessage]);
+      } else {
+        alert(hi ? "कॉल शुरू नहीं हो सकी" : "Could not start call.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert(hi ? "कॉल सर्वर त्रुटि" : "Call server error.");
+    } finally {
+      setIsStartingCall(false);
+    }
+  };
+
+
   // 4. SEND MESSAGE 
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
@@ -201,11 +225,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const handleDeleteMessage = async (messageId) => {
     const confirmDelete = window.confirm(lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
     if (!confirmDelete) return;
-    
-    // Instantly hide it from the screen
     setMessages((prev) => prev.filter(m => m.id !== messageId));
-    
-    // Officially delete it from the database
     const { error } = await supabase.from('messages').delete().eq('id', messageId);
     if (error) alert("Could not delete message: " + error.message);
   };
@@ -231,6 +251,10 @@ export default function SukoonChat({ T, lang, setTab }) {
     logoutBtn: { ...staticStyles.homeBtn, backgroundColor: 'transparent', color: T.text, opacity: 0.6, fontSize: '10px', border: `1px solid ${T.accent}30` },
     combinedInput: { ...staticStyles.inputField, backgroundColor: `${T.accent}10`, color: T.text, border: `1px solid ${T.accent}30` },
     combinedButton: { ...staticStyles.sendButton, backgroundColor: T.accent, color: T.bg },
+    
+    // NEW: Style for the Call Header Button
+    callBtn: { ...staticStyles.sendButton, backgroundColor: `${T.accent}20`, color: T.text, border: `1px solid ${T.accent}50`, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '12px' },
+    
     roomCard: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px solid ${T.accent}30`, backgroundColor: `${T.accent}05`, cursor: 'pointer' },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
     getBubble: (isMe) => ({
@@ -244,30 +268,17 @@ export default function SukoonChat({ T, lang, setTab }) {
     }),
     senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.6, fontWeight: 'bold' },
     
-    // NEW: The floating play/pause button for the slow scroller
     autoScrollBtn: (active) => ({
-      position: 'absolute',
-      bottom: '90px', // Sits perfectly right above the typing area
-      right: '20px',
-      width: '40px',
-      height: '40px',
-      borderRadius: '50%',
-      background: active ? `${T.accent}40` : `${T.accent}15`,
-      border: `1px solid ${T.accent}`,
-      color: T.accent,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      cursor: 'pointer',
-      boxShadow: active ? `0 0 15px ${T.accent}40` : '0 4px 10px rgba(0,0,0,0.2)',
-      transition: 'all 0.3s ease',
-      zIndex: 100,
-      fontSize: '16px',
+      position: 'absolute', bottom: '90px', right: '20px', width: '40px', height: '40px', borderRadius: '50%',
+      background: active ? `${T.accent}40` : `${T.accent}15`, border: `1px solid ${T.accent}`, color: T.accent,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+      boxShadow: active ? `0 0 15px ${T.accent}40` : '0 4px 10px rgba(0,0,0,0.2)', transition: 'all 0.3s ease', zIndex: 100, fontSize: '16px',
     })
   };
 
   const handleBackOrHome = () => {
-    setIsAutoScrolling(false); // Stop scrolling when leaving room
+    setIsAutoScrolling(false); 
+    setCallUrl(null); // End call if leaving room
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
@@ -276,17 +287,37 @@ export default function SukoonChat({ T, lang, setTab }) {
       <div style={staticStyles.header}>
         <button style={dynamicStyles.combinedHomeBtn} onClick={handleBackOrHome}>{activeRoom ? "BACK" : "HOME"}</button>
         <div style={staticStyles.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : "SUKOON TEAM CHAT"}</div>
-        <button style={dynamicStyles.logoutBtn} onClick={handleLogout}>{lang === "Hindi" ? "लॉग आउट" : "LOGOUT"}</button>
+        
+        {/* NEW: The Call Button in Header */}
+        {activeRoom && activeRoom.is_private && !callUrl && (
+          <button style={dynamicStyles.callBtn} onClick={handleStartCall} disabled={isStartingCall}>
+            {isStartingCall ? "⏳" : "📞"}
+          </button>
+        )}
+        
+        {!activeRoom && <button style={dynamicStyles.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
       </div>
 
-      {/* Attach the chatBoxRef tracker here so the motor knows what to scroll */}
       <div style={staticStyles.chatBox} ref={chatBoxRef}>
-        {!activeRoom ? (
+        
+        {/* NEW: The Live Call Window */}
+        {callUrl ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+            <iframe
+              src={callUrl}
+              allow="camera; microphone; fullscreen; display-capture"
+              style={{ flex: 1, width: '100%', border: `1px solid ${T.accent}50`, borderRadius: '16px', backgroundColor: '#000' }}
+            ></iframe>
+            <button onClick={() => setCallUrl(null)} style={{ ...dynamicStyles.combinedButton, backgroundColor: '#ff4e00', alignSelf: 'center', padding: '12px 30px' }}>
+              {hi ? "कॉल समाप्त करें" : "End Call"}
+            </button>
+          </div>
+        ) : !activeRoom ? (
           <>
             <div style={staticStyles.searchContainer}>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input style={dynamicStyles.combinedInput} placeholder="Find friend's email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                <button style={dynamicStyles.combinedButton} onClick={handleSearch}>FIND</button>
+                <input style={dynamicStyles.combinedInput} placeholder={hi ? "मित्र का ईमेल खोजें..." : "Find friend's email..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <button style={dynamicStyles.combinedButton} onClick={handleSearch}>{hi ? "खोजें" : "FIND"}</button>
               </div>
               {searchResults.map(user => (
                 <div key={user.id} onClick={() => startPrivateChat(user)} style={{ ...dynamicStyles.roomCard, border: `1px dashed ${T.accent}`, marginTop: '10px' }}>
@@ -294,7 +325,7 @@ export default function SukoonChat({ T, lang, setTab }) {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: '10px', opacity: 0.8, fontSize: '12px', letterSpacing: '1px' }}>YOUR ROOMS</div>
+            <div style={{ marginTop: '10px', opacity: 0.8, fontSize: '12px', letterSpacing: '1px' }}>{hi ? "आपके कक्ष" : "YOUR ROOMS"}</div>
             {rooms.map(r => (
               <div key={r.id} style={dynamicStyles.roomCard} onClick={() => setActiveRoom(r)}>{getRoomDisplayName(r)}</div>
             ))}
@@ -306,12 +337,30 @@ export default function SukoonChat({ T, lang, setTab }) {
             ) : (
               messages.map(m => {
                 const isMe = m.user_id === currentUser?.id;
+                const decryptedText = decrypt(m.content, activeRoom.id);
+                
+                // NEW: Detect Call Invites in Chat
+                const isCallInvite = decryptedText.startsWith("📞 [SUKOON_CALL]:::");
+                
                 return (
                   <div key={m.id} style={dynamicStyles.getBubbleWrapper(isMe)}>
                     {!isMe && <div style={dynamicStyles.senderName}>{m.user_email?.split('@')[0]}</div>}
-                    <div style={dynamicStyles.getBubble(isMe)}>{decrypt(m.content, activeRoom.id)}</div>
                     
-                    {/* STATUS BAR (Time, Ticks, and Eraser) */}
+                    {/* Render a Join Button if it's a Call Invite, otherwise render Text */}
+                    {isCallInvite ? (
+                       <div style={{...dynamicStyles.getBubble(isMe), border: `2px solid ${T.accent}`}}>
+                         <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>{hi ? "📞 वॉयस कॉल शुरू हो गई है!" : "📞 Voice Call Started!"}</p>
+                         {!isMe && (
+                           <button onClick={() => setCallUrl(decryptedText.split(":::")[1])} style={dynamicStyles.combinedButton}>
+                             {hi ? "कॉल से जुड़ें" : "Join Call"}
+                           </button>
+                         )}
+                       </div>
+                    ) : (
+                       <div style={dynamicStyles.getBubble(isMe)}>{decryptedText}</div>
+                    )}
+                    
+                    {/* STATUS BAR */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                       <div style={{ fontSize: '10px', opacity: 0.5 }}>{formatTime(m.created_at)}</div>
                       
@@ -323,7 +372,7 @@ export default function SukoonChat({ T, lang, setTab }) {
                           <button 
                             onClick={() => handleDeleteMessage(m.id)} 
                             style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 }}
-                            title="Delete Message"
+                            title={hi ? "संदेश हटाएं" : "Delete Message"}
                           >
                             🗑️
                           </button>
@@ -334,13 +383,12 @@ export default function SukoonChat({ T, lang, setTab }) {
                 );
               })
             )}
-            {/* The Invisible Bottom Tracker */}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>
         )}
       </div>
 
-      {activeRoom && messages.length > 5 && (
+      {activeRoom && messages.length > 5 && !callUrl && (
         <button 
           onClick={() => setIsAutoScrolling(!isAutoScrolling)}
           style={dynamicStyles.autoScrollBtn(isAutoScrolling)}
@@ -350,10 +398,10 @@ export default function SukoonChat({ T, lang, setTab }) {
         </button>
       )}
 
-      {activeRoom && (
+      {activeRoom && !callUrl && (
         <div style={staticStyles.inputArea}>
-          <input style={dynamicStyles.combinedInput} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Type a message..." />
-          <button style={dynamicStyles.combinedButton} onClick={handleSendMessage}>Send</button>
+          <input style={dynamicStyles.combinedInput} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={hi ? "एक संदेश लिखें..." : "Type a message..."} />
+          <button style={dynamicStyles.combinedButton} onClick={handleSendMessage}>{hi ? "भेजें" : "Send"}</button>
         </div>
       )}
     </div>
