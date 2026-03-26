@@ -15,6 +15,7 @@ const staticStyles = {
 };
 
 export default function SukoonChat({ T, lang, setTab }) {
+  const hi = lang === "Hindi";
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]); 
   const [activeRoom, setActiveRoom] = useState(null);
