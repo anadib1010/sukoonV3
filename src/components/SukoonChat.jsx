@@ -168,7 +168,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const encrypt = (text, key) => {
     if (!text || !key) return "";
     const stringKey = String(key); 
-    // encodeURIComponent safely turns emojis and Hindi into pure ASCII text first!
+    // This safely encodes Emojis and Hindi before scrambling
     const safeText = encodeURIComponent(text);
     return btoa(safeText.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
   };
@@ -178,7 +178,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     const stringKey = String(key); 
     try {
       const decodedXor = atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
-      // decodeURIComponent safely turns the ASCII back into beautiful emojis and Hindi
+      // This turns the code back into beautiful Emojis and Hindi
       return decodeURIComponent(decodedXor);
     } catch (e) {
       return scrambled; 
