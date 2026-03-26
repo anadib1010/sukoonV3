@@ -102,8 +102,12 @@ export default function SukoonChat({ T, lang, setTab }) {
   
   // Motor 1: Instantly jump to the bottom when a new message arrives
   useEffect(() => {
-    if (!isAutoScrolling && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!isAutoScrolling && chatBoxRef.current) {
+      // This safely scrolls ONLY the inside of the chat box, not the whole page!
+      chatBoxRef.current.scrollTo({
+        top: chatBoxRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [messages, activeRoom]); // Triggers when messages change or you open a room
 
