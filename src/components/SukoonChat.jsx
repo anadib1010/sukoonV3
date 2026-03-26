@@ -12,7 +12,14 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
-  // ─── LIVE PRESENCE STATE (Who is online & typing) ───
+  // ─── THE NEW UNREAD BADGE ENGINE 🔴 ───
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const activeRoomRef = useRef(activeRoom); // Keeps track of where we are for the Global Radar
+
+  // Keep the ref updated so the radar always knows which room we are currently looking at
+  useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
+
+  // ─── LIVE PRESENCE STATE ───
   const [presentUsers, setPresentUsers] = useState({});
   const [isTyping, setIsTyping] = useState(false);
   const presenceChannelRef = useRef(null);
@@ -26,7 +33,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const localStream = useRef(null);
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
-  const ringtoneRef = useRef(null); // The invisible ringing speaker
+  const ringtoneRef = useRef(null); 
 
   // ─── AUTO-SCROLL TRACKERS ───
   const chatBoxRef = useRef(null);
@@ -51,8 +58,12 @@ export default function SukoonChat({ T, lang, setTab }) {
     searchInput: { flex: 1, padding: '12px 18px', borderRadius: '25px', border: 'none', fontSize: '16px', fontFamily: "'DM Sans', sans-serif", backgroundColor: `${T.accent}10`, color: T.text, border: `1px solid ${T.accent}30` },
     findBtn: { padding: '12px 20px', borderRadius: '25px', border: 'none', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', backgroundColor: T.accent, color: T.bg },
     roomsLabel: { marginTop: '10px', opacity: 0.8, fontSize: '12px', letterSpacing: '1px', color: T.text },
-    roomCard: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px solid ${T.accent}30`, backgroundColor: `${T.accent}05`, cursor: 'pointer', color: T.text },
+    
+    // Updated Room Card to handle the Red Badge layout
+    roomCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px solid ${T.accent}30`, backgroundColor: `${T.accent}05`, cursor: 'pointer', color: T.text },
     roomCardSearch: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px dashed ${T.accent}`, backgroundColor: `${T.accent}05`, cursor: 'pointer', color: T.text },
+    unreadBadge: { backgroundColor: '#ef4444', color: '#fff', borderRadius: '12px', padding: '2px 8px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)' },
+    
     messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '15px' },
     emptyRoom: { textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.5, color: T.text },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
@@ -68,15 +79,19 @@ export default function SukoonChat({ T, lang, setTab }) {
     inputField: { flex: 1, padding: '12px 18px', borderRadius: '25px', border: 'none', fontSize: '16px', fontFamily: "'DM Sans', sans-serif", backgroundColor: `${T.accent}10`, color: T.text, border: `1px solid ${T.accent}30` },
     sendBtn: { padding: '12px 20px', borderRadius: '25px', border: 'none', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', backgroundColor: T.accent, color: T.bg },
     loadingText: { textAlign: 'center', marginTop: '40px', opacity: 0.5, color: T.text },
-    
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px' },
     acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', marginRight: '8px' },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
   };
 
-  // 1. INITIALIZATION
+  // 1. INITIALIZATION & PUSH NOTIFICATION PERMISSION
   useEffect(() => {
     async function initialize() {
+      // Ask the phone for permission to buzz!
+      if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
       const { data } = await supabase.from('rooms').select('*');
@@ -86,28 +101,68 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
+  // 1.5 THE GLOBAL RADAR (Rooms + Unread Badges)
   useEffect(() => {
     if (!currentUser) return;
+
+    // First, count up all the unread messages currently sitting in the database
+    const fetchInitialUnread = async () => {
+      const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
+      const counts = {};
+      if (data) {
+        data.forEach(msg => { counts[msg.room_id] = (counts[msg.room_id] || 0) + 1; });
+        setUnreadCounts(counts);
+      }
+    };
+    fetchInitialUnread();
+
     const roomChannel = supabase.channel('live-rooms-radar')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' },
         (payload) => {
           if (payload.new.participants && payload.new.participants.includes(currentUser.id)) setRooms((prev) => [...prev, payload.new]);
         })
       .subscribe();
-    return () => { supabase.removeChannel(roomChannel); };
+
+    // The Global Message Scanner (Listens to the whole database)
+    const globalMessageScanner = supabase.channel('global-message-scanner')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const newMsg = payload.new;
+        
+        // If the message is NOT from us, AND we aren't currently inside that specific room...
+        if (newMsg.user_id !== currentUser.id && activeRoomRef.current?.id !== newMsg.room_id) {
+          
+          // 1. Add +1 to the Red Badge
+          setUnreadCounts(prev => ({ ...prev, [newMsg.room_id]: (prev[newMsg.room_id] || 0) + 1 }));
+          
+          // 2. Fire the Push Notification! (Securely)
+          if (Notification.permission === "granted") {
+            new Notification(hi ? "सुकून ऐप" : "Sukoon App", {
+              body: hi ? "आपके पास एक नया सुरक्षित संदेश है 🔒" : "You have a new secure message 🔒",
+            });
+          }
+        }
+      }).subscribe();
+
+    return () => { 
+      supabase.removeChannel(roomChannel); 
+      supabase.removeChannel(globalMessageScanner);
+    };
   }, [currentUser?.id]);
 
   // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
-    // A. Chat Message Fetching
+    // A. Chat Message Fetching (When we enter a room, wipe the red badge to 0!)
     const fetchMessages = async () => {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       if (data) {
         setMessages(data);
         const unreadIds = data.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
         if (unreadIds.length > 0) supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        
+        // Wipe the badge clean because we read them!
+        setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
       }
     };
     fetchMessages();
@@ -126,21 +181,17 @@ export default function SukoonChat({ T, lang, setTab }) {
         })
       .subscribe();
 
-    // B. Live Presence Engine (Who is online & typing)
+    // B. Live Presence Engine
     const presenceRoom = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
     presenceChannelRef.current = presenceRoom;
 
     presenceRoom.on('presence', { event: 'sync' }, () => {
       const state = presenceRoom.presenceState();
       const activeUsers = {};
-      Object.keys(state).forEach(key => {
-        if (key !== currentUser.id) activeUsers[key] = state[key][0]; 
-      });
+      Object.keys(state).forEach(key => { if (key !== currentUser.id) activeUsers[key] = state[key][0]; });
       setPresentUsers(activeUsers);
     }).subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await presenceRoom.track({ email: currentUser.email, is_typing: false });
-      }
+      if (status === 'SUBSCRIBED') await presenceRoom.track({ email: currentUser.email, is_typing: false });
     });
 
     // C. Enterprise Mesh Signaling Channel & Ringer
@@ -153,8 +204,12 @@ export default function SukoonChat({ T, lang, setTab }) {
       try {
         if (payload.type === 'call-started' && !isInCall) {
           setIncomingCall(payload);
-          // START RINGING!
-          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Auto-play blocked by browser. User must click first."));
+          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Auto-play blocked"));
+          
+          // Fire a Push Notification for the incoming call!
+          if (Notification.permission === "granted") {
+            new Notification("Sukoon Call", { body: `${payload.callerEmail?.split('@')[0]} is calling you! 📞` });
+          }
         } 
         else if (payload.type === 'user-joined' && isInCall) {
           const pc = createPeerConnection(payload.sender);
@@ -195,30 +250,20 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
   }, [activeRoom, currentUser, isInCall]);
 
-  // ─── RINGTONE CONTROLLER ───
   const stopRinging = () => {
-    if (ringtoneRef.current) {
-      ringtoneRef.current.pause();
-      ringtoneRef.current.currentTime = 0; // Rewind to start
-    }
+    if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current.currentTime = 0; }
   };
 
-  // ─── AUTO-SCROLL MOTORS ───
   useEffect(() => {
     if (!isAutoScrolling && chatBoxRef.current) chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, activeRoom]);
 
-  // ─── TYPING INDICATOR LOGIC ───
   const handleTyping = (e) => {
     setMessage(e.target.value);
-    
-    // Tell Supabase we started typing
     if (!isTyping && presenceChannelRef.current) {
       setIsTyping(true);
       presenceChannelRef.current.track({ email: currentUser.email, is_typing: true });
     }
-
-    // Reset the timer. If we stop typing for 2 seconds, tell Supabase we stopped.
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
@@ -226,7 +271,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     }, 2000);
   };
 
-  // ─── ENCRYPTION ───
   const encrypt = (text, key) => {
     if (!text || !key) return "";
     const stringKey = String(key);
@@ -240,7 +284,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     catch (e) { return scrambled; }
   };
 
-  // ─── ENTERPRISE MESH WEBRTC IMPLEMENTATION ───
   const STUN_SERVERS = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
 
   const createPeerConnection = (peerId) => {
@@ -284,7 +327,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const joinCall = async () => {
     if (!incomingCall) return;
-    stopRinging(); // Stop the ringing when we pick up!
+    stopRinging(); 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStream.current = stream;
@@ -296,7 +339,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const declineCall = () => {
     setIncomingCall(null);
-    stopRinging(); // Stop ringing if we decline
+    stopRinging(); 
   };
 
   const endCall = () => {
@@ -313,7 +356,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     stopRinging();
   };
 
-  // ─── CHAT ACTIONS ───
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
     const scrambledText = encrypt(message, activeRoom.id);
@@ -366,6 +408,12 @@ export default function SukoonChat({ T, lang, setTab }) {
   const handleBackOrHome = () => {
     setIsAutoScrolling(false);
     if (isInCall) endCall();
+    
+    // Wipe the red badge clean when we back out of a room!
+    if (activeRoom) {
+      setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
+    }
+    
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
@@ -374,17 +422,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   
-  // ─── RENDER ───
-  // Find out who is typing right now (anyone except us)
   const typingUsers = Object.values(presentUsers).filter(user => user.is_typing);
 
   return (
     <div style={s.container}>
       
-      {/* 🎵 THE INVISIBLE RINGTONE SPEAKER */}
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop style={{ display: 'none' }} />
 
-      {/* MESH NETWORK SPEAKERS */}
       {remoteStreams.map(peer => (
         <audio key={peer.userId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} />
       ))}
@@ -395,7 +439,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         <div style={s.headerTitleBox}>
           <div style={s.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : (hi ? "सुकून चैट" : "SUKOON CHAT")}</div>
           
-          {/* THE LIVE GREEN DOT RADAR */}
           {activeRoom && Object.keys(presentUsers).length > 0 && (
             <div style={s.onlineStatus}>
               <span style={s.greenDot}></span> 
@@ -410,7 +453,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         {!activeRoom && <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
       </div>
 
-      {/* INCOMING CALL BANNER (Rings when this appears!) */}
       {incomingCall && !isInCall && (
         <div style={s.callBanner}>
           <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
@@ -421,7 +463,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
-      {/* IN-CALL BANNER */}
       {isInCall && (
         <div style={s.callBanner}>
           <span style={{ color: '#4ade80' }}>🟢 {hi ? `कॉल कनेक्टेड` : `Secure Call Active`}</span>
@@ -439,8 +480,24 @@ export default function SukoonChat({ T, lang, setTab }) {
               </div>
               {searchResults.map(user => ( <div key={user.id} onClick={() => startPrivateChat(user)} style={s.roomCardSearch}>✨ Chat with {user.email}</div> ))}
             </div>
+            
             <div style={s.roomsLabel}>{hi ? "आपके रूम" : "YOUR ROOMS"}</div>
-            {rooms.map(r => ( <div key={r.id} style={s.roomCard} onClick={() => setActiveRoom(r)}>{getRoomDisplayName(r)}</div> ))}
+            
+            {/* 🔴 THE UNREAD BADGES ARE ADDED TO THE ROOM LIST HERE */}
+            {rooms.map(r => ( 
+              <div 
+                key={r.id} 
+                style={s.roomCard} 
+                onClick={() => setActiveRoom(r)}
+              >
+                <span>{getRoomDisplayName(r)}</span>
+                
+                {/* If the unread count is greater than 0, show the red badge! */}
+                {unreadCounts[r.id] > 0 && (
+                  <span style={s.unreadBadge}>{unreadCounts[r.id]}</span>
+                )}
+              </div> 
+            ))}
           </>
         ) : (
           <div style={s.messageList}>
@@ -467,7 +524,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
       {activeRoom && messages.length > 5 && ( <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={s.autoScrollBtn(isAutoScrolling)}>{isAutoScrolling ? "⏸️" : "⏬"}</button> )}
 
-      {/* TYPING INDICATOR RADAR */}
       {activeRoom && typingUsers.length > 0 && (
         <div style={s.typingIndicator}>
           {typingUsers.map(u => u.email?.split('@')[0]).join(', ')} {hi ? "टाइप कर रहे हैं..." : "is typing..."}
@@ -479,7 +535,7 @@ export default function SukoonChat({ T, lang, setTab }) {
           <input 
             style={s.inputField} 
             value={message} 
-            onChange={handleTyping} // <-- Uses the new Typing function!
+            onChange={handleTyping} 
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} 
             placeholder={hi ? "संदेश लिखें..." : "Type a message..."} 
           />
