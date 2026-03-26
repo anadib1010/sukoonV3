@@ -26,7 +26,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
-  // ─── NEW: VOICE CALL STATE ───
+  // ─── NEW: VOICE/VIDEO CALL STATE ───
   const [callUrl, setCallUrl] = useState(null);
   const [isStartingCall, setIsStartingCall] = useState(false);
   const [callType, setCallType] = useState(null); // 'voice' or 'video'
@@ -124,6 +124,61 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => clearInterval(motor);
   }, [isAutoScrolling]);
 
+  // ─── THE UPGRADED SECRET SCRAMBLER (Emoji & Hindi Safe) ─────────────────────
+  const encrypt = (text, key) => {
+    if (!text || !key) return "";
+    const stringKey = String(key); 
+    const safeText = encodeURIComponent(text); // Securely handles non-Latin characters
+    return btoa(safeText.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
+  };
+
+  const decrypt = (scrambled, key) => {
+    if (!scrambled || !key) return "";
+    const stringKey = String(key); 
+    try {
+      const decodedXor = atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
+      return decodeURIComponent(decodedXor);
+    } catch (e) {
+      return scrambled; 
+    }
+  };
+
+  // ─── NEW: THE BOUNCER CALL LOGIC (Voice & Video Choice) ───
+  const handleStartCall = async (type) => {
+    setIsStartingCall(true);
+    setCallType(type);
+    try {
+      const response = await fetch('/api/daily', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callType: type })
+      });
+      const data = await response.json();
+      
+      if (data.url) {
+        setCallUrl(data.url);
+        
+        // Secretly send the invite link with the type metadata
+        const icon = type === 'video' ? '🎥' : '📞';
+        const inviteText = `${icon} [SUKOON_CALL]:::${data.url}:::${type}`;
+        const scrambledText = encrypt(inviteText, activeRoom.id);
+        const newMessage = { content: scrambledText, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email };
+        await supabase.from('messages').insert([newMessage]);
+      } else {
+        alert(hi ? "कॉल शुरू नहीं हो सकी" : "Could not start call.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert(hi ? "कॉल सर्वर त्रुटि" : "Call server error.");
+    } finally {
+      setIsStartingCall(false);
+    }
+  };
+
+  const handleJoinCall = (url, type) => {
+    setCallType(type);
+    setCallUrl(url);
+  };
 
   // 3. SEARCH & PRIVATE CHAT LOGIC
   const handleSearch = async () => {
@@ -165,61 +220,10 @@ export default function SukoonChat({ T, lang, setTab }) {
     return room.is_private ? `👤 ${room.name}` : `📁 ${room.name}`;
   };
 
-  // ─── THE UPGRADED SECRET SCRAMBLER ─────────────────────────────────────────
-  const encrypt = (text, key) => {
-    if (!text || !key) return "";
-    const stringKey = String(key); 
-    // This safely encodes Emojis and Hindi before scrambling
-    const safeText = encodeURIComponent(text);
-    return btoa(safeText.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
-  };
-
-  const decrypt = (scrambled, key) => {
-    if (!scrambled || !key) return "";
-    const stringKey = String(key); 
-    try {
-      const decodedXor = atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
-      // This turns the code back into beautiful Emojis and Hindi
-      return decodeURIComponent(decodedXor);
-    } catch (e) {
-      return scrambled; 
-    }
-  };
-
-  // ─── NEW: THE BOUNCER CALL LOGIC ───
-  const handleStartCall = async () => {
-    setIsStartingCall(true);
-    try {
-      // 1. Ask the Bouncer for a room
-      const response = await fetch('/api/daily', { method: 'POST' });
-      const data = await response.json();
-      
-      if (data.url) {
-        // 2. Open the call for myself
-        setCallUrl(data.url);
-        
-        // 3. Secretly send the invite link to the chat!
-        const inviteText = `📞 [SUKOON_CALL]:::${data.url}`;
-        const scrambledText = encrypt(inviteText, activeRoom.id);
-        const newMessage = { content: scrambledText, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email };
-        await supabase.from('messages').insert([newMessage]);
-      } else {
-        alert(hi ? "कॉल शुरू नहीं हो सकी" : "Could not start call.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert(hi ? "कॉल सर्वर त्रुटि" : "Call server error.");
-    } finally {
-      setIsStartingCall(false);
-    }
-  };
-
-
   // 4. SEND MESSAGE 
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
-    const secretKey = activeRoom.id;
-    const scrambledText = encrypt(message, secretKey);
+    const scrambledText = encrypt(message, activeRoom.id);
     const newMessage = { content: scrambledText, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email };
     setMessage(""); 
     const { error } = await supabase.from('messages').insert([newMessage]);
@@ -228,7 +232,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   // 4.5 THE INSTANT ERASER
   const handleDeleteMessage = async (messageId) => {
-    const confirmDelete = window.confirm(lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
+    const confirmDelete = window.confirm(hi ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
     if (!confirmDelete) return;
     setMessages((prev) => prev.filter(m => m.id !== messageId));
     const { error } = await supabase.from('messages').delete().eq('id', messageId);
@@ -237,7 +241,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   // 5. THE LOGOUT FUNCTION
   const handleLogout = async () => {
-    const confirmLogout = window.confirm(lang === "Hindi" ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?");
+    const confirmLogout = window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?");
     if (!confirmLogout) return;
     const { error } = await supabase.auth.signOut();
     if (error) alert("Error: " + error.message);
@@ -257,19 +261,15 @@ export default function SukoonChat({ T, lang, setTab }) {
     combinedInput: { ...staticStyles.inputField, backgroundColor: `${T.accent}10`, color: T.text, border: `1px solid ${T.accent}30` },
     combinedButton: { ...staticStyles.sendButton, backgroundColor: T.accent, color: T.bg },
     
-    // NEW: Style for the Call Header Button
-    callBtn: { ...staticStyles.sendButton, backgroundColor: `${T.accent}20`, color: T.text, border: `1px solid ${T.accent}50`, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '12px' },
+    // Header Buttons
+    callBtn: { padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: 0.8 },
     
     roomCard: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px solid ${T.accent}30`, backgroundColor: `${T.accent}05`, cursor: 'pointer' },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
     getBubble: (isMe) => ({
-      padding: '10px 16px',
-      borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-      backgroundColor: isMe ? T.accent : `${T.accent}15`,
-      color: isMe ? T.bg : T.text,
-      border: `1px solid ${T.accent}30`,
-      maxWidth: '75%',
-      fontSize: '15px'
+      padding: '10px 16px', borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+      backgroundColor: isMe ? T.accent : `${T.accent}15`, color: isMe ? T.bg : T.text,
+      border: `1px solid ${T.accent}30`, maxWidth: '75%', fontSize: '15px'
     }),
     senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.6, fontWeight: 'bold' },
     
@@ -283,7 +283,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const handleBackOrHome = () => {
     setIsAutoScrolling(false); 
-    setCallUrl(null); // End call if leaving room
+    setCallUrl(null); 
+    setCallType(null);
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
@@ -293,11 +294,12 @@ export default function SukoonChat({ T, lang, setTab }) {
         <button style={dynamicStyles.combinedHomeBtn} onClick={handleBackOrHome}>{activeRoom ? "BACK" : "HOME"}</button>
         <div style={staticStyles.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : "SUKOON TEAM CHAT"}</div>
         
-        {/* NEW: The Call Button in Header */}
+        {/* DUAL CALL BUTTONS */}
         {activeRoom && activeRoom.is_private && !callUrl && (
-          <button style={dynamicStyles.callBtn} onClick={handleStartCall} disabled={isStartingCall}>
-            {isStartingCall ? "⏳" : "📞"}
-          </button>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <button style={dynamicStyles.callBtn} onClick={() => handleStartCall('voice')} title="Voice Call" disabled={isStartingCall}>📞</button>
+            <button style={dynamicStyles.callBtn} onClick={() => handleStartCall('video')} title="Video Call" disabled={isStartingCall}>🎥</button>
+          </div>
         )}
         
         {!activeRoom && <button style={dynamicStyles.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
@@ -305,15 +307,23 @@ export default function SukoonChat({ T, lang, setTab }) {
 
       <div style={staticStyles.chatBox} ref={chatBoxRef}>
         
-        {/* NEW: The Live Call Window */}
+        {/* THE RESPONSIVE CALL WINDOW */}
         {callUrl ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
-            <iframe
-              src={callUrl}
-              allow="camera; microphone; fullscreen; display-capture"
-              style={{ flex: 1, width: '100%', border: `1px solid ${T.accent}50`, borderRadius: '16px', backgroundColor: '#000' }}
-            ></iframe>
-            <button onClick={() => setCallUrl(null)} style={{ ...dynamicStyles.combinedButton, backgroundColor: '#ff4e00', alignSelf: 'center', padding: '12px 30px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', height: '100%' }}>
+            {callType === 'voice' ? (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: `${T.accent}05`, borderRadius: '20px' }}>
+                <div style={{ fontSize: '60px', marginBottom: '20px' }}>📞</div>
+                <p style={{ opacity: 0.7 }}>{hi ? "वॉइस कॉल सक्रिय है..." : "Voice Call Active..."}</p>
+                <iframe src={callUrl} allow="microphone; autoplay" style={{ display: 'none' }}></iframe>
+              </div>
+            ) : (
+              <iframe
+                src={callUrl}
+                allow="camera; microphone; fullscreen; autoplay; display-capture"
+                style={{ flex: 1, width: '100%', border: `1px solid ${T.accent}50`, borderRadius: '16px', backgroundColor: '#000' }}
+              ></iframe>
+            )}
+            <button onClick={() => {setCallUrl(null); setCallType(null);}} style={{ ...dynamicStyles.combinedButton, backgroundColor: '#ff4e00', alignSelf: 'center', padding: '12px 30px' }}>
               {hi ? "कॉल समाप्त करें" : "End Call"}
             </button>
           </div>
@@ -321,7 +331,7 @@ export default function SukoonChat({ T, lang, setTab }) {
           <>
             <div style={staticStyles.searchContainer}>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input style={dynamicStyles.combinedInput} placeholder={hi ? "मित्र का ईमेल खोजें..." : "Find friend's email..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <input style={dynamicStyles.combinedInput} placeholder={hi ? "ईमेल से खोजें..." : "Find by email..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 <button style={dynamicStyles.combinedButton} onClick={handleSearch}>{hi ? "खोजें" : "FIND"}</button>
               </div>
               {searchResults.map(user => (
@@ -330,7 +340,7 @@ export default function SukoonChat({ T, lang, setTab }) {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: '10px', opacity: 0.8, fontSize: '12px', letterSpacing: '1px' }}>{hi ? "आपके कक्ष" : "YOUR ROOMS"}</div>
+            <div style={{ marginTop: '10px', opacity: 0.8, fontSize: '12px', letterSpacing: '1px' }}>YOUR ROOMS</div>
             {rooms.map(r => (
               <div key={r.id} style={dynamicStyles.roomCard} onClick={() => setActiveRoom(r)}>{getRoomDisplayName(r)}</div>
             ))}
@@ -344,20 +354,27 @@ export default function SukoonChat({ T, lang, setTab }) {
                 const isMe = m.user_id === currentUser?.id;
                 const decryptedText = decrypt(m.content, activeRoom.id);
                 
-                // NEW: Detect Call Invites in Chat
-                const isCallInvite = decryptedText.startsWith("📞 [SUKOON_CALL]:::");
+                // Detect Call Invites: "📞 [SUKOON_CALL]:::url:::type"
+                const isCallInvite = decryptedText.includes("[SUKOON_CALL]");
                 
                 return (
                   <div key={m.id} style={dynamicStyles.getBubbleWrapper(isMe)}>
                     {!isMe && <div style={dynamicStyles.senderName}>{m.user_email?.split('@')[0]}</div>}
                     
-                    {/* Render a Join Button if it's a Call Invite, otherwise render Text */}
                     {isCallInvite ? (
-                       <div style={{...dynamicStyles.getBubble(isMe), border: `2px solid ${T.accent}`}}>
-                         <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>{hi ? "📞 वॉयस कॉल शुरू हो गई है!" : "📞 Voice Call Started!"}</p>
+                       <div style={{...dynamicStyles.getBubble(isMe), border: `2px solid ${T.accent}`, textAlign: 'center'}}>
+                         <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>
+                           {decryptedText.includes('video') ? '🎥 Video Call Started!' : '📞 Voice Call Started!'}
+                         </p>
                          {!isMe && (
-                           <button onClick={() => setCallUrl(decryptedText.split(":::")[1])} style={dynamicStyles.combinedButton}>
-                             {hi ? "कॉल से जुड़ें" : "Join Call"}
+                           <button 
+                             onClick={() => {
+                               const parts = decryptedText.split(":::");
+                               handleJoinCall(parts[1], parts[2]);
+                             }} 
+                             style={dynamicStyles.combinedButton}
+                           >
+                             {hi ? "जुड़ें" : "JOIN"}
                            </button>
                          )}
                        </div>
@@ -368,19 +385,12 @@ export default function SukoonChat({ T, lang, setTab }) {
                     {/* STATUS BAR */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                       <div style={{ fontSize: '10px', opacity: 0.5 }}>{formatTime(m.created_at)}</div>
-                      
                       {isMe && (
                         <>
-                          <div style={{ fontSize: '11px', color: m.is_read ? '#4dabf7' : T.text, opacity: m.is_read ? 1 : 0.6, fontWeight: 'bold' }}>
+                          <div style={{ fontSize: '11px', color: m.is_read ? '#4dabf7' : T.text, opacity: m.is_read ? 1 : 0.6 }}>
                             {m.is_read ? '✓✓' : '✓'}
                           </div>
-                          <button 
-                            onClick={() => handleDeleteMessage(m.id)} 
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 }}
-                            title={hi ? "संदेश हटाएं" : "Delete Message"}
-                          >
-                            🗑️
-                          </button>
+                          <button onClick={() => handleDeleteMessage(m.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 }}>🗑️</button>
                         </>
                       )}
                     </div>
@@ -394,18 +404,14 @@ export default function SukoonChat({ T, lang, setTab }) {
       </div>
 
       {activeRoom && messages.length > 5 && !callUrl && (
-        <button 
-          onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-          style={dynamicStyles.autoScrollBtn(isAutoScrolling)}
-          title={hi ? "ऑटो-स्क्रॉल" : "Auto-Scroll"}
-        >
+        <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={dynamicStyles.autoScrollBtn(isAutoScrolling)}>
           {isAutoScrolling ? "⏸️" : "⏬"}
         </button>
       )}
 
       {activeRoom && !callUrl && (
         <div style={staticStyles.inputArea}>
-          <input style={dynamicStyles.combinedInput} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={hi ? "एक संदेश लिखें..." : "Type a message..."} />
+          <input style={dynamicStyles.combinedInput} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={hi ? "संदेश लिखें..." : "Type a message..."} />
           <button style={dynamicStyles.combinedButton} onClick={handleSendMessage}>{hi ? "भेजें" : "Send"}</button>
         </div>
       )}
