@@ -11,7 +11,12 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [isStartingCall, setIsStartingCall] = useState(false);
+  
+  // ─── NEW: PHONE SYSTEM STATE ───
+  const [isInCall, setIsInCall] = useState(false);
+  const localStream = useRef(null);        // Holds your microphone wire
+  const peerConnection = useRef(null);     // The actual Walkie-Talkie machine
+  const remoteAudioRef = useRef(null);     // The hidden speaker to hear your friend
 
   // ─── AUTO-SCROLL TRACKERS ───
   const chatBoxRef = useRef(null);
@@ -44,14 +49,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       cursor: 'pointer', fontWeight: '600', fontSize: '10px',
       fontFamily: "'DM Sans', sans-serif", letterSpacing: '1px',
       background: 'transparent', color: T.text, opacity: 0.6
-    },
-    callBtn: {
-      padding: '8px', background: 'transparent', border: 'none',
-      cursor: 'pointer', fontSize: '18px', opacity: 0.8
-    },
-    callBtnDisabled: {
-      padding: '8px', background: 'transparent', border: 'none',
-      cursor: 'not-allowed', fontSize: '18px', opacity: 0.4
     },
     chatBox: {
       flex: 1, padding: '20px', overflowY: 'scroll',
@@ -98,21 +95,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       color: isMe ? T.bg : T.text,
       border: `1px solid ${T.accent}30`, maxWidth: '75%', fontSize: '15px'
     }),
-    callBubble: (isMe) => ({
-      padding: '10px 16px',
-      borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-      backgroundColor: isMe ? T.accent : `${T.accent}15`,
-      color: isMe ? T.bg : T.text,
-      border: `2px solid ${T.accent}`, maxWidth: '75%',
-      fontSize: '15px', textAlign: 'center'
-    }),
-    callBubbleTitle: { margin: '0 0 10px 0', fontWeight: 'bold' },
-    joinBtn: {
-      padding: '8px 20px', borderRadius: '20px', border: 'none',
-      cursor: 'pointer', fontWeight: 'bold',
-      backgroundColor: T.accent, color: T.bg,
-      fontFamily: "'DM Sans', sans-serif", fontSize: '12px', letterSpacing: '1px'
-    },
     senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.6, fontWeight: 'bold', color: T.text },
     statusBar: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' },
     timestamp: { fontSize: '10px', opacity: 0.5, color: T.text },
@@ -145,7 +127,13 @@ export default function SukoonChat({ T, lang, setTab }) {
       cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px',
       backgroundColor: T.accent, color: T.bg
     },
-    loadingText: { textAlign: 'center', marginTop: '40px', opacity: 0.5, color: T.text }
+    loadingText: { textAlign: 'center', marginTop: '40px', opacity: 0.5, color: T.text },
+    
+    // Call Status Banner Style
+    callBanner: {
+      backgroundColor: `${T.accent}20`, color: T.accent, padding: '10px', 
+      textAlign: 'center', fontWeight: 'bold', fontSize: '14px', borderBottom: `1px solid ${T.accent}`
+    }
   };
 
   // 1. IDENTITY & INITIAL ROOMS
@@ -255,46 +243,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
-  // ─── CALL LOGIC — OPENS IN NEW TAB ───
-  const handleStartCall = async (type) => {
-    setIsStartingCall(true);
-    try {
-      const response = await fetch('/api/daily', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callType: type })
-      });
-      const data = await response.json();
-
-      if (data.url) {
-        // Open call in new tab — works on mobile, handles permissions properly
-        window.open(data.url, '_blank');
-
-        // Send encrypted invite to the other person
-        const icon = type === 'video' ? '🎥' : '📞';
-        const inviteText = `${icon} [SUKOON_CALL]:::${data.url}:::${type}`;
-        const scrambledText = encrypt(inviteText, activeRoom.id);
-        await supabase.from('messages').insert([{
-          content: scrambledText,
-          room_id: activeRoom.id,
-          user_id: currentUser.id,
-          user_email: currentUser.email
-        }]);
-      } else {
-        alert(hi ? "कॉल शुरू नहीं हो सकी" : "Could not start call.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert(hi ? "कॉल सर्वर त्रुटि" : "Call server error.");
-    } finally {
-      setIsStartingCall(false);
-    }
-  };
-
-  const handleJoinCall = (url) => {
-    window.open(url, '_blank');
-  };
-
   // ─── SEARCH & PRIVATE CHAT ───
   const handleSearch = async () => {
     if (!currentUser) return alert("You are logged out!");
@@ -336,25 +284,51 @@ export default function SukoonChat({ T, lang, setTab }) {
     return room.is_private ? `👤 ${room.name}` : `📁 ${room.name}`;
   };
 
-  // ─── THE PHONE SYSTEM (Step 1: The Microphone Switch) ───
-  const testMicrophone = async () => {
+  // ─── THE PHONE SYSTEM (Step 2: The Walkie-Talkie Builder) ───
+  const setupWalkieTalkie = async () => {
     try {
-      // Knocks on the browser's door to securely ask for the Mic only.
-      const myAudioStream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
-        video: false 
+      // 1. Get the Microphone (Your voice)
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStream.current = stream; // Save the wire
+
+      // 2. Load Google's Free Phonebook (STUN Servers)
+      const servers = {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' }, 
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      };
+
+      // 3. Build the actual Walkie-Talkie Machine
+      peerConnection.current = new RTCPeerConnection(servers);
+
+      // 4. Plug your microphone wire into the Walkie-Talkie
+      stream.getTracks().forEach(track => {
+        peerConnection.current.addTrack(track, stream);
       });
-      
-      alert("Success! Your microphone is on and ready for WebRTC!");
-      
-      // Stop the mic immediately after testing to protect privacy
-      myAudioStream.getTracks().forEach(track => track.stop());
-      
+
+      // 5. Tell the Speaker to play any sound that comes out of the Walkie-Talkie!
+      peerConnection.current.ontrack = (event) => {
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      setIsInCall(true);
+      alert("Walkie-Talkie Built! Your mic is securely plugged in.");
+
     } catch (error) {
-      alert("Microphone Error: The browser blocked us! " + error.message);
+      alert("Could not build Walkie-Talkie: " + error.message);
     }
   };
-  // ────────────────────────────────────────────────────────
+
+  // Safely turn off the mic and destroy the Walkie-Talkie when done
+  const endCall = () => {
+    if (peerConnection.current) peerConnection.current.close();
+    if (localStream.current) localStream.current.getTracks().forEach(track => track.stop());
+    setIsInCall(false);
+  };
+  // ────────────────────────────────────────────────────────────
 
   // ─── SEND MESSAGE ───
   const handleSendMessage = async () => {
@@ -394,6 +368,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const handleBackOrHome = () => {
     setIsAutoScrolling(false);
+    // If we leave the room, end any active calls automatically!
+    if (isInCall) endCall(); 
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
@@ -405,6 +381,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ─── RENDER ───
   return (
     <div style={s.container}>
+      
+      {/* THE INVISIBLE SPEAKER (Plays your friend's voice) */}
+      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
 
       {/* HEADER */}
       <div style={s.header}>
@@ -416,29 +395,22 @@ export default function SukoonChat({ T, lang, setTab }) {
           {activeRoom ? getRoomDisplayName(activeRoom) : (hi ? "सुकून चैट" : "SUKOON CHAT")}
         </div>
 
-        {activeRoom && activeRoom.is_private && (
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <button
-              style={isStartingCall ? s.callBtnDisabled : s.callBtn}
-              onClick={() => handleStartCall('voice')}
-              title={hi ? "वॉइस कॉल" : "Voice Call"}
-              disabled={isStartingCall}
-            >📞</button>
-            <button
-              style={isStartingCall ? s.callBtnDisabled : s.callBtn}
-              onClick={() => handleStartCall('video')}
-              title={hi ? "वीडियो कॉल" : "Video Call"}
-              disabled={isStartingCall}
-            >🎥</button>
-          </div>
-        )}
-
         {!activeRoom && (
           <button style={s.logoutBtn} onClick={handleLogout}>
             {hi ? "लॉग आउट" : "LOGOUT"}
           </button>
         )}
       </div>
+
+      {/* CALL STATUS BANNER */}
+      {isInCall && (
+        <div style={s.callBanner}>
+          📞 {hi ? "कॉल सक्रिय है - मशीन तैयार है!" : "Call Active - Machine Ready!"}
+          <button onClick={endCall} style={{...s.logoutBtn, marginLeft: '15px', color: 'red', borderColor: 'red'}}>
+            {hi ? "कॉल समाप्त करें" : "END"}
+          </button>
+        </div>
+      )}
 
       {/* CHAT BODY */}
       <div style={s.chatBox} ref={chatBoxRef}>
@@ -486,30 +458,12 @@ export default function SukoonChat({ T, lang, setTab }) {
               messages.map(m => {
                 const isMe = m.user_id === currentUser?.id;
                 const decryptedText = decrypt(m.content, activeRoom.id);
-                const isCallInvite = decryptedText.includes("[SUKOON_CALL]");
 
                 return (
                   <div key={m.id} style={s.getBubbleWrapper(isMe)}>
                     {!isMe && <div style={s.senderName}>{m.user_email?.split('@')[0]}</div>}
 
-                    {isCallInvite ? (
-                      <div style={s.callBubble(isMe)}>
-                        <p style={s.callBubbleTitle}>
-                          {decryptedText.includes('video') ? '🎥 Video Call' : '📞 Voice Call'}
-                        </p>
-                        <button
-                          onClick={() => {
-                            const parts = decryptedText.split(":::");
-                            handleJoinCall(parts[1]);
-                          }}
-                          style={s.joinBtn}
-                        >
-                          {hi ? "जुड़ें" : "JOIN"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={s.getBubble(isMe)}>{decryptedText}</div>
-                    )}
+                    <div style={s.getBubble(isMe)}>{decryptedText}</div>
 
                     <div style={s.statusBar}>
                       <div style={s.timestamp}>{formatTime(m.created_at)}</div>
@@ -543,14 +497,13 @@ export default function SukoonChat({ T, lang, setTab }) {
             style={s.inputField}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            // Temporarily disabled normal enter-to-send during the mic test phase
-            // onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            // Temporarily disabled normal enter-to-send during this test phase
             placeholder={hi ? "संदेश लिखें..." : "Type a message..."}
           />
           
-          {/* 🛠️ TEMPORARY TEST MIC BUTTON */}
-          <button style={s.sendBtn} onClick={testMicrophone}>
-            {hi ? "माइक टेस्ट" : "TEST MIC"}
+          {/* 🛠️ STEP 2: BUILD WALKIE-TALKIE BUTTON */}
+          <button style={s.sendBtn} onClick={setupWalkieTalkie} disabled={isInCall}>
+            {hi ? "मशीन बनाएं" : "BUILD PHONE"}
           </button>
           
         </div>
