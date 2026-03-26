@@ -30,7 +30,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     async function initialize() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      
       const { data } = await supabase.from('rooms').select('*');
       if (data) setRooms(data);
       setLoading(false);
@@ -38,93 +37,86 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
-  // 1.5 NEW ROOM RADAR (Instantly pops up invites!)
+  // 1.5 ROOM RADAR (Instantly pops up invites)
   useEffect(() => {
     if (!currentUser) return;
-
     const roomChannel = supabase.channel('live-rooms-radar')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, 
       (payload) => {
-        // Only add the room to the screen if my ID is on the guest list!
         if (payload.new.participants && payload.new.participants.includes(currentUser.id)) {
           setRooms((prev) => [...prev, payload.new]);
         }
       })
       .subscribe();
-
     return () => { supabase.removeChannel(roomChannel); };
   }, [currentUser?.id]);
 
-  // 2. LIVE MESSAGE LISTENER
+  // 2. LIVE MESSAGE LISTENER (UPGRADED for Ticks and Deletes!)
   useEffect(() => {
-    if (!activeRoom) return;
+    if (!activeRoom || !currentUser) return;
+
     const fetchMessages = async () => {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
-      if (data) setMessages(data);
+      if (data) {
+        setMessages(data);
+        
+        // 🛠️ THE AUTO-READER: Find messages sent to me that I haven't read yet
+        const unreadMessages = data.filter(m => !m.is_read && m.user_id !== currentUser.id);
+        if (unreadMessages.length > 0) {
+          const unreadIds = unreadMessages.map(m => m.id);
+          // Tell the database "I saw these!"
+          await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        }
+      }
     };
     fetchMessages();
 
+    // 🛠️ THE UPGRADED RADAR: Now listens to event: '*' (Everything!)
     const channel = supabase.channel(`room-${activeRoom.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
       (payload) => {
-        setMessages((prev) => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new]);
+        
+        // If a new message arrives...
+        if (payload.eventType === 'INSERT') {
+          setMessages((prev) => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new]);
+          // If the message is from my friend, mark it as read immediately!
+          if (payload.new.user_id !== currentUser.id) {
+            supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
+          }
+        } 
+        // If a message gets deleted...
+        else if (payload.eventType === 'DELETE') {
+          setMessages((prev) => prev.filter(m => m.id !== payload.old.id));
+        } 
+        // If a message gets updated (like turning blue ✓✓)...
+        else if (payload.eventType === 'UPDATE') {
+          setMessages((prev) => prev.map(m => m.id === payload.new.id ? payload.new : m));
+        }
+
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [activeRoom]);
+  }, [activeRoom, currentUser]);
 
   // 3. SEARCH & PRIVATE CHAT LOGIC
   const handleSearch = async () => {
-    if (!currentUser) {
-      alert("You are logged out! Please go back to Home and log in again.");
-      return;
-    }
-
-    if (searchTerm.length < 3) {
-      alert("Please type at least 3 letters of the email!");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .ilike('email', `%${searchTerm}%`)
-      .neq('id', currentUser.id);
-
-    if (error) {
-      alert("Database Error: " + error.message);
-    } else if (data && data.length === 0) {
-      alert("No friend found! Are you sure their email is in the 'profiles' table?");
-    }
-
+    if (!currentUser) return alert("You are logged out!");
+    if (searchTerm.length < 3) return alert("Please type at least 3 letters!");
+    const { data, error } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
+    if (error) alert("Error: " + error.message);
+    else if (data && data.length === 0) alert("No friend found!");
     setSearchResults(data || []);
   };
 
   const startPrivateChat = async (friend) => {
     if (!currentUser) return; 
-
-    const { data: existing } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('is_private', true)
-      .contains('participants', [currentUser.id, friend.id]);
-
+    const { data: existing } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
     if (existing && existing.length > 0) {
       setActiveRoom(existing[0]);
     } else {
-      // 🛠️ THE SECRET NAME TAG TRICK
-      // We save it as "creatorEmail:::inviteeEmail"
       const roomName = `${currentUser.email}:::${friend.email}`;
-      const { data: newRoom, error } = await supabase
-        .from('rooms')
-        .insert([{ 
-          name: roomName, 
-          is_private: true, 
-          participants: [currentUser.id, friend.id] 
-        }])
-        .select();
-      
+      const { data: newRoom, error } = await supabase.from('rooms').insert([{ name: roomName, is_private: true, participants: [currentUser.id, friend.id] }]).select();
       if (error) alert("Could not create room: " + error.message);
       if (newRoom) {
         setRooms(prev => [...prev, newRoom[0]]);
@@ -135,45 +127,27 @@ export default function SukoonChat({ T, lang, setTab }) {
     setSearchResults([]);
   };
 
-  // ─── THE SMART DISPLAY TOOL ───────────────────────────────────────────────
-  // This tool looks at the Secret Name Tag and figures out what to show you!
   const getRoomDisplayName = (room) => {
     if (room.is_private && room.name.includes(':::')) {
       const parts = room.name.split(':::');
-      const creatorEmail = parts[0];
-      const inviteeEmail = parts[1];
-
-      // If I am the person who was invited...
-      if (currentUser?.email === inviteeEmail) {
-        return `✨ ${creatorEmail.split('@')[0]} invited you!`;
-      } 
-      // If I am the person who created it...
-      else {
-        return `👤 Chat with ${inviteeEmail.split('@')[0]}`;
-      }
+      if (currentUser?.email === parts[1]) return `✨ ${parts[0].split('@')[0]} invited you!`;
+      else return `👤 Chat with ${parts[1].split('@')[0]}`;
     }
-    // If it's just a normal public room...
     return room.is_private ? `👤 ${room.name}` : `📁 ${room.name}`;
   };
-  // ──────────────────────────────────────────────────────────────────────────
 
-  // ─── THE SECRET SCRAMBLER (SPY TOOLS) ─────────────────────────────────────
+  // ─── THE SECRET SCRAMBLER ─────────────────────────────────────────────────
   const encrypt = (text, key) => {
     if (!text || !key) return "";
     const stringKey = String(key); 
-    return btoa(text.split('').map((char, i) => 
-      String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))
-    ).join(''));
+    return btoa(text.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
   };
 
   const decrypt = (scrambled, key) => {
     if (!scrambled || !key) return "";
     const stringKey = String(key); 
     try {
-      const decoded = atob(scrambled);
-      return decoded.split('').map((char, i) => 
-        String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))
-      ).join('');
+      return atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
     } catch (e) {
       return scrambled; 
     }
@@ -182,20 +156,21 @@ export default function SukoonChat({ T, lang, setTab }) {
   // 4. SEND MESSAGE 
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
-    
     const secretKey = activeRoom.id;
     const scrambledText = encrypt(message, secretKey);
-
-    const newMessage = { 
-      content: scrambledText, 
-      room_id: activeRoom.id, 
-      user_id: currentUser.id, 
-      user_email: currentUser.email 
-    };
-    
+    const newMessage = { content: scrambledText, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email };
     setMessage(""); 
     const { error } = await supabase.from('messages').insert([newMessage]);
     if (error) alert("Security Error: " + error.message);
+  };
+
+  // 4.5 THE ERASER (Delete Message)
+  const handleDeleteMessage = async (messageId) => {
+    const confirmDelete = window.confirm(lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
+    if (!confirmDelete) return;
+    
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) alert("Could not delete message: " + error.message);
   };
 
   // 5. THE LOGOUT FUNCTION
@@ -203,12 +178,8 @@ export default function SukoonChat({ T, lang, setTab }) {
     const confirmLogout = window.confirm(lang === "Hindi" ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?");
     if (!confirmLogout) return;
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      alert("Error: " + error.message);
-    } else {
-      setTab('home'); 
-      window.location.reload();
-    }
+    if (error) alert("Error: " + error.message);
+    else { setTab('home'); window.location.reload(); }
   };
 
   const formatTime = (dateString) => {
@@ -241,30 +212,18 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={dynamicStyles.container}>
-      {/* HEADER */}
       <div style={staticStyles.header}>
-        <button style={dynamicStyles.combinedHomeBtn} onClick={handleBackOrHome}>
-          {activeRoom ? "BACK" : "HOME"}
-        </button>
-        {/* Update Header to also use the smart name tool! */}
+        <button style={dynamicStyles.combinedHomeBtn} onClick={handleBackOrHome}>{activeRoom ? "BACK" : "HOME"}</button>
         <div style={staticStyles.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : "SUKOON TEAM CHAT"}</div>
-        <button style={dynamicStyles.logoutBtn} onClick={handleLogout}>
-          {lang === "Hindi" ? "लॉग आउट" : "LOGOUT"}
-        </button>
+        <button style={dynamicStyles.logoutBtn} onClick={handleLogout}>{lang === "Hindi" ? "लॉग आउट" : "LOGOUT"}</button>
       </div>
 
       <div style={staticStyles.chatBox}>
         {!activeRoom ? (
           <>
-            {/* SEARCH SECTION */}
             <div style={staticStyles.searchContainer}>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  style={dynamicStyles.combinedInput}
-                  placeholder="Find friend's email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <input style={dynamicStyles.combinedInput} placeholder="Find friend's email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 <button style={dynamicStyles.combinedButton} onClick={handleSearch}>FIND</button>
               </div>
               {searchResults.map(user => (
@@ -273,18 +232,12 @@ export default function SukoonChat({ T, lang, setTab }) {
                 </div>
               ))}
             </div>
-
-            {/* ROOMS LIST */}
             <div style={{ marginTop: '10px', opacity: 0.8, fontSize: '12px', letterSpacing: '1px' }}>YOUR ROOMS</div>
             {rooms.map(r => (
-              <div key={r.id} style={dynamicStyles.roomCard} onClick={() => setActiveRoom(r)}>
-                {/* 🛠️ USE THE SMART TOOL HERE! */}
-                {getRoomDisplayName(r)}
-              </div>
+              <div key={r.id} style={dynamicStyles.roomCard} onClick={() => setActiveRoom(r)}>{getRoomDisplayName(r)}</div>
             ))}
           </>
         ) : (
-          /* MESSAGE LIST */
           <div style={staticStyles.messageList}>
             {messages.length === 0 ? (
               <div style={{ textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.5 }}>Welcome to {getRoomDisplayName(activeRoom)}</div>
@@ -294,13 +247,28 @@ export default function SukoonChat({ T, lang, setTab }) {
                 return (
                   <div key={m.id} style={dynamicStyles.getBubbleWrapper(isMe)}>
                     {!isMe && <div style={dynamicStyles.senderName}>{m.user_email?.split('@')[0]}</div>}
+                    <div style={dynamicStyles.getBubble(isMe)}>{decrypt(m.content, activeRoom.id)}</div>
                     
-                    {/* DESCRAMBLE THE MESSAGE HERE! */}
-                    <div style={dynamicStyles.getBubble(isMe)}>
-                      {decrypt(m.content, activeRoom.id)}
+                    {/* 🛠️ THE NEW STATUS BAR (Time, Ticks, and Eraser) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <div style={{ fontSize: '10px', opacity: 0.5 }}>{formatTime(m.created_at)}</div>
+                      
+                      {isMe && (
+                        <>
+                          <div style={{ fontSize: '11px', color: m.is_read ? '#4dabf7' : T.text, opacity: m.is_read ? 1 : 0.6, fontWeight: 'bold' }}>
+                            {m.is_read ? '✓✓' : '✓'}
+                          </div>
+                          <button 
+                            onClick={() => handleDeleteMessage(m.id)} 
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 }}
+                            title="Delete Message"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
                     </div>
-                    
-                    <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.4 }}>{formatTime(m.created_at)}</div>
+
                   </div>
                 );
               })
