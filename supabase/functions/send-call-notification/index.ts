@@ -1,31 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import * as djwt from "https://deno.land/x/djwt@v3.0.1/mod.ts"
 
-// 🤖 THE SUKOON CLOUD MESSENGER
+// 🛡️ THE GLOBAL CORS SHIELD
+// This tells the browser: "It is safe to let Sukoon talk to this robot!"
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 serve(async (req) => {
-  // 1. The "Security Handshake" (CORS)
-  // This allows your website to talk to this robot from the browser
+  // 1. HANDLE THE "SECRET KNOCK" (CORS Preflight)
+  // Browsers send an OPTIONS request first. We must answer with 200 OK.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
-      headers: { 
-        'Access-Control-Allow-Origin': '*', 
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' 
-      } 
+      status: 200, 
+      headers: corsHeaders 
     })
   }
 
   try {
-    // 2. Listen for the "Call Signal" from your app
+    // 2. LISTEN FOR THE SIGNAL
     const { token, callerName, roomId } = await req.json()
     console.log(`🔔 Sending wake-up signal to token: ${token.substring(0, 10)}...`)
 
-    // 3. Grab the Master Key from the "Supabase Vault"
+    // 3. GRAB THE MASTER KEY FROM THE VAULT
     const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT') || '{}')
 
-    // 4. Get a "Permission Slip" (Access Token) from Google
+    // 4. GET THE GOOGLE "PERMISSION SLIP" (Access Token)
     const accessToken = await getGoogleAccessToken(serviceAccount)
 
-    // 5. Build the "Alarm" message for the friend's phone
+    // 5. BUILD THE NOTIFICATION
     const message = {
       message: {
         token: token,
@@ -38,13 +43,11 @@ serve(async (req) => {
           type: "INCOMING_CALL",
           click_action: "FLUTTER_NOTIFICATION_CLICK"
         },
-        android: { 
-          priority: "high" 
-        }
+        android: { priority: "high" }
       }
     }
 
-    // 6. Send the signal to Google's Notification Tower!
+    // 6. TALK TO GOOGLE'S TOWER
     const res = await fetch(
       `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
       {
@@ -58,23 +61,25 @@ serve(async (req) => {
     )
 
     const result = await res.json()
-    console.log("Google Tower Response:", result)
+    console.log("Google Response:", result)
 
+    // 7. SUCCESS RESPONSE (With CORS Shield)
     return new Response(JSON.stringify(result), { 
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } 
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
 
   } catch (error) {
     console.error("Robot Error:", error.message)
+    // 8. ERROR RESPONSE (With CORS Shield)
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
   }
 })
 
 // ─── THE GOOGLE HANDSHAKE ENGINE 🤝 ───
-// This part generates a high-security "Token" to prove we are the owners of Sukoon
 async function getGoogleAccessToken(serviceAccount: any) {
   const jwtHeader = { alg: "RS256", typ: "JWT" }
   const iat = Math.floor(Date.now() / 1000)
@@ -105,7 +110,6 @@ async function getGoogleAccessToken(serviceAccount: any) {
   return access_token
 }
 
-// Technical helper to convert the "Master Key" into a format the Robot understands
 async function pemToJWK(pem: string) {
   const content = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, "")
   const binary = Uint8Array.from(atob(content), c => c.charCodeAt(0))
