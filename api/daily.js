@@ -3,7 +3,6 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Only POST allowed' });
 
-  // 1. Get the choice from the app (voice or video)
   const { callType } = req.body; 
   const DAILY_API_KEY = process.env.DAILY_API_KEY;
 
@@ -17,7 +16,6 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         properties: {
           exp: Math.round(Date.now() / 1000) + (2 * 60 * 60),
-          // 2. If it's a voice call, we strictly disable the camera
           enable_video: callType === 'video', 
           start_video_off: callType === 'voice',
         },
@@ -25,8 +23,11 @@ export default async function handler(req, res) {
     });
 
     const roomData = await response.json();
-    return res.status(200).json({ url: roomData.url });
+    
+    // Return everything so we can see what Daily.co said
+    return res.status(200).json({ url: roomData.url, debug: roomData });
+    
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to generate call' });
+    return res.status(500).json({ error: error.message });
   }
 }
