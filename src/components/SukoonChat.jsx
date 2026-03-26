@@ -51,7 +51,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(roomChannel); };
   }, [currentUser?.id]);
 
-  // 2. LIVE MESSAGE LISTENER (UPGRADED for Ticks and Deletes!)
+  // 2. LIVE MESSAGE LISTENER (With Auto-Reader!)
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -59,40 +59,33 @@ export default function SukoonChat({ T, lang, setTab }) {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       if (data) {
         setMessages(data);
-        
-        // 🛠️ THE AUTO-READER: Find messages sent to me that I haven't read yet
+        // THE AUTO-READER: Find messages sent to me that I haven't read yet
         const unreadMessages = data.filter(m => !m.is_read && m.user_id !== currentUser.id);
         if (unreadMessages.length > 0) {
           const unreadIds = unreadMessages.map(m => m.id);
-          // Tell the database "I saw these!"
           await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
         }
       }
     };
     fetchMessages();
 
-    // 🛠️ THE UPGRADED RADAR: Now listens to event: '*' (Everything!)
+    // THE UPGRADED RADAR: Listens for Inserts, Updates, and Deletes
     const channel = supabase.channel(`room-${activeRoom.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
       (payload) => {
-        
-        // If a new message arrives...
         if (payload.eventType === 'INSERT') {
           setMessages((prev) => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new]);
-          // If the message is from my friend, mark it as read immediately!
+          // Automatically check the box to turn ticks blue for the sender
           if (payload.new.user_id !== currentUser.id) {
             supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
           }
         } 
-        // If a message gets deleted...
         else if (payload.eventType === 'DELETE') {
-          setMessages((prev) => prev.filter(m => m.id !== payload.old.id));
+          setMessages((prev) => prev.filter(m => m.id !== payload.old?.id));
         } 
-        // If a message gets updated (like turning blue ✓✓)...
         else if (payload.eventType === 'UPDATE') {
           setMessages((prev) => prev.map(m => m.id === payload.new.id ? payload.new : m));
         }
-
       })
       .subscribe();
 
@@ -103,15 +96,18 @@ export default function SukoonChat({ T, lang, setTab }) {
   const handleSearch = async () => {
     if (!currentUser) return alert("You are logged out!");
     if (searchTerm.length < 3) return alert("Please type at least 3 letters!");
+    
     const { data, error } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
     if (error) alert("Error: " + error.message);
     else if (data && data.length === 0) alert("No friend found!");
+    
     setSearchResults(data || []);
   };
 
   const startPrivateChat = async (friend) => {
     if (!currentUser) return; 
     const { data: existing } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
+    
     if (existing && existing.length > 0) {
       setActiveRoom(existing[0]);
     } else {
@@ -164,22 +160,17 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (error) alert("Security Error: " + error.message);
   };
 
-  // 4.5 THE INSTANT ERASER (Delete Message)
+  // 4.5 THE INSTANT ERASER
   const handleDeleteMessage = async (messageId) => {
-    const confirmDelete = window.confirm(
-      lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?"
-    );
+    const confirmDelete = window.confirm(lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
     if (!confirmDelete) return;
     
-    // 🛠️ MAGIC TRICK: Instantly hide it from the screen so the app feels super fast!
+    // Instantly hide it from the screen
     setMessages((prev) => prev.filter(m => m.id !== messageId));
-
-    // Tell the database Security Guard to officially destroy it
-    const { error } = await supabase.from('messages').delete().eq('id', messageId);
     
-    if (error) {
-      alert("Could not delete message: " + error.message);
-    }
+    // Officially delete it from the database
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) alert("Could not delete message: " + error.message);
   };
 
   // 5. THE LOGOUT FUNCTION
@@ -258,7 +249,7 @@ export default function SukoonChat({ T, lang, setTab }) {
                     {!isMe && <div style={dynamicStyles.senderName}>{m.user_email?.split('@')[0]}</div>}
                     <div style={dynamicStyles.getBubble(isMe)}>{decrypt(m.content, activeRoom.id)}</div>
                     
-                    {/* 🛠️ THE NEW STATUS BAR (Time, Ticks, and Eraser) */}
+                    {/* STATUS BAR (Time, Ticks, and Eraser) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                       <div style={{ fontSize: '10px', opacity: 0.5 }}>{formatTime(m.created_at)}</div>
                       
@@ -277,7 +268,6 @@ export default function SukoonChat({ T, lang, setTab }) {
                         </>
                       )}
                     </div>
-
                   </div>
                 );
               })
