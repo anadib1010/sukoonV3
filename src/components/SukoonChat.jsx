@@ -164,13 +164,22 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (error) alert("Security Error: " + error.message);
   };
 
-  // 4.5 THE ERASER (Delete Message)
+  // 4.5 THE INSTANT ERASER (Delete Message)
   const handleDeleteMessage = async (messageId) => {
-    const confirmDelete = window.confirm(lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
+    const confirmDelete = window.confirm(
+      lang === "Hindi" ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?"
+    );
     if (!confirmDelete) return;
     
+    // 🛠️ MAGIC TRICK: Instantly hide it from the screen so the app feels super fast!
+    setMessages((prev) => prev.filter(m => m.id !== messageId));
+
+    // Tell the database Security Guard to officially destroy it
     const { error } = await supabase.from('messages').delete().eq('id', messageId);
-    if (error) alert("Could not delete message: " + error.message);
+    
+    if (error) {
+      alert("Could not delete message: " + error.message);
+    }
   };
 
   // 5. THE LOGOUT FUNCTION
