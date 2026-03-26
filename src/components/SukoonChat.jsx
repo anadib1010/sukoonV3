@@ -267,20 +267,64 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
+  // ─── UPGRADED START CALL FUNCTION (PHASE 4) ───
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
+    
     try {
+      // 1. Mic check!
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
-      
-      supabase.channel('global-call-radar').send({ 
-        type: 'broadcast', event: 'global-ring', 
-        payload: { action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom }
+      // 2. Local room notification (for people already in the chat)
+      signalingChannelRef.current.send({ 
+        type: 'broadcast', 
+        event: 'webrtc', 
+        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } 
       });
 
-    } catch (error) { alert("Microphone Access Failed: " + error.message); }
+      // 3. 🚨 THE GLOBAL ALARM (Trigger Engine) 🚨
+      // Find the "Friend" in this room (who is NOT you)
+      const friendId = activeRoom.participants.find(id => id !== currentUser.id);
+
+      if (friendId) {
+        // Fetch their secret Google Address (token) from Supabase
+        const { data: friendProfile } = await supabase
+          .from('profiles')
+          .select('fcm_token')
+          .eq('id', friendId)
+          .single();
+
+        // If they have an address, send the "Wake-Up" signal to the Cloud Robot
+        if (friendProfile?.fcm_token) {
+          console.log("Found friend's address! Sending the Wake-Up signal...");
+          
+          await supabase.functions.invoke('send-call-notification', {
+            body: { 
+              token: friendProfile.fcm_token, 
+              callerName: currentUser.email.split('@')[0],
+              roomId: activeRoom.id
+            }
+          });
+        }
+      }
+
+      // 4. Global radar signal for anyone currently using the app
+      supabase.channel('global-call-radar').send({ 
+        type: 'broadcast', event: 'global-ring', 
+        payload: { 
+          action: 'start', 
+          roomId: activeRoom.id, 
+          callerId: currentUser.id, 
+          callerEmail: currentUser.email, 
+          participants: activeRoom.participants, 
+          roomDetails: activeRoom 
+        }
+      });
+
+    } catch (error) {
+      alert("Microphone Access Failed: " + error.message);
+    }
   };
 
   const handleGlobalAccept = async () => {
