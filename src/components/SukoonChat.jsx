@@ -336,6 +336,26 @@ export default function SukoonChat({ T, lang, setTab }) {
     return room.is_private ? `👤 ${room.name}` : `📁 ${room.name}`;
   };
 
+  // ─── THE PHONE SYSTEM (Step 1: The Microphone Switch) ───
+  const testMicrophone = async () => {
+    try {
+      // Knocks on the browser's door to securely ask for the Mic only.
+      const myAudioStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true, 
+        video: false 
+      });
+      
+      alert("Success! Your microphone is on and ready for WebRTC!");
+      
+      // Stop the mic immediately after testing to protect privacy
+      myAudioStream.getTracks().forEach(track => track.stop());
+      
+    } catch (error) {
+      alert("Microphone Error: The browser blocked us! " + error.message);
+    }
+  };
+  // ────────────────────────────────────────────────────────
+
   // ─── SEND MESSAGE ───
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
@@ -523,12 +543,16 @@ export default function SukoonChat({ T, lang, setTab }) {
             style={s.inputField}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            // Temporarily disabled normal enter-to-send during the mic test phase
+            // onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder={hi ? "संदेश लिखें..." : "Type a message..."}
           />
-          <button style={s.sendBtn} onClick={handleSendMessage}>
-            {hi ? "भेजें" : "Send"}
+          
+          {/* 🛠️ TEMPORARY TEST MIC BUTTON */}
+          <button style={s.sendBtn} onClick={testMicrophone}>
+            {hi ? "माइक टेस्ट" : "TEST MIC"}
           </button>
+          
         </div>
       )}
     </div>
