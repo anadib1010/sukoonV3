@@ -369,6 +369,11 @@ export default function SukoonChat({ T, lang, setTab }) {
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
+  const formatTime = (dateString) => {
+    if (!dateString) return "Just now";
+    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
   // ─── RENDER ───
   // Find out who is typing right now (anyone except us)
   const typingUsers = Object.values(presentUsers).filter(user => user.is_typing);
