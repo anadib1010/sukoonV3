@@ -89,7 +89,15 @@ export default function SukoonChat({ T, lang, setTab }) {
     selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '12px', margin: '2px', fontWeight: 'bold' },
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', zIndex: 50 },
     acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', marginRight: '8px' },
-    declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
+    declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' },
+    // 🌟 THE MISSING SCROLL STYLE ADDED HERE:
+    autoScrollBtn: (active) => ({ 
+      position: 'absolute', bottom: '100px', right: '20px', width: '40px', height: '40px', 
+      borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, 
+      color: active ? T.bg : T.accent, cursor: 'pointer', display: 'flex', 
+      alignItems: 'center', justifyContent: 'center', fontSize: '18px', 
+      boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 100, transition: '0.3s' 
+    })
   };
 
   // 1. INITIALIZATION & NIGHTWATCHMAN REGISTRATION 🌍
