@@ -29,6 +29,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ─── NEW: VOICE CALL STATE ───
   const [callUrl, setCallUrl] = useState(null);
   const [isStartingCall, setIsStartingCall] = useState(false);
+  const [callType, setCallType] = useState(null); // 'voice' or 'video'
 
   // ─── AUTO-SCROLL TRACKERS ───
   const chatBoxRef = useRef(null); 
