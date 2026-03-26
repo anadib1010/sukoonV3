@@ -12,25 +12,35 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
+  // ─── LIVE PRESENCE STATE (Who is online & typing) ───
+  const [presentUsers, setPresentUsers] = useState({});
+  const [isTyping, setIsTyping] = useState(false);
+  const presenceChannelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
   // ─── ENTERPRISE MESH WEBRTC STATE ───
   const [isInCall, setIsInCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
-  const [remoteStreams, setRemoteStreams] = useState([]); // Array to hold multiple family members' audio
+  const [remoteStreams, setRemoteStreams] = useState([]); 
   
   const localStream = useRef(null);
-  const peers = useRef({}); // Dictionary holding multiple RTCPeerConnections: { [userId]: RTCPeerConnection }
+  const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
+  const ringtoneRef = useRef(null); // The invisible ringing speaker
 
   // ─── AUTO-SCROLL TRACKERS ───
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
-  // ─── STYLES ───
+  // ─── STYLES (Powered by dynamic T variables) ───
   const s = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: `1px solid ${T.accent}20` },
-    headerTitle: { fontWeight: 'bold', fontSize: '16px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '2px', flex: 1, textAlign: 'center', color: T.text },
+    headerTitleBox: { flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+    headerTitle: { fontWeight: 'bold', fontSize: '16px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '2px', color: T.text },
+    onlineStatus: { fontSize: '11px', color: '#4ade80', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.8 },
+    greenDot: { width: '6px', height: '6px', backgroundColor: '#4ade80', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 5px #4ade80' },
     backBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '11px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '1px', backgroundColor: `${T.accent}20`, color: T.text },
     logoutBtn: { padding: '8px 16px', borderRadius: '20px', border: `1px solid ${T.accent}30`, cursor: 'pointer', fontWeight: '600', fontSize: '10px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '1px', background: 'transparent', color: T.text, opacity: 0.6 },
     callBtn: { padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: 0.8 },
@@ -52,13 +62,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     timestamp: { fontSize: '10px', opacity: 0.5, color: T.text },
     readTick: (isRead) => ({ fontSize: '11px', color: isRead ? '#4dabf7' : T.text, opacity: isRead ? 1 : 0.6 }),
     deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 },
+    typingIndicator: { fontSize: '12px', color: T.accent, padding: '0 20px', fontStyle: 'italic', opacity: 0.8, marginBottom: '5px' },
     autoScrollBtn: (active) => ({ position: 'absolute', bottom: '90px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', background: active ? `${T.accent}40` : `${T.accent}15`, border: `1px solid ${T.accent}`, color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: active ? `0 0 15px ${T.accent}40` : '0 4px 10px rgba(0,0,0,0.2)', transition: 'all 0.3s ease', zIndex: 100, fontSize: '16px' }),
     inputArea: { display: 'flex', padding: '15px', alignItems: 'center' },
     inputField: { flex: 1, padding: '12px 18px', borderRadius: '25px', border: 'none', fontSize: '16px', fontFamily: "'DM Sans', sans-serif", backgroundColor: `${T.accent}10`, color: T.text, border: `1px solid ${T.accent}30` },
     sendBtn: { padding: '12px 20px', borderRadius: '25px', border: 'none', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', backgroundColor: T.accent, color: T.bg },
     loadingText: { textAlign: 'center', marginTop: '40px', opacity: 0.5, color: T.text },
     
-    // Call UI Styles
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px' },
     acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', marginRight: '8px' },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }
@@ -81,19 +91,17 @@ export default function SukoonChat({ T, lang, setTab }) {
     const roomChannel = supabase.channel('live-rooms-radar')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' },
         (payload) => {
-          if (payload.new.participants && payload.new.participants.includes(currentUser.id)) {
-            setRooms((prev) => [...prev, payload.new]);
-          }
+          if (payload.new.participants && payload.new.participants.includes(currentUser.id)) setRooms((prev) => [...prev, payload.new]);
         })
       .subscribe();
     return () => { supabase.removeChannel(roomChannel); };
   }, [currentUser?.id]);
 
-  // 2. CHAT & MESH SIGNALING LISTENER
+  // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
-    // A. Chat Message Fetching & Listener
+    // A. Chat Message Fetching
     const fetchMessages = async () => {
       const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       if (data) {
@@ -118,36 +126,48 @@ export default function SukoonChat({ T, lang, setTab }) {
         })
       .subscribe();
 
-    // B. Enterprise Mesh Signaling Channel
+    // B. Live Presence Engine (Who is online & typing)
+    const presenceRoom = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
+    presenceChannelRef.current = presenceRoom;
+
+    presenceRoom.on('presence', { event: 'sync' }, () => {
+      const state = presenceRoom.presenceState();
+      const activeUsers = {};
+      Object.keys(state).forEach(key => {
+        if (key !== currentUser.id) activeUsers[key] = state[key][0]; 
+      });
+      setPresentUsers(activeUsers);
+    }).subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceRoom.track({ email: currentUser.email, is_typing: false });
+      }
+    });
+
+    // C. Enterprise Mesh Signaling Channel & Ringer
     const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
+    signalingChannelRef.current = sigChannel;
 
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
-      if (payload.sender === currentUser.id) return; // Ignore our own signals
+      if (payload.sender === currentUser.id) return; 
 
       try {
         if (payload.type === 'call-started' && !isInCall) {
           setIncomingCall(payload);
+          // START RINGING!
+          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Auto-play blocked by browser. User must click first."));
         } 
         else if (payload.type === 'user-joined' && isInCall) {
-          // A new person joined the mesh. Create a connection just for them and send an Offer.
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          sigChannel.send({
-            type: 'broadcast', event: 'webrtc',
-            payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender }
-          });
+          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender } });
         } 
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
-          // Someone sent us a direct offer. Answer it to complete their tunnel.
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          sigChannel.send({
-            type: 'broadcast', event: 'webrtc',
-            payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender }
-          });
+          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
         } 
         else if (payload.type === 'answer' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
@@ -159,74 +179,75 @@ export default function SukoonChat({ T, lang, setTab }) {
         } 
         else if (payload.type === 'user-left') {
           removePeer(payload.sender);
-          if (incomingCall?.sender === payload.sender) setIncomingCall(null);
+          if (incomingCall?.sender === payload.sender) {
+            setIncomingCall(null);
+            stopRinging();
+          }
         }
-      } catch (err) {
-        console.error("Signaling Error:", err);
-      }
+      } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
-
-    signalingChannelRef.current = sigChannel;
 
     return () => { 
       supabase.removeChannel(chatChannel); 
+      supabase.removeChannel(presenceRoom);
       supabase.removeChannel(sigChannel);
+      stopRinging();
     };
-  }, [activeRoom, currentUser, isInCall]); // Re-bind when call state changes
+  }, [activeRoom, currentUser, isInCall]);
+
+  // ─── RINGTONE CONTROLLER ───
+  const stopRinging = () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0; // Rewind to start
+    }
+  };
 
   // ─── AUTO-SCROLL MOTORS ───
   useEffect(() => {
     if (!isAutoScrolling && chatBoxRef.current) chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, activeRoom]);
 
-  useEffect(() => {
-    let motor;
-    if (isAutoScrolling && chatBoxRef.current) {
-      motor = setInterval(() => {
-        if (chatBoxRef.current) {
-          chatBoxRef.current.scrollTop += 1;
-          const isBottom = chatBoxRef.current.scrollHeight - chatBoxRef.current.scrollTop <= chatBoxRef.current.clientHeight + 1;
-          if (isBottom) setIsAutoScrolling(false);
-        }
-      }, 40);
+  // ─── TYPING INDICATOR LOGIC ───
+  const handleTyping = (e) => {
+    setMessage(e.target.value);
+    
+    // Tell Supabase we started typing
+    if (!isTyping && presenceChannelRef.current) {
+      setIsTyping(true);
+      presenceChannelRef.current.track({ email: currentUser.email, is_typing: true });
     }
-    return () => clearInterval(motor);
-  }, [isAutoScrolling]);
+
+    // Reset the timer. If we stop typing for 2 seconds, tell Supabase we stopped.
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+    }, 2000);
+  };
 
   // ─── ENCRYPTION ───
   const encrypt = (text, key) => {
     if (!text || !key) return "";
     const stringKey = String(key);
-    const safeText = encodeURIComponent(text);
-    return btoa(safeText.split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
+    return btoa(encodeURIComponent(text).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join(''));
   };
 
   const decrypt = (scrambled, key) => {
     if (!scrambled || !key) return "";
     const stringKey = String(key);
-    try {
-      const decodedXor = atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('');
-      return decodeURIComponent(decodedXor);
-    } catch (e) {
-      return scrambled;
-    }
+    try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ stringKey.charCodeAt(i % stringKey.length))).join('')); } 
+    catch (e) { return scrambled; }
   };
 
   // ─── ENTERPRISE MESH WEBRTC IMPLEMENTATION ───
-  const STUN_SERVERS = {
-    iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ]
-  };
+  const STUN_SERVERS = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
 
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(STUN_SERVERS);
     peers.current[peerId] = pc;
+    if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
 
-    // Attach local microphone
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
-    }
-
-    // Receive their audio and add it to our array of remote streams
     pc.ontrack = (event) => {
       setRemoteStreams(prev => {
         if (prev.find(p => p.userId === peerId)) return prev;
@@ -236,27 +257,18 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && signalingChannelRef.current) {
-        signalingChannelRef.current.send({
-          type: 'broadcast', event: 'webrtc',
-          payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId }
-        });
+        signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId } });
       }
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
-        removePeer(peerId);
-      }
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') removePeer(peerId);
     };
-
     return pc;
   };
 
   const removePeer = (peerId) => {
-    if (peers.current[peerId]) {
-      peers.current[peerId].close();
-      delete peers.current[peerId];
-    }
+    if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; }
     setRemoteStreams(prev => prev.filter(p => p.userId !== peerId));
   };
 
@@ -266,56 +278,39 @@ export default function SukoonChat({ T, lang, setTab }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStream.current = stream;
       setIsInCall(true);
-
-      // Tell everyone in the room that an active call has started so they can join
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email }
-      });
-    } catch (error) {
-      alert("Microphone Access Failed: " + error.message);
-    }
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
+    } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
 
   const joinCall = async () => {
     if (!incomingCall) return;
+    stopRinging(); // Stop the ringing when we pick up!
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStream.current = stream;
       setIsInCall(true);
       setIncomingCall(null);
-
-      // Tell the mesh network we have arrived. They will instantly send us Offers.
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'user-joined', sender: currentUser.id }
-      });
-    } catch (error) {
-      alert("Failed to join call: " + error.message);
-    }
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id } });
+    } catch (error) { alert("Failed to join call: " + error.message); }
   };
 
-  const declineCall = () => setIncomingCall(null);
+  const declineCall = () => {
+    setIncomingCall(null);
+    stopRinging(); // Stop ringing if we decline
+  };
 
   const endCall = () => {
-    if (signalingChannelRef.current) {
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'user-left', sender: currentUser.id }
-      });
-    }
+    if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } });
     cleanupCall();
   };
 
   const cleanupCall = () => {
     Object.values(peers.current).forEach(pc => pc.close());
     peers.current = {};
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => track.stop());
-      localStream.current = null;
-    }
+    if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; }
     setRemoteStreams([]);
     setIsInCall(false);
+    stopRinging();
   };
 
   // ─── CHAT ACTIONS ───
@@ -323,6 +318,10 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (!message.trim() || !currentUser) return;
     const scrambledText = encrypt(message, activeRoom.id);
     setMessage("");
+    clearTimeout(typingTimeoutRef.current);
+    setIsTyping(false);
+    if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+    
     const { error } = await supabase.from('messages').insert([{ content: scrambledText, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email }]);
     if (error) alert("Security Error: " + error.message);
   };
@@ -331,28 +330,20 @@ export default function SukoonChat({ T, lang, setTab }) {
     const confirmDelete = window.confirm(hi ? "क्या आप इस संदेश को हटाना चाहते हैं?" : "Are you sure you want to delete this message?");
     if (!confirmDelete) return;
     setMessages((prev) => prev.filter(m => m.id !== messageId));
-    const { error } = await supabase.from('messages').delete().eq('id', messageId);
-    if (error) alert("Could not delete message: " + error.message);
+    await supabase.from('messages').delete().eq('id', messageId);
   };
 
   const handleSearch = async () => {
-    if (!currentUser) return;
-    if (searchTerm.length < 3) return alert("Please type at least 3 letters!");
-    const { data, error } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
-    if (error) alert("Error: " + error.message);
-    else if (data && data.length === 0) alert("No friend found!");
+    if (!currentUser || searchTerm.length < 3) return;
+    const { data } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
     setSearchResults(data || []);
   };
 
   const startPrivateChat = async (friend) => {
-    if (!currentUser) return;
     const { data: existing } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
-    if (existing && existing.length > 0) {
-      setActiveRoom(existing[0]);
-    } else {
-      const roomName = `${currentUser.email}:::${friend.email}`;
-      const { data: newRoom, error } = await supabase.from('rooms').insert([{ name: roomName, is_private: true, participants: [currentUser.id, friend.id] }]).select();
-      if (error) alert("Error: " + error.message);
+    if (existing && existing.length > 0) setActiveRoom(existing[0]);
+    else {
+      const { data: newRoom } = await supabase.from('rooms').insert([{ name: `${currentUser.email}:::${friend.email}`, is_private: true, participants: [currentUser.id, friend.id] }]).select();
       if (newRoom) { setRooms(prev => [...prev, newRoom[0]]); setActiveRoom(newRoom[0]); }
     }
     setSearchTerm(""); setSearchResults([]);
@@ -361,15 +352,13 @@ export default function SukoonChat({ T, lang, setTab }) {
   const getRoomDisplayName = (room) => {
     if (room.is_private && room.name.includes(':::')) {
       const parts = room.name.split(':::');
-      if (currentUser?.email === parts[1]) return `✨ ${parts[0].split('@')[0]}`;
-      else return `👤 Chat with ${parts[1].split('@')[0]}`;
+      return currentUser?.email === parts[1] ? `✨ ${parts[0].split('@')[0]}` : `👤 Chat with ${parts[1].split('@')[0]}`;
     }
     return room.is_private ? `👤 ${room.name}` : `📁 ${room.name}`;
   };
 
   const handleLogout = async () => {
-    const confirmLogout = window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?");
-    if (!confirmLogout) return;
+    if (!window.confirm(hi ? "लॉग आउट?" : "Logout?")) return;
     await supabase.auth.signOut();
     setTab('home'); window.location.reload();
   };
@@ -380,44 +369,49 @@ export default function SukoonChat({ T, lang, setTab }) {
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return "Just now";
-    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   // ─── RENDER ───
+  // Find out who is typing right now (anyone except us)
+  const typingUsers = Object.values(presentUsers).filter(user => user.is_typing);
+
   return (
     <div style={s.container}>
       
-      {/* MESH NETWORK SPEAKERS: Dynamically render an audio tag for every person in the call */}
+      {/* 🎵 THE INVISIBLE RINGTONE SPEAKER */}
+      <audio ref={ringtoneRef} src="/ringtone.mp3" loop style={{ display: 'none' }} />
+
+      {/* MESH NETWORK SPEAKERS */}
       {remoteStreams.map(peer => (
-        <audio 
-          key={peer.userId} 
-          autoPlay 
-          ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} 
-          style={{ display: 'none' }} 
-        />
+        <audio key={peer.userId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} />
       ))}
 
       <div style={s.header}>
         <button style={s.backBtn} onClick={handleBackOrHome}>{activeRoom ? (hi ? "वापस" : "BACK") : (hi ? "होम" : "HOME")}</button>
-        <div style={s.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : (hi ? "सुकून चैट" : "SUKOON CHAT")}</div>
+        
+        <div style={s.headerTitleBox}>
+          <div style={s.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : (hi ? "सुकून चैट" : "SUKOON CHAT")}</div>
+          
+          {/* THE LIVE GREEN DOT RADAR */}
+          {activeRoom && Object.keys(presentUsers).length > 0 && (
+            <div style={s.onlineStatus}>
+              <span style={s.greenDot}></span> 
+              {hi ? "ऑनलाइन" : "Online"}
+            </div>
+          )}
+        </div>
         
         {activeRoom && (
-          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall} title="Start Secure Group Call">
-            📞
-          </button>
+          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall} title="Start Call">📞</button>
         )}
         {!activeRoom && <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>}
       </div>
 
-      {/* ACTIVE CALL NOTIFICATION BANNER */}
+      {/* INCOMING CALL BANNER (Rings when this appears!) */}
       {incomingCall && !isInCall && (
         <div style={s.callBanner}>
-          <span>📞 {incomingCall.callerEmail?.split('@')[0]} started a call!</span>
+          <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
           <div>
             <button onClick={joinCall} style={s.acceptBtn}>{hi ? "जुड़ें" : "Join"}</button>
-            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Dismiss"}</button>
+            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Decline"}</button>
           </div>
         </div>
       )}
@@ -425,8 +419,8 @@ export default function SukoonChat({ T, lang, setTab }) {
       {/* IN-CALL BANNER */}
       {isInCall && (
         <div style={s.callBanner}>
-          <span style={{ color: '#4ade80' }}>🟢 {hi ? `कॉल कनेक्टेड (${remoteStreams.length + 1} लोग)` : `Secure Call Active (${remoteStreams.length + 1} in room)`}</span>
-          <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "Leave Call"}</button>
+          <span style={{ color: '#4ade80' }}>🟢 {hi ? `कॉल कनेक्टेड` : `Secure Call Active`}</span>
+          <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "End Call"}</button>
         </div>
       )}
 
@@ -445,7 +439,7 @@ export default function SukoonChat({ T, lang, setTab }) {
           </>
         ) : (
           <div style={s.messageList}>
-            {messages.length === 0 ? ( <div style={s.emptyRoom}>{hi ? `स्वागत है` : `Welcome to ${getRoomDisplayName(activeRoom)}`}</div> ) : (
+            {messages.length === 0 ? ( <div style={s.emptyRoom}>{hi ? `स्वागत है` : `Welcome`}</div> ) : (
               messages.map(m => {
                 const isMe = m.user_id === currentUser?.id;
                 const decryptedText = decrypt(m.content, activeRoom.id);
@@ -468,9 +462,22 @@ export default function SukoonChat({ T, lang, setTab }) {
 
       {activeRoom && messages.length > 5 && ( <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={s.autoScrollBtn(isAutoScrolling)}>{isAutoScrolling ? "⏸️" : "⏬"}</button> )}
 
+      {/* TYPING INDICATOR RADAR */}
+      {activeRoom && typingUsers.length > 0 && (
+        <div style={s.typingIndicator}>
+          {typingUsers.map(u => u.email?.split('@')[0]).join(', ')} {hi ? "टाइप कर रहे हैं..." : "is typing..."}
+        </div>
+      )}
+
       {activeRoom && (
         <div style={s.inputArea}>
-          <input style={s.inputField} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={hi ? "संदेश लिखें..." : "Type a message..."} />
+          <input 
+            style={s.inputField} 
+            value={message} 
+            onChange={handleTyping} // <-- Uses the new Typing function!
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} 
+            placeholder={hi ? "संदेश लिखें..." : "Type a message..."} 
+          />
           <button style={s.sendBtn} onClick={handleSendMessage}>{hi ? "भेजें" : "Send"}</button>
         </div>
       )}
