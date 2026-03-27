@@ -52,6 +52,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
+  // ─── UPGRADED UI/UX STYLES ✨ (Powered by T) ───
   const s = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative', fontFamily: "'DM Sans', sans-serif" },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}95`, backdropFilter: 'blur(10px)', zIndex: 10 },
@@ -283,14 +284,12 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
-  // 🌟 THE SAFE SENDER 🌟
-  // This polite robot borrows App.jsx's good walkie-talkie so nothing gets scrambled!
+  // 🌟 THE SAFE SENDER (THE FIX IS HERE) 🌟
   const sendGlobalSignal = (actionPayload) => {
-    const safeRadio = supabase.channel('global-call-radar', {
-      config: { broadcast: { ack: false } }
-    });
-    
-    safeRadio.send({
+    // 🚨 CRITICAL FIX: Do NOT pass "{ config: ... }" here!
+    // By passing ONLY the name, Supabase borrows the exact, already-connected
+    // walkie-talkie from App.jsx instead of resetting the connection!
+    supabase.channel('global-call-radar').send({
       type: 'broadcast',
       event: 'global-ring',
       payload: actionPayload
@@ -332,7 +331,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
       }
 
-      // 🌟 Polite Call!
+      // 🌟 Polite Call using the Safe Sender!
       sendGlobalSignal({ 
         action: 'start', 
         roomId: activeRoom.id, 
