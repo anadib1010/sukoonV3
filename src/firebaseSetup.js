@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: "***REMOVED***",
+  apiKey: "AIzaSyAmTvNIYInWO0SU7SKsA13W7hv6dVAd0Ss",
   authDomain: "jsukoonv3.firebaseapp.com",
   projectId: "jsukoonv3",
   storageBucket: "jsukoonv3.firebasestorage.app",

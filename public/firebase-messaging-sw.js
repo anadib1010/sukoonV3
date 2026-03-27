@@ -4,7 +4,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-comp
 
 // 2. Give the Watchman your VIP Badges
 const firebaseConfig = {
-  apiKey: "***REMOVED***",
+  apiKey: "AIzaSyAmTvNIYInWO0SU7SKsA13W7hv6dVAd0Ss",
   authDomain: "jsukoonv3.firebaseapp.com",
   projectId: "jsukoonv3",
   storageBucket: "jsukoonv3.firebasestorage.app",
