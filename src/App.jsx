@@ -128,7 +128,7 @@ function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
   );
 }
 
-// ─── INCOMING CALL OVERLAY ───────────────────────────────────────────────────
+// ─── INCOMING CALL OVERLAY (CLAUDE'S UI DESIGN) ──────────────────────────────
 // Renders on top of any screen when a call invite arrives for the current user.
 function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecline }) {
   const hi = lang === "Hindi";
@@ -188,7 +188,7 @@ function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecli
         <div style={s.title}>
           {callType === "video"
             ? (hi ? "वीडियो कॉल आ रही है..." : "Incoming Video Call...")
-            : (hi ? "वॉइस कॉल आ रही है..." : "Incoming Voice Call...")}
+            : (hi ? "वॉइस कॉल आ रही है..." : "Incoming Secure Call...")}
         </div>
         <div style={s.caller}>{callerEmail}</div>
         <div style={s.btnRow}>
@@ -222,8 +222,7 @@ function AppContent() {
   const [pendingTab,     setPendingTab]      = useState(null);
 
   // ─── INCOMING CALL STATE ───
-  const [incomingCall,   setIncomingCall]   = useState(null); // null | { callUrl, callType, callerEmail }
-  const seenCallIds = React.useRef(new Set());
+  const [incomingCall,   setIncomingCall]   = useState(null); // null | { roomId, callType, callerEmail }
 
   const [lang,        setLang]        = useLS("jsukoon_lang", "English");
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
@@ -266,58 +265,39 @@ function AppContent() {
     if (hasOnboarded) track('View Feature', { featureName: location.pathname });
   }, [location, hasOnboarded]);
 
-  // ─── GLOBAL CALL WATCHER ─────────────────────────────────────────────────
-  // Stays alive on every screen. When a call invite arrives for this user,
-  // shows the ringing overlay no matter which screen they are on.
+  // ─── THE TWO-HEADED DRAGON WATCHER (FOREGROUND RADIO) 🐉 ───
+  // This listens for our TRUE WebRTC 'global-ring' signals instead of fake text messages.
   useEffect(() => {
     if (!session?.user) return;
     const userId = session.user.id;
 
-    const decrypt = (scrambled, key) => {
-      if (!scrambled || !key) return "";
-      const sk = String(key);
-      try {
-        const decodedXor = atob(scrambled).split('').map((char, i) =>
-          String.fromCharCode(char.charCodeAt(0) ^ sk.charCodeAt(i % sk.length))
-        ).join('');
-        return decodeURIComponent(decodedXor);
-      } catch { return ""; }
-    };
+    // Connect to the exact same radio station our SukoonChat uses
+    const callRadar = supabase.channel('global-call-radar', { config: { broadcast: { ack: false } } });
 
-    const callChannel = supabase.channel('global-call-watcher')
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        async (payload) => {
-          const msg = payload.new;
-          if (msg.user_id === userId) return;
-          if (seenCallIds.current.has(msg.id)) return;
-
-          const { data: room } = await supabase
-            .from('rooms')
-            .select('*')
-            .eq('id', msg.room_id)
-            .single();
-
-          if (!room) return;
-          if (!room.participants || !room.participants.includes(userId)) return;
-
-          const decrypted = decrypt(msg.content, msg.room_id);
-          if (!decrypted.includes('[SUKOON_CALL]')) return;
-
-          seenCallIds.current.add(msg.id);
-
-          const parts = decrypted.split(':::');
-          const callUrl = parts[1];
-          const callType = parts[2] || 'voice';
-          const callerEmail = msg.user_email || 'Someone';
-
-          setIncomingCall({ callUrl, callType, callerEmail });
+    callRadar.on('broadcast', { event: 'global-ring' }, (payload) => {
+      const data = payload.payload;
+      
+      // If the call includes us, and we aren't the one making the call
+      if (data.participants && data.participants.includes(userId) && data.callerId !== userId) {
+        
+        if (data.action === 'start') {
+          // The other person just hit the "Call" button! Show Claude's Overlay!
+          setIncomingCall({
+            roomId: data.roomId,
+            callType: 'voice',
+            callerEmail: data.callerEmail,
+            roomDetails: data.roomDetails
+          });
+        } 
+        else if (data.action === 'cancel' && incomingCall?.roomId === data.roomId) {
+          // The other person hung up before we answered. Hide the overlay.
+          setIncomingCall(null);
         }
-      )
-      .subscribe();
+      }
+    }).subscribe();
 
-    return () => { supabase.removeChannel(callChannel); };
-  }, [session?.user?.id]);
+    return () => { supabase.removeChannel(callRadar); };
+  }, [session?.user?.id, incomingCall]);
 
   useEffect(() => {
     const browseTimer = setInterval(() => creditSession(1, true), 60000);
@@ -332,9 +312,8 @@ function AppContent() {
     }
   }, [hasOnboarded, nextRoute, navigate]);
 
-  // NEW: Added "chat" titles to the ends of these lists
-  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud", chat: "JSukoon — Team Chat" };
-  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज", chat: "JSukoon — टीम चैट" };
+  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud", chat: "JSukoon — Secure Chat" };
+  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज", chat: "JSukoon — सुरक्षित चैट" };
 
   const setPageTitle = (page) => {
     const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
@@ -342,20 +321,16 @@ function AppContent() {
   };
 
   // ─── PROTECTED TABS ─────────────────────────────────────────────
-  // These features need an account to be useful (they save data).
-  // Visiting them without a session shows the auth sheet instead.
   const PROTECTED_REASONS = {
     journal:   "Save your thoughts — create a free account.",
     progress:  "Track your journey — create a free account.",
     wishes:    "Share and see wishes — create a free account.",
     community: "Join the community — create a free account.",
     warmth:    "Save your warmth — create a free account.",
-    // NEW: Telling the bouncer to check IDs for the chat room!
-    chat:      "Join the team conversation — create a free account.",
+    chat:      "Join the secure conversation — create a free account.",
   };
 
   const setTab = (newTab) => {
-    // If protected and not logged in — show auth sheet
     if (!session && PROTECTED_REASONS[newTab]) {
       setPendingTab(newTab);
       setAuthSheet({ reason: PROTECTED_REASONS[newTab] });
@@ -378,7 +353,6 @@ function AppContent() {
     }
   };
 
-  // Loading screen
   if (isCheckingAuth) {
     return (
       <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
@@ -387,7 +361,6 @@ function AppContent() {
     );
   }
 
-  // Onboarding — first time only
   if (!hasOnboarded) {
     return (
       <Onboarding
@@ -403,8 +376,6 @@ function AppContent() {
       />
     );
   }
-
-  const deepLayers = ["/vault", "/resonance", "/stillness", "/quietcorner", "/soundbath", "/mandala", "/seedinmud"];
 
   return (
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
@@ -448,13 +419,12 @@ function AppContent() {
           <Route path="/wishes"         element={<WishesGallery  setTab={setTab} T={T} lang={lang} />} />
           <Route path="/moodaction"     element={<MoodAction     selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
           
-          {/* NEW: The magical Route that loads the SukoonChat component! */}
           <Route path="/chat"           element={<SukoonChat     setTab={setTab} T={T} lang={lang} />} />
           
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
 
-        {/* ─── INCOMING CALL OVERLAY — shown on any screen ─── */}
+        {/* ─── INCOMING CALL OVERLAY ─── */}
         {incomingCall && (
           <IncomingCallOverlay
             T={T}
@@ -462,14 +432,16 @@ function AppContent() {
             callerEmail={incomingCall.callerEmail}
             callType={incomingCall.callType}
             onAccept={() => {
-              window.open(incomingCall.callUrl, '_blank');
+              // 1. Hide the Overlay
               setIncomingCall(null);
+              // 2. Jump straight to the Chat Room to answer!
+              setTab("chat");
             }}
             onDecline={() => setIncomingCall(null)}
           />
         )}
 
-        {/* Auth sheet — slides up only when a protected action is triggered */}
+        {/* Auth sheet */}
         {authSheet && (
           <AuthSheet
             T={T}
