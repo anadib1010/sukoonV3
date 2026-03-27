@@ -15,18 +15,36 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// 3. The Nightwatchman's Orders (What to do when the phone is asleep)
+// 3. The Nightwatchman's Orders (Waking up the phone)
 messaging.onBackgroundMessage(function(payload) {
   console.log('Nightwatchman received a transmission!', payload);
 
-  const notificationTitle = payload.data.title || "सुकून कॉल (Sukoon Call)";
+  // 💡 FIX: Look in 'notification' FIRST, then 'data'
+  const title = payload.notification?.title || payload.data?.title || "सुकून कॉल (Sukoon Call)";
+  const body = payload.notification?.body || payload.data?.body || "Incoming secure call...";
+
   const notificationOptions = {
-    body: payload.data.body || "Incoming secure call...",
-    icon: '/vite.svg', // The icon on the notification
-    requireInteraction: true, // Forces it to stay on the screen!
-    vibrate: [200, 100, 200, 100, 200, 100, 200] // Makes the phone buzz hard!
+    body: body,
+    icon: '/logo192.png', // Make sure this file exists in your public folder!
+    badge: '/logo192.png',
+    tag: 'incoming-call', // This prevents 100 notifications from stacking up
+    renotify: true,
+    requireInteraction: true, // 🚨 STICKY: The notification won't disappear until they act
+    vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 1000, 40], // Professional "Ring" vibration
+    data: {
+      url: 'https://sukoon-v3.vercel.app', // Your app URL
+      roomId: payload.data?.roomId
+    }
   };
 
-  // Force the phone to wake up and show the banner
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+  return self.registration.showNotification(title, notificationOptions);
+});
+
+// 4. THE "ANSWER" FEATURE
+// When the user taps the notification in their pocket, open the app!
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url)
+  );
 });
