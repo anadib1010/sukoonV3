@@ -71,7 +71,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
-  // 🌟 NEW: This safe holds the keys after the Robot gives them to us!
+  // 🌟 NEW: THE 30-SECOND RING TIMER
+  const ringTimeoutRef = useRef(null);
+
   const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
   const myPrivateKeyRef = useRef(null); 
@@ -169,6 +171,12 @@ export default function SukoonChat({ T, lang, setTab }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` },
       (payload) => {
          const newStatus = payload.new.status;
+         
+         // 🌟 FIX: If they accepted, clear the missed call timer!
+         if (newStatus === 'accepted' && ringTimeoutRef.current) {
+             clearTimeout(ringTimeoutRef.current);
+         }
+
          if (['rejected', 'ended', 'missed'].includes(newStatus)) {
             cleanupCall();
          }
@@ -352,8 +360,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const decrypt = (scrambled, key) => { try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ String(key).charCodeAt(i % String(key).length))).join('')); } catch (e) { return scrambled; } };
   const formatTime = (dateString) => { if (!dateString) return "Just now"; return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
-  // 🌟 NEW: THE SECURE ROBOT FETCH 🌟
-  // This politely knocks on the Supabase door to get the Delivery Truck keys!
   const fetchSecureTrucks = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('get-turn-credentials');
@@ -367,7 +373,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   };
 
   const createPeerConnection = (peerId) => {
-    // 👈 We build the connection using the keys from our secure safe!
     const pc = new RTCPeerConnection(iceServersRef.current); 
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
@@ -389,7 +394,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (isInCallRef.current || !activeRoom) return;
     
     try {
-      await fetchSecureTrucks(); // 👈 Grab the keys right before calling!
+      await fetchSecureTrucks(); 
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
@@ -412,6 +417,15 @@ export default function SukoonChat({ T, lang, setTab }) {
           setActiveCallId(newCall.id);
           activeCallIdRef.current = newCall.id;
           currentCallId = newCall.id;
+
+          // 🌟 FIX: Start the 30-second drop timer!
+          ringTimeoutRef.current = setTimeout(async () => {
+            if (activeCallIdRef.current) {
+              await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
+            }
+            cleanupCall();
+            console.log("⏰ Call timed out! The friend didn't answer.");
+          }, 30000); 
         }
 
         const { data: friendProfile, error: profileError } = await supabase
@@ -446,7 +460,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const joinCall = async () => {
     try {
-      await fetchSecureTrucks(); // 👈 Grab the keys right before answering!
+      await fetchSecureTrucks(); 
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
 
@@ -486,6 +500,10 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     setRemoteStreams([]); 
     safeSetIsInCall(false); 
+
+    // 🌟 FIX: Clear the timer so it doesn't accidentally hang up later!
+    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+
     setActiveCallId(null);
     activeCallIdRef.current = null;
   };
