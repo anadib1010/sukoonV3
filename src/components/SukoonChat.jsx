@@ -3,6 +3,41 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { requestFirebaseToken } from '../firebaseSetup'; 
 
+// ─── THE SECURITY KIT (ECDH) ───
+const SecurityKit = {
+  generateKeys: async () => {
+    const keyPair = await window.crypto.subtle.generateKey(
+      { name: "ECDH", namedCurve: "P-256" },
+      true, 
+      ["deriveKey", "deriveBits"]
+    );
+    return keyPair;
+  },
+
+  exportMixture: async (publicKey) => {
+    const exported = await window.crypto.subtle.exportKey("spki", publicKey);
+    return btoa(String.fromCharCode(...new Uint8Array(exported)));
+  },
+
+  importMixture: async (base64) => {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return await window.crypto.subtle.importKey(
+      "spki", bytes, { name: "ECDH", namedCurve: "P-256" }, true, []
+    );
+  },
+
+  deriveSecret: async (myPrivateKey, theirPublicKey) => {
+    const sharedSecret = await window.crypto.subtle.deriveBits(
+      { name: "ECDH", public: theirPublicKey },
+      myPrivateKey,
+      256
+    );
+    return sharedSecret; 
+  }
+};
+
 export default function SukoonChat({ T, lang, setTab }) {
   const location = useLocation(); 
   const hi = lang === "Hindi";
@@ -284,11 +319,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
-  // 🌟 THE SAFE SENDER (THE FIX IS HERE) 🌟
   const sendGlobalSignal = (actionPayload) => {
-    // 🚨 CRITICAL FIX: Do NOT pass "{ config: ... }" here!
-    // By passing ONLY the name, Supabase borrows the exact, already-connected
-    // walkie-talkie from App.jsx instead of resetting the connection!
     supabase.channel('global-call-radar').send({
       type: 'broadcast',
       event: 'global-ring',
@@ -331,7 +362,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
       }
 
-      // 🌟 Polite Call using the Safe Sender!
       sendGlobalSignal({ 
         action: 'start', 
         roomId: activeRoom.id, 
@@ -358,7 +388,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
     
     if (activeRoom) {
-      // 🌟 Polite Hang Up!
       sendGlobalSignal({ 
         action: 'cancel', 
         roomId: activeRoom.id, 
