@@ -65,9 +65,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false); 
   
-  // 🌟 THE FIX: The Permanent Speaker! 
   const remoteAudioRef = useRef(null);
-  
   const localStream = useRef(null);
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
@@ -281,7 +279,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           const finalSecret = await SecurityKit.deriveSecret(myPrivateKeyRef.current, theirPublicKey);
           const secretArray = Array.from(new Uint8Array(finalSecret));
           sharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          console.log("🔒 MILITARY GRADE HANDSHAKE COMPLETE! Shared Secret Established.");
         }
 
         if (payload.type === 'user-joined' && isInCallRef.current) {
@@ -374,10 +371,12 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
     
-    // 🌟 THE FIX: Plug the audio wire directly into the permanent speaker!
+    // 🌟 THE FIX 1: Forcing the "Play" button for older Android phones
     pc.ontrack = (event) => {
-      if (remoteAudioRef.current && remoteAudioRef.current.srcObject !== event.streams[0]) {
+      if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = event.streams[0];
+        // Explicitly command the older phone's speaker to wake up!
+        remoteAudioRef.current.play().catch(err => console.error("Could not wake up Android Speaker:", err));
       }
     };
     
@@ -489,8 +488,11 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     
-    // 🌟 UNPLUG THE SPEAKER
+    // 🌟 THE FIX 2: Fully scrub the Android Speaker memory so it forgets the last call!
     if (remoteAudioRef.current) {
+      remoteAudioRef.current.pause();
+      remoteAudioRef.current.removeAttribute('src'); 
+      remoteAudioRef.current.load(); 
       remoteAudioRef.current.srcObject = null;
     }
 
@@ -562,7 +564,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   };
 
   const handleLogout = async () => {
-    if (!window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?")) return;
+    if (!window.confirm(hi ? "क्या आप लॉग out करना चाहते हैं?" : "Are you sure you want to logout?")) return;
     await supabase.auth.signOut();
     setTab('home'); 
     window.location.reload();
@@ -578,7 +580,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={s.container}>
-      {/* 🌟 THE FIX: The Permanent, Invisible Speaker bolted to the wall! */}
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       {showGroupModal && (
