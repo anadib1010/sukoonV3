@@ -71,6 +71,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
+  // 🌟 FIX 3: THE PARKING LOT for early Delivery Trucks!
+  const iceCandidateQueue = useRef({}); 
+
   const ringTimeoutRef = useRef(null);
   const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
@@ -150,9 +153,7 @@ export default function SukoonChat({ T, lang, setTab }) {
           if (token) {
             await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
           }
-        } catch (e) {
-          console.log("Could not register Nightwatchman: ", e);
-        }
+        } catch (e) { console.log("Could not register Nightwatchman: ", e); }
       }
       setLoading(false);
     }
@@ -187,9 +188,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     const globalRadar = supabase.channel('global-call-radar-caller-listener')
       .on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
          if (payload.action === 'cancel' && payload.callerId === currentUser.id) {
-             if (activeCallIdRef.current) {
-               await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
-             }
+             if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
              cleanupCall();
          }
       }).subscribe();
@@ -294,17 +293,39 @@ export default function SukoonChat({ T, lang, setTab }) {
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          
+          // 🌟 FIX 3: Release the Delivery Trucks from the Parking Lot!
+          if (iceCandidateQueue.current[payload.sender]) {
+             iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.log(e)));
+             iceCandidateQueue.current[payload.sender] = [];
+          }
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
         } 
         else if (payload.type === 'answer' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
-          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            // 🌟 FIX 3: Release the Delivery Trucks from the Parking Lot!
+            if (iceCandidateQueue.current[payload.sender]) {
+               iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.log(e)));
+               iceCandidateQueue.current[payload.sender] = [];
+            }
+          }
         } 
         else if (payload.type === 'ice-candidate' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
-          if (pc) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          if (pc) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e=>console.log("ICE Error", e));
+            } else {
+              // 🌟 FIX 3: Park the Delivery Truck because the Map isn't ready yet!
+              if (!iceCandidateQueue.current[payload.sender]) iceCandidateQueue.current[payload.sender] = [];
+              iceCandidateQueue.current[payload.sender].push(payload.candidate);
+            }
+          }
         } 
         else if (payload.type === 'user-left') {
           removePeer(payload.sender);
@@ -347,7 +368,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       const { data } = await supabase.functions.invoke('get-turn-credentials');
       if (data && data.iceServers) {
         iceServersRef.current = data;
-        console.log("🚚 Secure Delivery Trucks acquired from Vault!");
       }
     } catch (err) { console.error("Could not fetch secure trucks, using free STUN.", err); }
   };
@@ -356,7 +376,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     const pc = new RTCPeerConnection(iceServersRef.current); 
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
-    pc.ontrack = (event) => setRemoteStreams(prev => prev.find(p => p.userId === peerId) ? prev : [...prev, { userId: peerId, stream: event.streams[0] }]);
+    
+    // 🌟 FIX 2: Generate a brand new, random ID for every single audio speaker so React never re-uses a broken one!
+    pc.ontrack = (event) => setRemoteStreams(prev => {
+       if (prev.find(p => p.userId === peerId)) return prev;
+       return [...prev, { userId: peerId, stream: event.streams[0], uniqueId: Math.random() }];
+    });
+    
     pc.onicecandidate = (event) => { if (event.candidate && signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId } }); };
     pc.oniceconnectionstatechange = () => { if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) removePeer(peerId); };
     return pc;
@@ -397,37 +423,21 @@ export default function SukoonChat({ T, lang, setTab }) {
           activeCallIdRef.current = newCall.id;
           currentCallId = newCall.id;
 
-          // 🌟 FIX: The 30 Second Timer now forces the other phone to stop ringing!
           ringTimeoutRef.current = setTimeout(async () => {
-            if (activeCallIdRef.current) {
-              await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
-            }
-            if (activeRoomRef.current) {
-               sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
-            }
+            if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
+            if (activeRoomRef.current) sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
             cleanupCall();
-            console.log("⏰ Call timed out! The friend didn't answer.");
           }, 30000); 
         }
 
         const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle(); 
         if (friendProfile?.fcm_token) {
-          await supabase.functions.invoke('send-call-notification', {
-            body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id }
-          });
+          await supabase.functions.invoke('send-call-notification', { body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id } });
         }
       }
 
-      signalingChannelRef.current.send({ 
-        type: 'broadcast', event: 'webrtc', 
-        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: myPublicKeyStrRef.current } 
-      });
-
-      sendGlobalSignal({ 
-        action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, 
-        participants: activeRoom.participants, roomDetails: activeRoom, publicKey: myPublicKeyStrRef.current,
-        callId: currentCallId 
-      });
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: myPublicKeyStrRef.current } });
+      sendGlobalSignal({ action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom, publicKey: myPublicKeyStrRef.current, callId: currentCallId });
 
     } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
@@ -435,16 +445,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const joinCall = async () => {
     try {
       await fetchSecureTrucks(); 
-      
-      // 🌟 FIX: The receiver grabs the actual Call ID from the database to update the Status Board!
-      const { data: incomingCall } = await supabase
-        .from('calls')
-        .select('id')
-        .eq('receiver_id', currentUser.id)
-        .eq('status', 'ringing')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: incomingCall } = await supabase.from('calls').select('id').eq('receiver_id', currentUser.id).eq('status', 'ringing').order('created_at', { ascending: false }).limit(1).maybeSingle();
 
       if (incomingCall) {
         setActiveCallId(incomingCall.id);
@@ -459,33 +460,40 @@ export default function SukoonChat({ T, lang, setTab }) {
       myPublicKeyStrRef.current = await SecurityKit.exportMixture(keys.publicKey);
 
       if (activeCallIdRef.current) {
-         await supabase.from('calls').update({ 
-           status: 'accepted', receiver_public_key: myPublicKeyStrRef.current 
-         }).eq('id', activeCallIdRef.current);
+         await supabase.from('calls').update({ status: 'accepted', receiver_public_key: myPublicKeyStrRef.current }).eq('id', activeCallIdRef.current);
       }
 
-      signalingChannelRef.current.send({ 
-        type: 'broadcast', event: 'webrtc', 
-        payload: { type: 'user-joined', sender: currentUser.id, publicKey: myPublicKeyStrRef.current } 
-      });
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id, publicKey: myPublicKeyStrRef.current } });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
 
+  // 🌟 FIX 1: The "Ironclad Guarantee" (Try/Catch/Finally)
   const endCall = async () => { 
-    if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
-    if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
-    if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
-    cleanupCall(); 
+    try {
+      if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
+      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
+      if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
+    } catch (error) {
+      console.error("Failed to update database, forcing cleanup anyway!");
+    } finally {
+      cleanupCall(); 
+    }
   };
 
   const cleanupCall = () => { 
-    Object.values(peers.current).forEach(pc => pc.close()); 
+    Object.values(peers.current).forEach(pc => {
+       pc.onicecandidate = null;
+       pc.ontrack = null;
+       pc.oniceconnectionstatechange = null;
+       pc.close();
+    }); 
     peers.current = {}; 
+    iceCandidateQueue.current = {}; // Clear the parking lot!
+
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     setRemoteStreams([]); 
     safeSetIsInCall(false); 
-    
-    // 🌟 FIX: Erase the encryption keys from memory so the next call gets fresh ones!
+
     myPrivateKeyRef.current = null;
     myPublicKeyStrRef.current = null;
     sharedSecretRef.current = null;
@@ -568,7 +576,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={s.container}>
-      {remoteStreams.map(peer => ( <audio key={peer.userId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} /> ))}
+      {/* 🌟 FIX 2: Using peer.uniqueId ensures React ALWAYS builds a brand new speaker! */}
+      {remoteStreams.map(peer => ( <audio key={peer.uniqueId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} /> ))}
 
       {showGroupModal && (
         <div style={s.modalOverlay}>
