@@ -47,25 +47,21 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
-  // ─── THE NEW GROUP CHAT ENGINE 👥 ───
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [groupSearchTerm, setGroupSearchTerm] = useState("");
   const [groupSearchResults, setGroupSearchResults] = useState([]);
   const [selectedFriends, setSelectedFriends] = useState([]);
 
-  // ─── THE UNREAD BADGE ENGINE 🔴 ───
   const [unreadCounts, setUnreadCounts] = useState({});
   const activeRoomRef = useRef(activeRoom); 
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
 
-  // ─── LIVE PRESENCE STATE ───
   const [presentUsers, setPresentUsers] = useState({});
   const [isTyping, setIsTyping] = useState(false);
   const presenceChannelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // ─── ENTERPRISE MESH WEBRTC STATE ───
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false); 
   const [remoteStreams, setRemoteStreams] = useState([]); 
@@ -75,7 +71,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
-  // ─── END-TO-END ENCRYPTION & STATE MACHINE BUCKETS 🔒📋 ───
+  // 🌟 NEW: This safe holds the keys after the Robot gives them to us!
+  const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
   const myPrivateKeyRef = useRef(null); 
   const myPublicKeyStrRef = useRef(null); 
   const sharedSecretRef = useRef(null); 
@@ -92,7 +90,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
-  // ─── UPGRADED UI/UX STYLES ✨ (Powered by T) ───
   const s = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative', fontFamily: "'DM Sans', sans-serif" },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}95`, backdropFilter: 'blur(10px)', zIndex: 10 },
@@ -167,11 +164,36 @@ export default function SukoonChat({ T, lang, setTab }) {
   }, []);
 
   useEffect(() => {
+    if (!activeCallId) return;
+    const boardWatcher = supabase.channel(`status-board-${activeCallId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` },
+      (payload) => {
+         const newStatus = payload.new.status;
+         if (['rejected', 'ended', 'missed'].includes(newStatus)) {
+            cleanupCall();
+         }
+      }).subscribe();
+    return () => supabase.removeChannel(boardWatcher);
+  }, [activeCallId]);
+
+  useEffect(() => {
+    if (!activeCallId) return;
+    const heartbeat = setInterval(async () => {
+      if (activeCallIdRef.current) {
+        const { data } = await supabase.from('calls').select('status').eq('id', activeCallIdRef.current).maybeSingle();
+        if (data && ['rejected', 'ended', 'missed'].includes(data.status)) {
+          cleanupCall();
+        }
+      }
+    }, 3000);
+    return () => clearInterval(heartbeat);
+  }, [activeCallId]);
+
+  useEffect(() => {
     if (!currentUser) return;
     const globalRadar = supabase.channel('global-call-radar-caller-listener')
       .on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
          if (payload.action === 'cancel' && payload.callerId === currentUser.id) {
-             console.log("🛑 Caught Decline Signal! Hanging up automatically...");
              if (activeCallIdRef.current) {
                await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
              }
@@ -180,20 +202,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       }).subscribe();
     return () => supabase.removeChannel(globalRadar);
   }, [currentUser]);
-
-  useEffect(() => {
-    if (!activeCallId) return;
-    const boardWatcher = supabase.channel(`status-board-${activeCallId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` },
-      (payload) => {
-         const newStatus = payload.new.status;
-         console.log(`📡 Status Board Update: Call is now [${newStatus}]`);
-         if (['rejected', 'ended', 'missed'].includes(newStatus)) {
-            cleanupCall();
-         }
-      }).subscribe();
-    return () => supabase.removeChannel(boardWatcher);
-  }, [activeCallId]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -314,7 +322,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
       } catch (err) { console.error("Signaling Error:", err); }
 
-    // 🌟 THE FIX: Wait for the radio to show the Green Light before joining!
     }).subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         if (autoJoinRef.current) {
@@ -345,10 +352,23 @@ export default function SukoonChat({ T, lang, setTab }) {
   const decrypt = (scrambled, key) => { try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ String(key).charCodeAt(i % String(key).length))).join('')); } catch (e) { return scrambled; } };
   const formatTime = (dateString) => { if (!dateString) return "Just now"; return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
-  const STUN_SERVERS = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
+  // 🌟 NEW: THE SECURE ROBOT FETCH 🌟
+  // This politely knocks on the Supabase door to get the Delivery Truck keys!
+  const fetchSecureTrucks = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-turn-credentials');
+      if (data && data.iceServers) {
+        iceServersRef.current = data;
+        console.log("🚚 Secure Delivery Trucks acquired from Vault!");
+      }
+    } catch (err) {
+      console.error("Could not fetch secure trucks, using free STUN.", err);
+    }
+  };
 
   const createPeerConnection = (peerId) => {
-    const pc = new RTCPeerConnection(STUN_SERVERS);
+    // 👈 We build the connection using the keys from our secure safe!
+    const pc = new RTCPeerConnection(iceServersRef.current); 
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
     pc.ontrack = (event) => setRemoteStreams(prev => prev.find(p => p.userId === peerId) ? prev : [...prev, { userId: peerId, stream: event.streams[0] }]);
@@ -369,6 +389,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (isInCallRef.current || !activeRoom) return;
     
     try {
+      await fetchSecureTrucks(); // 👈 Grab the keys right before calling!
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
@@ -425,6 +446,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const joinCall = async () => {
     try {
+      await fetchSecureTrucks(); // 👈 Grab the keys right before answering!
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
 
