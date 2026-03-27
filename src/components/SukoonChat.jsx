@@ -184,6 +184,34 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
     fetchMessages();
 
+    // --- SURGICAL INSERTION: THE REALTIME EAR FOR MESSAGES ---
+    const lightningChannel = supabase
+      .channel(`lightning-${activeRoom.id}`)
+      .on(
+        'postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `room_id=eq.${activeRoom.id}` 
+        }, 
+        (payload) => {
+          // This ensures the message is added instantly!
+          setMessages((prev) => {
+             // Prevent duplicates just in case the old channel also catches it
+             if (prev.find(m => m.id === payload.new.id)) return prev;
+             return [...prev, payload.new];
+          });
+          
+          // Mark as read instantly if it's from the other person
+          if (payload.new.user_id !== currentUser.id) {
+             supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
+          }
+        }
+      )
+      .subscribe();
+    // --------------------------------------------
+
     const chatChannel = supabase.channel(`room-${activeRoom.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
@@ -241,7 +269,13 @@ export default function SukoonChat({ T, lang, setTab }) {
       joinCall(); 
     }
 
-    return () => { supabase.removeChannel(chatChannel); supabase.removeChannel(presenceRoom); supabase.removeChannel(sigChannel); };
+    // Clean up the new lightning channel too!
+    return () => { 
+        supabase.removeChannel(chatChannel); 
+        supabase.removeChannel(presenceRoom); 
+        supabase.removeChannel(sigChannel); 
+        supabase.removeChannel(lightningChannel);
+    };
   }, [activeRoom, currentUser]); 
 
   const stopRinging = () => { if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current.currentTime = 0; } };
