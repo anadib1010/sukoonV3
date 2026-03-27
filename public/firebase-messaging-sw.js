@@ -48,3 +48,33 @@ self.addEventListener('notificationclick', function(event) {
     clients.openWindow(event.notification.data.url)
   );
 });
+// 🌟 THE FIX: Teach the Butler to instantly close the notification on Decline!
+self.addEventListener('notificationclick', function(event) {
+  // If the user clicked "Decline"
+  if (event.action === 'decline') {
+    console.log("User declined the call. Closing notification instantly.");
+    event.notification.close();
+    
+    // The React app's 30-second timer will act as our safety net 
+    // to update the Supabase database and clear the Caller's screen.
+  } 
+  // If they click anything else (like Accept), close the notification and open the app
+  else {
+    event.notification.close();
+    event.waitUntil(
+      clients.matchAll({ type: 'window' }).then(windowClients => {
+        // If the app is already open, just focus it!
+        for (let i = 0; i < windowClients.length; i++) {
+          let client = windowClients[i];
+          if (client.url.includes('/') && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // If the app is fully closed, open a new window to the chat!
+        if (clients.openWindow) {
+          return clients.openWindow('/');
+        }
+      })
+    );
+  }
+});

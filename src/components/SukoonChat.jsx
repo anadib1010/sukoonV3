@@ -64,16 +64,16 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false); 
-  const [remoteStreams, setRemoteStreams] = useState([]); 
+  
+  // 🌟 THE FIX: The Permanent Speaker! 
+  const remoteAudioRef = useRef(null);
   
   const localStream = useRef(null);
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
-  // 🌟 FIX 3: THE PARKING LOT for early Delivery Trucks!
   const iceCandidateQueue = useRef({}); 
-
   const ringTimeoutRef = useRef(null);
   const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
@@ -294,7 +294,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           
-          // 🌟 FIX 3: Release the Delivery Trucks from the Parking Lot!
           if (iceCandidateQueue.current[payload.sender]) {
              iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.log(e)));
              iceCandidateQueue.current[payload.sender] = [];
@@ -308,7 +307,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           const pc = peers.current[payload.sender];
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            // 🌟 FIX 3: Release the Delivery Trucks from the Parking Lot!
             if (iceCandidateQueue.current[payload.sender]) {
                iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.log(e)));
                iceCandidateQueue.current[payload.sender] = [];
@@ -321,7 +319,6 @@ export default function SukoonChat({ T, lang, setTab }) {
             if (pc.remoteDescription && pc.remoteDescription.type) {
               pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e=>console.log("ICE Error", e));
             } else {
-              // 🌟 FIX 3: Park the Delivery Truck because the Map isn't ready yet!
               if (!iceCandidateQueue.current[payload.sender]) iceCandidateQueue.current[payload.sender] = [];
               iceCandidateQueue.current[payload.sender].push(payload.candidate);
             }
@@ -377,18 +374,19 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
     
-    // 🌟 FIX 2: Generate a brand new, random ID for every single audio speaker so React never re-uses a broken one!
-    pc.ontrack = (event) => setRemoteStreams(prev => {
-       if (prev.find(p => p.userId === peerId)) return prev;
-       return [...prev, { userId: peerId, stream: event.streams[0], uniqueId: Math.random() }];
-    });
+    // 🌟 THE FIX: Plug the audio wire directly into the permanent speaker!
+    pc.ontrack = (event) => {
+      if (remoteAudioRef.current && remoteAudioRef.current.srcObject !== event.streams[0]) {
+        remoteAudioRef.current.srcObject = event.streams[0];
+      }
+    };
     
     pc.onicecandidate = (event) => { if (event.candidate && signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId } }); };
     pc.oniceconnectionstatechange = () => { if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) removePeer(peerId); };
     return pc;
   };
 
-  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
+  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } };
 
   const sendGlobalSignal = (actionPayload) => {
     supabase.channel('global-call-radar').send({
@@ -467,7 +465,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
 
-  // 🌟 FIX 1: The "Ironclad Guarantee" (Try/Catch/Finally)
   const endCall = async () => { 
     try {
       if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
@@ -488,10 +485,15 @@ export default function SukoonChat({ T, lang, setTab }) {
        pc.close();
     }); 
     peers.current = {}; 
-    iceCandidateQueue.current = {}; // Clear the parking lot!
+    iceCandidateQueue.current = {}; 
 
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
-    setRemoteStreams([]); 
+    
+    // 🌟 UNPLUG THE SPEAKER
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
+
     safeSetIsInCall(false); 
 
     myPrivateKeyRef.current = null;
@@ -576,8 +578,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={s.container}>
-      {/* 🌟 FIX 2: Using peer.uniqueId ensures React ALWAYS builds a brand new speaker! */}
-      {remoteStreams.map(peer => ( <audio key={peer.uniqueId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} /> ))}
+      {/* 🌟 THE FIX: The Permanent, Invisible Speaker bolted to the wall! */}
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       {showGroupModal && (
         <div style={s.modalOverlay}>
