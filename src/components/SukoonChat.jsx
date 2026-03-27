@@ -13,12 +13,10 @@ const SecurityKit = {
     );
     return keyPair;
   },
-
   exportMixture: async (publicKey) => {
     const exported = await window.crypto.subtle.exportKey("spki", publicKey);
     return btoa(String.fromCharCode(...new Uint8Array(exported)));
   },
-
   importMixture: async (base64) => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -27,7 +25,6 @@ const SecurityKit = {
       "spki", bytes, { name: "ECDH", namedCurve: "P-256" }, true, []
     );
   },
-
   deriveSecret: async (myPrivateKey, theirPublicKey) => {
     const sharedSecret = await window.crypto.subtle.deriveBits(
       { name: "ECDH", public: theirPublicKey },
@@ -78,10 +75,14 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
-  // ─── END-TO-END ENCRYPTION (E2EE) BUCKETS 🔒 ───
-  const myPrivateKeyRef = useRef(null); // Our Secret Color (Never leaves the phone)
-  const myPublicKeyStrRef = useRef(null); // Our Public Mixture (Sent over the radio)
-  const sharedSecretRef = useRef(null); // The Final Brown Mix (Used to lock messages)
+  // ─── END-TO-END ENCRYPTION & STATE MACHINE BUCKETS 🔒📋 ───
+  const myPrivateKeyRef = useRef(null); 
+  const myPublicKeyStrRef = useRef(null); 
+  const sharedSecretRef = useRef(null); 
+  
+  // 🌟 NEW: The specific ID for the Status Board
+  const [activeCallId, setActiveCallId] = useState(null);
+  const activeCallIdRef = useRef(null);
 
   const safeSetIsInCall = (status) => {
     setIsInCall(status);
@@ -152,21 +153,49 @@ export default function SukoonChat({ T, lang, setTab }) {
           const token = await requestFirebaseToken();
           if (token) {
             await supabase.from('profiles').update({ fcm_token: token }).eq('id', user.id);
-            console.log("Nightwatchman successfully registered and saved!");
           }
         } catch (e) {
           console.log("Could not register Nightwatchman: ", e);
         }
       }
-
       setLoading(false);
     }
     initialize();
   }, []);
 
+  // 🌟 NEW: This catches the "Decline" shout from the other phone and forces a hang up!
   useEffect(() => {
     if (!currentUser) return;
-    
+    const globalRadar = supabase.channel('global-call-radar-caller-listener')
+      .on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
+         if (payload.action === 'cancel' && payload.callerId === currentUser.id) {
+             console.log("🛑 Caught Decline Signal! Hanging up automatically...");
+             if (activeCallIdRef.current) {
+               await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
+             }
+             cleanupCall();
+         }
+      }).subscribe();
+    return () => supabase.removeChannel(globalRadar);
+  }, [currentUser]);
+
+  // 🌟 NEW: The Status Board Watcher! If the DB says "missed" or "rejected", drop the call instantly.
+  useEffect(() => {
+    if (!activeCallId) return;
+    const boardWatcher = supabase.channel(`status-board-${activeCallId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` },
+      (payload) => {
+         const newStatus = payload.new.status;
+         console.log(`📡 Status Board Update: Call is now [${newStatus}]`);
+         if (['rejected', 'ended', 'missed'].includes(newStatus)) {
+            cleanupCall();
+         }
+      }).subscribe();
+    return () => supabase.removeChannel(boardWatcher);
+  }, [activeCallId]);
+
+  useEffect(() => {
+    if (!currentUser) return;
     const fetchInitialUnread = async () => {
       const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
       const counts = {};
@@ -189,7 +218,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   useEffect(() => {
     if (location.state?.incomingCallRoom && !activeRoomRef.current) {
-      console.log("Catching call from Global Overlay!");
       setActiveRoom(location.state.incomingCallRoom);
       autoJoinRef.current = true; 
       window.history.replaceState({}, document.title);
@@ -213,13 +241,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     const lightningChannel = supabase
       .channel(`lightning-${activeRoom.id}`)
       .on(
-        'postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: `room_id=eq.${activeRoom.id}` 
-        }, 
+        'postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
         (payload) => {
           setMessages((prev) => {
              if (prev.find(m => m.id === payload.new.id)) return prev;
@@ -229,8 +251,7 @@ export default function SukoonChat({ T, lang, setTab }) {
              supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
           }
         }
-      )
-      .subscribe();
+      ).subscribe();
 
     const chatChannel = supabase.channel(`room-${activeRoom.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => {
@@ -257,15 +278,11 @@ export default function SukoonChat({ T, lang, setTab }) {
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
-        // 🌟 NEW MAGIC MIX: Catch their Public Color and mix it with our Secret Color!
         if (payload.publicKey && myPrivateKeyRef.current && !sharedSecretRef.current) {
           const theirPublicKey = await SecurityKit.importMixture(payload.publicKey);
           const finalSecret = await SecurityKit.deriveSecret(myPrivateKeyRef.current, theirPublicKey);
-          
-          // Turn the raw computer bits into a safe string we can use for text messages
           const secretArray = Array.from(new Uint8Array(finalSecret));
           sharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          
           console.log("🔒 MILITARY GRADE HANDSHAKE COMPLETE! Shared Secret Established.");
         }
 
@@ -273,7 +290,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          // 🌟 Piggyback our public key on the offer too, just in case!
           sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: myPublicKeyStrRef.current } });
         } 
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
@@ -339,13 +355,10 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const sendGlobalSignal = (actionPayload) => {
     supabase.channel('global-call-radar').send({
-      type: 'broadcast',
-      event: 'global-ring',
-      payload: actionPayload
+      type: 'broadcast', event: 'global-ring', payload: actionPayload
     });
   };
 
-  // 🌟 STEP 2: The Caller mixes their Paint
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     
@@ -353,52 +366,45 @@ export default function SukoonChat({ T, lang, setTab }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
-      // 🌟 NEW: Generate Secret and Public colors
       const keys = await SecurityKit.generateKeys();
       myPrivateKeyRef.current = keys.privateKey;
       myPublicKeyStrRef.current = await SecurityKit.exportMixture(keys.publicKey);
 
-      signalingChannelRef.current.send({ 
-        type: 'broadcast', 
-        event: 'webrtc', 
-        payload: { 
-          type: 'call-started', 
-          sender: currentUser.id, 
-          callerEmail: currentUser.email,
-          publicKey: myPublicKeyStrRef.current // 👈 Public Key Sent!
-        } 
-      });
-
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
+      let currentCallId = null;
 
+      // 🌟 NEW: Write on the Status Board!
       if (friendId) {
-        const { data: friendProfile } = await supabase
-          .from('profiles')
-          .select('fcm_token')
-          .eq('id', friendId)
-          .single();
+        const { data: newCall } = await supabase.from('calls').insert({
+          caller_id: currentUser.id,
+          receiver_id: friendId,
+          status: 'ringing',
+          caller_public_key: myPublicKeyStrRef.current
+        }).select().single();
 
+        if (newCall) {
+          setActiveCallId(newCall.id);
+          activeCallIdRef.current = newCall.id;
+          currentCallId = newCall.id;
+        }
+
+        const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).single();
         if (friendProfile?.fcm_token) {
-          console.log("Found friend's address! Sending the Wake-Up signal...");
-          
           await supabase.functions.invoke('send-call-notification', {
-            body: { 
-              token: friendProfile.fcm_token, 
-              callerName: currentUser.email.split('@')[0],
-              roomId: activeRoom.id
-            }
+            body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id }
           });
         }
       }
 
+      signalingChannelRef.current.send({ 
+        type: 'broadcast', event: 'webrtc', 
+        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: myPublicKeyStrRef.current } 
+      });
+
       sendGlobalSignal({ 
-        action: 'start', 
-        roomId: activeRoom.id, 
-        callerId: currentUser.id, 
-        callerEmail: currentUser.email, 
-        participants: activeRoom.participants, 
-        roomDetails: activeRoom,
-        publicKey: myPublicKeyStrRef.current // 👈 Public Key Sent!
+        action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, 
+        participants: activeRoom.participants, roomDetails: activeRoom, publicKey: myPublicKeyStrRef.current,
+        callId: currentCallId // Pass the ID so the whole app knows!
       });
 
     } catch (error) {
@@ -406,44 +412,53 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
-  // 🌟 STEP 3: The Receiver mixes their Paint
   const joinCall = async () => {
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
 
-      // 🌟 NEW: Generate Secret and Public colors
       const keys = await SecurityKit.generateKeys();
       myPrivateKeyRef.current = keys.privateKey;
       myPublicKeyStrRef.current = await SecurityKit.exportMixture(keys.publicKey);
 
+      // 🌟 NEW: Update the Status Board to "Accepted"
+      if (activeCallIdRef.current) {
+         await supabase.from('calls').update({ 
+           status: 'accepted', receiver_public_key: myPublicKeyStrRef.current 
+         }).eq('id', activeCallIdRef.current);
+      }
+
       signalingChannelRef.current.send({ 
-        type: 'broadcast', 
-        event: 'webrtc', 
-        payload: { 
-          type: 'user-joined', 
-          sender: currentUser.id,
-          publicKey: myPublicKeyStrRef.current // 👈 Public Key Sent!
-        } 
+        type: 'broadcast', event: 'webrtc', 
+        payload: { type: 'user-joined', sender: currentUser.id, publicKey: myPublicKeyStrRef.current } 
       });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
 
-  const endCall = () => { 
+  const endCall = async () => { 
     if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
     
+    // 🌟 NEW: Tell the Status Board the call is ended
+    if (activeCallIdRef.current) {
+       await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
+    }
+
     if (activeRoom) {
-      sendGlobalSignal({ 
-        action: 'cancel', 
-        roomId: activeRoom.id, 
-        callerId: currentUser.id, 
-        participants: activeRoom.participants 
-      });
+      sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
     }
     cleanupCall(); 
   };
 
-  const cleanupCall = () => { Object.values(peers.current).forEach(pc => pc.close()); peers.current = {}; if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } setRemoteStreams([]); safeSetIsInCall(false); };
+  const cleanupCall = () => { 
+    Object.values(peers.current).forEach(pc => pc.close()); 
+    peers.current = {}; 
+    if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
+    setRemoteStreams([]); 
+    safeSetIsInCall(false); 
+    // Clear the board ID
+    setActiveCallId(null);
+    activeCallIdRef.current = null;
+  };
 
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
