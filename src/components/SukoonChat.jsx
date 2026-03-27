@@ -78,6 +78,11 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
+  // ─── END-TO-END ENCRYPTION (E2EE) BUCKETS 🔒 ───
+  const myPrivateKeyRef = useRef(null); // Our Secret Color (Never leaves the phone)
+  const myPublicKeyStrRef = useRef(null); // Our Public Mixture (Sent over the radio)
+  const sharedSecretRef = useRef(null); // The Final Brown Mix (Used to lock messages)
+
   const safeSetIsInCall = (status) => {
     setIsInCall(status);
     isInCallRef.current = status;
@@ -252,11 +257,24 @@ export default function SukoonChat({ T, lang, setTab }) {
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
+        // 🌟 NEW MAGIC MIX: Catch their Public Color and mix it with our Secret Color!
+        if (payload.publicKey && myPrivateKeyRef.current && !sharedSecretRef.current) {
+          const theirPublicKey = await SecurityKit.importMixture(payload.publicKey);
+          const finalSecret = await SecurityKit.deriveSecret(myPrivateKeyRef.current, theirPublicKey);
+          
+          // Turn the raw computer bits into a safe string we can use for text messages
+          const secretArray = Array.from(new Uint8Array(finalSecret));
+          sharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          console.log("🔒 MILITARY GRADE HANDSHAKE COMPLETE! Shared Secret Established.");
+        }
+
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender } });
+          // 🌟 Piggyback our public key on the offer too, just in case!
+          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: myPublicKeyStrRef.current } });
         } 
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
           const pc = createPeerConnection(payload.sender);
@@ -327,6 +345,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     });
   };
 
+  // 🌟 STEP 2: The Caller mixes their Paint
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     
@@ -334,10 +353,20 @@ export default function SukoonChat({ T, lang, setTab }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
+      // 🌟 NEW: Generate Secret and Public colors
+      const keys = await SecurityKit.generateKeys();
+      myPrivateKeyRef.current = keys.privateKey;
+      myPublicKeyStrRef.current = await SecurityKit.exportMixture(keys.publicKey);
+
       signalingChannelRef.current.send({ 
         type: 'broadcast', 
         event: 'webrtc', 
-        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } 
+        payload: { 
+          type: 'call-started', 
+          sender: currentUser.id, 
+          callerEmail: currentUser.email,
+          publicKey: myPublicKeyStrRef.current // 👈 Public Key Sent!
+        } 
       });
 
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
@@ -368,7 +397,8 @@ export default function SukoonChat({ T, lang, setTab }) {
         callerId: currentUser.id, 
         callerEmail: currentUser.email, 
         participants: activeRoom.participants, 
-        roomDetails: activeRoom 
+        roomDetails: activeRoom,
+        publicKey: myPublicKeyStrRef.current // 👈 Public Key Sent!
       });
 
     } catch (error) {
@@ -376,11 +406,26 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
+  // 🌟 STEP 3: The Receiver mixes their Paint
   const joinCall = async () => {
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id } });
+
+      // 🌟 NEW: Generate Secret and Public colors
+      const keys = await SecurityKit.generateKeys();
+      myPrivateKeyRef.current = keys.privateKey;
+      myPublicKeyStrRef.current = await SecurityKit.exportMixture(keys.publicKey);
+
+      signalingChannelRef.current.send({ 
+        type: 'broadcast', 
+        event: 'webrtc', 
+        payload: { 
+          type: 'user-joined', 
+          sender: currentUser.id,
+          publicKey: myPublicKeyStrRef.current // 👈 Public Key Sent!
+        } 
+      });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
 
