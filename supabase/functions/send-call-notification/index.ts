@@ -30,17 +30,17 @@ serve(async (req) => {
     // 4. GET THE GOOGLE "PERMISSION SLIP" (Access Token)
     const accessToken = await getGoogleAccessToken(serviceAccount)
 
-    // 5. BUILD THE NOTIFICATION (Updated to match your Nightwatchman's Hindi/English rules!)
+    // 5. BUILD THE NOTIFICATION
     const message = {
       message: {
         token: token,
         notification: {
-          title: "सुकून कॉल (Sukoon Call)", // 🌟 Matches SW perfectly
-          body: `${callerName} is calling you on a secure line...` // 🌟 Professional tone
+          title: "सुकून कॉल (Sukoon Call)", 
+          body: `${callerName} is calling you on a secure line...` 
         },
         data: {
           roomId: roomId,
-          action: "incoming_call", // 🌟 Helps the SW know exactly what to do
+          action: "incoming_call", 
           click_action: "FLUTTER_NOTIFICATION_CLICK"
         },
         android: { priority: "high" }
@@ -79,11 +79,12 @@ serve(async (req) => {
   }
 })
 
-// ─── THE GOOGLE HANDSHAKE ENGINE 🤝 (UNTOUCHED - MASTERPIECE) ───
+// ─── THE UPDATED GOOGLE HANDSHAKE ENGINE 🤝 ───
+// Built using modern, native Web Crypto standards!
 async function getGoogleAccessToken(serviceAccount: any) {
-  const jwtHeader = { alg: "RS256", typ: "JWT" }
-  const iat = Math.floor(Date.now() / 1000)
-  const exp = iat + 3600
+  const jwtHeader = { alg: "RS256", typ: "JWT" } as const;
+  const iat = Math.floor(Date.now() / 1000);
+  const exp = iat + 3600;
   
   const jwtPayload = {
     iss: serviceAccount.client_email,
@@ -91,12 +92,31 @@ async function getGoogleAccessToken(serviceAccount: any) {
     aud: "https://oauth2.googleapis.com/token",
     exp,
     iat
-  }
+  };
 
-  const pem = serviceAccount.private_key
-  const cryptoKey = await djwt.importJWK(await pemToJWK(pem), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" })
-  const jwt = await djwt.create(jwtHeader, jwtPayload, cryptoKey)
+  const pem = serviceAccount.private_key;
+  
+  // Clean the PEM string to extract just the raw, secret bits
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  const pemContents = pem.substring(pem.indexOf(pemHeader) + pemHeader.length, pem.indexOf(pemFooter)).replace(/\s/g, "");
+  
+  // Turn it into a binary format the computer can read
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
 
+  // Import it using the native tool (NO MORE djwt.importJWK BUG!)
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryDer,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    true,
+    ["sign"]
+  );
+
+  // Generate the VIP Badge
+  const jwt = await djwt.create(jwtHeader, jwtPayload, cryptoKey);
+
+  // Trade it with Google for a temporary access token
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -104,14 +124,8 @@ async function getGoogleAccessToken(serviceAccount: any) {
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: jwt,
     }),
-  })
+  });
 
-  const { access_token } = await response.json()
-  return access_token
-}
-
-async function pemToJWK(pem: string) {
-  const content = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, "")
-  const binary = Uint8Array.from(atob(content), c => c.charCodeAt(0))
-  return await crypto.subtle.exportKey("jwk", await crypto.subtle.importKey("pkcs8", binary, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]))
+  const { access_token } = await response.json();
+  return access_token;
 }
