@@ -46,12 +46,9 @@ import { SeedInMud }      from './features/games/SeedInMud';
 import { PostReset }      from './components/PostReset';
 import { Reset }          from './components/Reset';
 import { DeepDoor }       from './components/DeepDoor';
-// NEW: Telling the app where our new Chat file lives
 import SukoonChat         from './components/SukoonChat';
 
 // ─── AUTH SHEET ──────────────────────────────────────────────────────────────
-// Slides up from the bottom when a save-action requires an account.
-// Shows only when needed — never blocks the app.
 function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
   const [visible, setVisible] = useState(false);
 
@@ -128,8 +125,7 @@ function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
   );
 }
 
-// ─── INCOMING CALL OVERLAY (CLAUDE'S UI DESIGN) ──────────────────────────────
-// Renders on top of any screen when a call invite arrives for the current user.
+// ─── INCOMING CALL OVERLAY ──────────────────────────────────────────────
 function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecline }) {
   const hi = lang === "Hindi";
   const [visible, setVisible] = useState(false);
@@ -217,12 +213,11 @@ function AppContent() {
   });
   const [nextRoute,      setNextRoute]      = useState(null);
 
-  // Auth sheet state
-  const [authSheet,      setAuthSheet]      = useState(null); // null | { reason }
+  const [authSheet,      setAuthSheet]      = useState(null); 
   const [pendingTab,     setPendingTab]      = useState(null);
 
   // ─── INCOMING CALL STATE ───
-  const [incomingCall,   setIncomingCall]   = useState(null); // null | { roomId, callType, callerEmail }
+  const [incomingCall,   setIncomingCall]   = useState(null); 
 
   const [lang,        setLang]        = useLS("jsukoon_lang", "English");
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
@@ -234,7 +229,6 @@ function AppContent() {
     ? (THEMES[themeKey] || THEMES.Void)
     : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
 
-  // Mobile browser camouflage
   useEffect(() => {
     document.body.style.backgroundColor = T.bg;
     document.documentElement.style.backgroundColor = T.bg;
@@ -265,39 +259,46 @@ function AppContent() {
     if (hasOnboarded) track('View Feature', { featureName: location.pathname });
   }, [location, hasOnboarded]);
 
-  // ─── THE TWO-HEADED DRAGON WATCHER (FOREGROUND RADIO) 🐉 ───
-  // This listens for our TRUE WebRTC 'global-ring' signals instead of fake text messages.
+  // ─── THE TWO-HEADED DRAGON WATCHER (FIXED) 🐉 ───
+  // 🌟 Notice how incomingCall is REMOVED from the dependency array at the bottom so it never drops the radio!
   useEffect(() => {
     if (!session?.user) return;
     const userId = session.user.id;
 
-    // Connect to the exact same radio station our SukoonChat uses
     const callRadar = supabase.channel('global-call-radar', { config: { broadcast: { ack: false } } });
 
     callRadar.on('broadcast', { event: 'global-ring' }, (payload) => {
       const data = payload.payload;
       
-      // If the call includes us, and we aren't the one making the call
       if (data.participants && data.participants.includes(userId) && data.callerId !== userId) {
         
         if (data.action === 'start') {
-          // The other person just hit the "Call" button! Show Claude's Overlay!
           setIncomingCall({
             roomId: data.roomId,
             callType: 'voice',
             callerEmail: data.callerEmail,
             roomDetails: data.roomDetails
           });
+          // 🌟 Turn on the global ringtone!
+          const ringtone = document.getElementById('global-ringtone');
+          if (ringtone) ringtone.play().catch(e => console.log("Ringtone blocked"));
         } 
-        else if (data.action === 'cancel' && incomingCall?.roomId === data.roomId) {
-          // The other person hung up before we answered. Hide the overlay.
-          setIncomingCall(null);
+        else if (data.action === 'cancel') {
+          // 🌟 Turn off the popup and the ringtone
+          setIncomingCall(prev => {
+            if (prev?.roomId === data.roomId) {
+              const ringtone = document.getElementById('global-ringtone');
+              if (ringtone) ringtone.pause();
+              return null;
+            }
+            return prev;
+          });
         }
       }
     }).subscribe();
 
     return () => { supabase.removeChannel(callRadar); };
-  }, [session?.user?.id, incomingCall]);
+  }, [session?.user?.id]); // 🌟 FIXED: Removed incomingCall dependency!
 
   useEffect(() => {
     const browseTimer = setInterval(() => creditSession(1, true), 60000);
@@ -320,7 +321,6 @@ function AppContent() {
     document.title = titles[page] || "JSukoon";
   };
 
-  // ─── PROTECTED TABS ─────────────────────────────────────────────
   const PROTECTED_REASONS = {
     journal:   "Save your thoughts — create a free account.",
     progress:  "Track your journey — create a free account.",
@@ -381,6 +381,9 @@ function AppContent() {
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
 
+        {/* 🌟 The Global Ringtone Player! */}
+        <audio id="global-ringtone" src="/ringtone.mp3" loop style={{ display: 'none' }} />
+
         <Routes>
           <Route path="/"               element={<Home           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/reset"          element={<Reset          setTab={setTab} T={T} lang={lang} />} />
@@ -418,9 +421,7 @@ function AppContent() {
           <Route path="/privacy"        element={<Privacy        setTab={setTab} T={T} lang={lang} />} />
           <Route path="/wishes"         element={<WishesGallery  setTab={setTab} T={T} lang={lang} />} />
           <Route path="/moodaction"     element={<MoodAction     selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
-          
           <Route path="/chat"           element={<SukoonChat     setTab={setTab} T={T} lang={lang} />} />
-          
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
 
@@ -432,17 +433,24 @@ function AppContent() {
             callerEmail={incomingCall.callerEmail}
             callType={incomingCall.callType}
             onAccept={() => {
+              // 🌟 Stop the ringtone!
+              const ringtone = document.getElementById('global-ringtone');
+              if (ringtone) ringtone.pause();
+
               const roomToJoin = incomingCall.roomDetails;
-              // 1. Hide the Overlay
               setIncomingCall(null);
-              // 2. Teleport to Chat AND hand over the room details!
               navigate("/chat", { state: { incomingCallRoom: roomToJoin } });
             }}
-            onDecline={() => setIncomingCall(null)}
+            onDecline={() => {
+              // 🌟 Stop the ringtone!
+              const ringtone = document.getElementById('global-ringtone');
+              if (ringtone) ringtone.pause();
+              
+              setIncomingCall(null);
+            }}
           />
         )}
 
-        {/* Auth sheet */}
         {authSheet && (
           <AuthSheet
             T={T}
@@ -461,7 +469,6 @@ function AppContent() {
             }}
           />
         )}
-
         <Analytics />
       </div>
     </div>
