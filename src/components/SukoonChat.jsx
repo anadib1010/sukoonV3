@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom'; // 🌟 THE NEW CATCHER'S MITT IMPORTER
+import { useLocation } from 'react-router-dom'; 
 import { supabase } from '../supabase';
-import { requestFirebaseToken } from '../firebaseSetup'; // 🌟 THE NEW VIP BADGE IMPORTER!
+import { requestFirebaseToken } from '../firebaseSetup'; 
 
 export default function SukoonChat({ T, lang, setTab }) {
-  const location = useLocation(); // 🌟 THE CATCHER'S MITT INSTANCE
+  const location = useLocation(); 
   const hi = lang === "Hindi";
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]);
@@ -36,13 +36,11 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ─── ENTERPRISE MESH WEBRTC STATE ───
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false); 
-  const [incomingCall, setIncomingCall] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState([]); 
   
   const localStream = useRef(null);
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
-  const ringtoneRef = useRef(null); 
   const autoJoinRef = useRef(false);
 
   const safeSetIsInCall = (status) => {
@@ -54,7 +52,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
-  // ─── UPGRADED UI/UX STYLES ✨ (Powered by T) ───
   const s = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative', fontFamily: "'DM Sans', sans-serif" },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}95`, backdropFilter: 'blur(10px)', zIndex: 10 },
@@ -90,9 +87,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     modalBox: { backgroundColor: T.bg, padding: '25px', borderRadius: '20px', width: '90%', maxWidth: '400px', border: `1px solid ${T.accent}40`, boxShadow: `0 10px 40px rgba(0,0,0,0.2)` },
     selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '12px', margin: '2px', fontWeight: 'bold' },
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', zIndex: 50 },
-    acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', marginRight: '8px' },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' },
-    // 🌟 THE MISSING SCROLL STYLE ADDED HERE:
     autoScrollBtn: (active) => ({ 
       position: 'absolute', bottom: '100px', right: '20px', width: '40px', height: '40px', 
       borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, 
@@ -102,7 +97,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     })
   };
 
-  // 1. INITIALIZATION & NIGHTWATCHMAN REGISTRATION 🌍
   useEffect(() => {
     async function initialize() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
@@ -112,12 +106,10 @@ export default function SukoonChat({ T, lang, setTab }) {
       const { data } = await supabase.from('rooms').select('*');
       if (data) setRooms(data);
       
-      // 🌟 THE FINAL BOSS MAGIC: Registering with Google!
       if (user) {
         try {
           const token = await requestFirebaseToken();
           if (token) {
-            // Save this user's specific Google Address to their profile in Supabase
             await supabase.from('profiles').update({ fcm_token: token }).eq('id', user.id);
             console.log("Nightwatchman successfully registered and saved!");
           }
@@ -131,7 +123,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
-  // 1.5 THE GLOBAL RADARS
   useEffect(() => {
     if (!currentUser) return;
     
@@ -152,44 +143,18 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
       }).subscribe();
 
-    const globalCallRadar = supabase.channel('global-call-radar', { config: { broadcast: { ack: false } } });
-    globalCallRadar.on('broadcast', { event: 'global-ring' }, (payload) => {
-      const data = payload.payload;
-      
-      if (data.participants.includes(currentUser.id) && data.callerId !== currentUser.id) {
-        if (data.action === 'start') {
-          setIncomingCall(data);
-          if (ringtoneRef.current) ringtoneRef.current.play().catch(e => console.log("Ringtone blocked"));
-        } 
-        else if (data.action === 'cancel' && data.roomId === incomingCall?.roomId) {
-          setIncomingCall(null);
-          stopRinging();
-        }
-      }
-    }).subscribe();
+    return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); };
+  }, [currentUser?.id]); 
 
-    return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); supabase.removeChannel(globalCallRadar); };
-  }, [currentUser?.id, incomingCall]);
-
-  // ─── THE AUTO-ANSWER BRIDGE 🌉 (NEW) ───
-  // If teleported here from the Global Call Overlay (App.jsx), auto-join the room!
   useEffect(() => {
     if (location.state?.incomingCallRoom && !activeRoomRef.current) {
       console.log("Catching call from Global Overlay!");
-      
-      // 1. Open the specific chat room
       setActiveRoom(location.state.incomingCallRoom);
-      
-      // 2. Tell the WebRTC engine to turn on the mic instantly
       autoJoinRef.current = true; 
-      
-      // 3. Clear the package so it doesn't try to answer again if you refresh the page
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
-  // ───────────────────────────────────────
 
-  // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -204,7 +169,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
     fetchMessages();
 
-    // --- SURGICAL INSERTION: THE REALTIME EAR FOR MESSAGES ---
     const lightningChannel = supabase
       .channel(`lightning-${activeRoom.id}`)
       .on(
@@ -216,21 +180,16 @@ export default function SukoonChat({ T, lang, setTab }) {
           filter: `room_id=eq.${activeRoom.id}` 
         }, 
         (payload) => {
-          // This ensures the message is added instantly!
           setMessages((prev) => {
-             // Prevent duplicates just in case the old channel also catches it
              if (prev.find(m => m.id === payload.new.id)) return prev;
              return [...prev, payload.new];
           });
-          
-          // Mark as read instantly if it's from the other person
           if (payload.new.user_id !== currentUser.id) {
              supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
           }
         }
       )
       .subscribe();
-    // --------------------------------------------
 
     const chatChannel = supabase.channel(`room-${activeRoom.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => {
@@ -284,13 +243,11 @@ export default function SukoonChat({ T, lang, setTab }) {
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
 
-    // 🌟 If we were told to auto-join (from the Catcher's Mitt), connect the mic!
     if (autoJoinRef.current) {
       autoJoinRef.current = false;
       joinCall(); 
     }
 
-    // Clean up the new lightning channel too!
     return () => { 
         supabase.removeChannel(chatChannel); 
         supabase.removeChannel(presenceRoom); 
@@ -299,11 +256,8 @@ export default function SukoonChat({ T, lang, setTab }) {
     };
   }, [activeRoom, currentUser]); 
 
-  const stopRinging = () => { if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current.currentTime = 0; } };
-
   useEffect(() => { if (!isAutoScrolling && chatBoxRef.current) chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, activeRoom]);
 
-  // ─── UTILS & ENCRYPTION ───
   const handleTyping = (e) => {
     setMessage(e.target.value);
     if (!isTyping && presenceChannelRef.current) { setIsTyping(true); presenceChannelRef.current.track({ email: currentUser.email, is_typing: true }); }
@@ -315,7 +269,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const decrypt = (scrambled, key) => { try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ String(key).charCodeAt(i % String(key).length))).join('')); } catch (e) { return scrambled; } };
   const formatTime = (dateString) => { if (!dateString) return "Just now"; return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
-  // ─── WEBRTC MESH ENGINE ───
   const STUN_SERVERS = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
 
   const createPeerConnection = (peerId) => {
@@ -330,35 +283,42 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
-  // ─── UPGRADED START CALL FUNCTION (PHASE 4) ───
+  // 🌟 THE SAFE SENDER 🌟
+  // This polite robot borrows App.jsx's good walkie-talkie so nothing gets scrambled!
+  const sendGlobalSignal = (actionPayload) => {
+    const safeRadio = supabase.channel('global-call-radar', {
+      config: { broadcast: { ack: false } }
+    });
+    
+    safeRadio.send({
+      type: 'broadcast',
+      event: 'global-ring',
+      payload: actionPayload
+    });
+  };
+
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     
     try {
-      // 1. Mic check!
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
-      // 2. Local room notification (for people already in the chat)
       signalingChannelRef.current.send({ 
         type: 'broadcast', 
         event: 'webrtc', 
         payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } 
       });
 
-      // 3. 🚨 THE GLOBAL ALARM (Trigger Engine) 🚨
-      // Find the "Friend" in this room (who is NOT you)
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
 
       if (friendId) {
-        // Fetch their secret Google Address (token) from Supabase
         const { data: friendProfile } = await supabase
           .from('profiles')
           .select('fcm_token')
           .eq('id', friendId)
           .single();
 
-        // If they have an address, send the "Wake-Up" signal to the Cloud Robot
         if (friendProfile?.fcm_token) {
           console.log("Found friend's address! Sending the Wake-Up signal...");
           
@@ -372,17 +332,14 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
       }
 
-      // 4. Global radar signal for anyone currently using the app
-      supabase.channel('global-call-radar').send({ 
-        type: 'broadcast', event: 'global-ring', 
-        payload: { 
-          action: 'start', 
-          roomId: activeRoom.id, 
-          callerId: currentUser.id, 
-          callerEmail: currentUser.email, 
-          participants: activeRoom.participants, 
-          roomDetails: activeRoom 
-        }
+      // 🌟 Polite Call!
+      sendGlobalSignal({ 
+        action: 'start', 
+        roomId: activeRoom.id, 
+        callerId: currentUser.id, 
+        callerEmail: currentUser.email, 
+        participants: activeRoom.participants, 
+        roomDetails: activeRoom 
       });
 
     } catch (error) {
@@ -390,41 +347,31 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
-  const handleGlobalAccept = async () => {
-    if (!incomingCall) return;
-    stopRinging();
-    autoJoinRef.current = true; 
-    setActiveRoom(incomingCall.roomDetails); 
-    setIncomingCall(null);
-  };
-
   const joinCall = async () => {
-    stopRinging(); 
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
-      setIncomingCall(null);
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id } });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
-
-  const declineCall = () => { setIncomingCall(null); stopRinging(); };
 
   const endCall = () => { 
     if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
     
     if (activeRoom) {
-      supabase.channel('global-call-radar').send({ 
-        type: 'broadcast', event: 'global-ring', 
-        payload: { action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants }
+      // 🌟 Polite Hang Up!
+      sendGlobalSignal({ 
+        action: 'cancel', 
+        roomId: activeRoom.id, 
+        callerId: currentUser.id, 
+        participants: activeRoom.participants 
       });
     }
     cleanupCall(); 
   };
 
-  const cleanupCall = () => { Object.values(peers.current).forEach(pc => pc.close()); peers.current = {}; if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } setRemoteStreams([]); safeSetIsInCall(false); stopRinging(); };
+  const cleanupCall = () => { Object.values(peers.current).forEach(pc => pc.close()); peers.current = {}; if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } setRemoteStreams([]); safeSetIsInCall(false); };
 
-  // ─── CHAT ACTIONS ───
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
     const scrambledText = encrypt(message, activeRoom.id);
@@ -439,7 +386,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     await supabase.from('messages').delete().eq('id', messageId);
   };
 
-  // ─── GROUP & PRIVATE CREATION ENGINE ───
   const handleSearch = async () => {
     if (!currentUser || searchTerm.length < 3) return;
     const { data } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
@@ -497,21 +443,9 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const typingUsers = Object.values(presentUsers).filter(user => user.is_typing);
 
-  // ─── RENDER ───
   return (
     <div style={s.container}>
-      <audio ref={ringtoneRef} src="/ringtone.mp3" loop style={{ display: 'none' }} />
       {remoteStreams.map(peer => ( <audio key={peer.userId} autoPlay ref={el => { if (el && el.srcObject !== peer.stream) el.srcObject = peer.stream; }} style={{ display: 'none' }} /> ))}
-
-      {incomingCall && !isInCallRef.current && (
-        <div style={{...s.callBanner, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000}}>
-          <span>📞 {incomingCall.callerEmail?.split('@')[0]} is calling!</span>
-          <div>
-            <button onClick={handleGlobalAccept} style={s.acceptBtn}>{hi ? "जुड़ें" : "Join"}</button>
-            <button onClick={declineCall} style={s.declineBtn}>{hi ? "खारिज करें" : "Decline"}</button>
-          </div>
-        </div>
-      )}
 
       {showGroupModal && (
         <div style={s.modalOverlay}>
