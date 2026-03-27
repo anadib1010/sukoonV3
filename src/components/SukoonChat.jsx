@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom'; // 🌟 THE NEW CATCHER'S MITT IMPORTER
 import { supabase } from '../supabase';
 import { requestFirebaseToken } from '../firebaseSetup'; // 🌟 THE NEW VIP BADGE IMPORTER!
 
 export default function SukoonChat({ T, lang, setTab }) {
+  const location = useLocation(); // 🌟 THE CATCHER'S MITT INSTANCE
   const hi = lang === "Hindi";
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]);
@@ -169,6 +171,24 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); supabase.removeChannel(globalCallRadar); };
   }, [currentUser?.id, incomingCall]);
 
+  // ─── THE AUTO-ANSWER BRIDGE 🌉 (NEW) ───
+  // If teleported here from the Global Call Overlay (App.jsx), auto-join the room!
+  useEffect(() => {
+    if (location.state?.incomingCallRoom && !activeRoomRef.current) {
+      console.log("Catching call from Global Overlay!");
+      
+      // 1. Open the specific chat room
+      setActiveRoom(location.state.incomingCallRoom);
+      
+      // 2. Tell the WebRTC engine to turn on the mic instantly
+      autoJoinRef.current = true; 
+      
+      // 3. Clear the package so it doesn't try to answer again if you refresh the page
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+  // ───────────────────────────────────────
+
   // 2. CHAT, MESH SIGNALING & PRESENCE LISTENER
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
@@ -264,6 +284,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
 
+    // 🌟 If we were told to auto-join (from the Catcher's Mitt), connect the mic!
     if (autoJoinRef.current) {
       autoJoinRef.current = false;
       joinCall(); 

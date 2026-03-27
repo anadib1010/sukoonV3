@@ -432,10 +432,11 @@ function AppContent() {
             callerEmail={incomingCall.callerEmail}
             callType={incomingCall.callType}
             onAccept={() => {
+              const roomToJoin = incomingCall.roomDetails;
               // 1. Hide the Overlay
               setIncomingCall(null);
-              // 2. Jump straight to the Chat Room to answer!
-              setTab("chat");
+              // 2. Teleport to Chat AND hand over the room details!
+              navigate("/chat", { state: { incomingCallRoom: roomToJoin } });
             }}
             onDecline={() => setIncomingCall(null)}
           />
