@@ -389,7 +389,13 @@ export default function SukoonChat({ T, lang, setTab }) {
           currentCallId = newCall.id;
         }
 
-        const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).single();
+        const { data: friendProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('fcm_token')
+          .eq('id', friendId)
+          .maybeSingle(); // 👈 The Magic Word! No more 406 panic crashes.
+
+        if (profileError) console.error("Database lookup error:", profileError);
         if (friendProfile?.fcm_token) {
           await supabase.functions.invoke('send-call-notification', {
             body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id }
