@@ -71,9 +71,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
-  // 🌟 NEW: THE 30-SECOND RING TIMER
   const ringTimeoutRef = useRef(null);
-
   const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
   const myPrivateKeyRef = useRef(null); 
@@ -150,11 +148,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         try {
           const token = await requestFirebaseToken();
           if (token) {
-            await supabase.from('profiles').upsert({ 
-              id: user.id, 
-              email: user.email, 
-              fcm_token: token 
-            });
+            await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
           }
         } catch (e) {
           console.log("Could not register Nightwatchman: ", e);
@@ -171,15 +165,8 @@ export default function SukoonChat({ T, lang, setTab }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` },
       (payload) => {
          const newStatus = payload.new.status;
-         
-         // 🌟 FIX: If they accepted, clear the missed call timer!
-         if (newStatus === 'accepted' && ringTimeoutRef.current) {
-             clearTimeout(ringTimeoutRef.current);
-         }
-
-         if (['rejected', 'ended', 'missed'].includes(newStatus)) {
-            cleanupCall();
-         }
+         if (newStatus === 'accepted' && ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+         if (['rejected', 'ended', 'missed'].includes(newStatus)) cleanupCall();
       }).subscribe();
     return () => supabase.removeChannel(boardWatcher);
   }, [activeCallId]);
@@ -189,9 +176,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     const heartbeat = setInterval(async () => {
       if (activeCallIdRef.current) {
         const { data } = await supabase.from('calls').select('status').eq('id', activeCallIdRef.current).maybeSingle();
-        if (data && ['rejected', 'ended', 'missed'].includes(data.status)) {
-          cleanupCall();
-        }
+        if (data && ['rejected', 'ended', 'missed'].includes(data.status)) cleanupCall();
       }
     }, 3000);
     return () => clearInterval(heartbeat);
@@ -257,16 +242,13 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     const lightningChannel = supabase
       .channel(`lightning-${activeRoom.id}`)
-      .on(
-        'postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` }, 
         (payload) => {
           setMessages((prev) => {
              if (prev.find(m => m.id === payload.new.id)) return prev;
              return [...prev, payload.new];
           });
-          if (payload.new.user_id !== currentUser.id) {
-             supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
-          }
+          if (payload.new.user_id !== currentUser.id) supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id).then();
         }
       ).subscribe();
 
@@ -362,14 +344,12 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const fetchSecureTrucks = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-turn-credentials');
+      const { data } = await supabase.functions.invoke('get-turn-credentials');
       if (data && data.iceServers) {
         iceServersRef.current = data;
         console.log("🚚 Secure Delivery Trucks acquired from Vault!");
       }
-    } catch (err) {
-      console.error("Could not fetch secure trucks, using free STUN.", err);
-    }
+    } catch (err) { console.error("Could not fetch secure trucks, using free STUN.", err); }
   };
 
   const createPeerConnection = (peerId) => {
@@ -392,7 +372,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
-    
     try {
       await fetchSecureTrucks(); 
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -418,23 +397,20 @@ export default function SukoonChat({ T, lang, setTab }) {
           activeCallIdRef.current = newCall.id;
           currentCallId = newCall.id;
 
-          // 🌟 FIX: Start the 30-second drop timer!
+          // 🌟 FIX: The 30 Second Timer now forces the other phone to stop ringing!
           ringTimeoutRef.current = setTimeout(async () => {
             if (activeCallIdRef.current) {
               await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
+            }
+            if (activeRoomRef.current) {
+               sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
             }
             cleanupCall();
             console.log("⏰ Call timed out! The friend didn't answer.");
           }, 30000); 
         }
 
-        const { data: friendProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('fcm_token')
-          .eq('id', friendId)
-          .maybeSingle(); 
-
-        if (profileError) console.error("Database lookup error:", profileError);
+        const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle(); 
         if (friendProfile?.fcm_token) {
           await supabase.functions.invoke('send-call-notification', {
             body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id }
@@ -453,14 +429,28 @@ export default function SukoonChat({ T, lang, setTab }) {
         callId: currentCallId 
       });
 
-    } catch (error) {
-      alert("Microphone Access Failed: " + error.message);
-    }
+    } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
 
   const joinCall = async () => {
     try {
       await fetchSecureTrucks(); 
+      
+      // 🌟 FIX: The receiver grabs the actual Call ID from the database to update the Status Board!
+      const { data: incomingCall } = await supabase
+        .from('calls')
+        .select('id')
+        .eq('receiver_id', currentUser.id)
+        .eq('status', 'ringing')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (incomingCall) {
+        setActiveCallId(incomingCall.id);
+        activeCallIdRef.current = incomingCall.id;
+      }
+
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
 
@@ -483,14 +473,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const endCall = async () => { 
     if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
-    
-    if (activeCallIdRef.current) {
-       await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
-    }
-
-    if (activeRoom) {
-      sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
-    }
+    if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
+    if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
     cleanupCall(); 
   };
 
@@ -500,10 +484,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     setRemoteStreams([]); 
     safeSetIsInCall(false); 
+    
+    // 🌟 FIX: Erase the encryption keys from memory so the next call gets fresh ones!
+    myPrivateKeyRef.current = null;
+    myPublicKeyStrRef.current = null;
+    sharedSecretRef.current = null;
 
-    // 🌟 FIX: Clear the timer so it doesn't accidentally hang up later!
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-
     setActiveCallId(null);
     activeCallIdRef.current = null;
   };
