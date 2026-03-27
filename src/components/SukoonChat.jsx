@@ -80,7 +80,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const myPublicKeyStrRef = useRef(null); 
   const sharedSecretRef = useRef(null); 
   
-  // 🌟 NEW: The specific ID for the Status Board
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
 
@@ -149,11 +148,9 @@ export default function SukoonChat({ T, lang, setTab }) {
       if (data) setRooms(data);
       
       if (user) {
-        // ✅ NEW WAY (The Upsert Fix) - Properly bracketed!
         try {
           const token = await requestFirebaseToken();
           if (token) {
-            // Upsert means: Create the folder if it's missing, or just update the token if it's there!
             await supabase.from('profiles').upsert({ 
               id: user.id, 
               email: user.email, 
@@ -169,7 +166,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     initialize();
   }, []);
 
-  // 🌟 NEW: This catches the "Decline" shout from the other phone and forces a hang up!
   useEffect(() => {
     if (!currentUser) return;
     const globalRadar = supabase.channel('global-call-radar-caller-listener')
@@ -185,7 +181,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => supabase.removeChannel(globalRadar);
   }, [currentUser]);
 
-  // 🌟 NEW: The Status Board Watcher! If the DB says "missed" or "rejected", drop the call instantly.
   useEffect(() => {
     if (!activeCallId) return;
     const boardWatcher = supabase.channel(`status-board-${activeCallId}`)
@@ -318,12 +313,16 @@ export default function SukoonChat({ T, lang, setTab }) {
           cleanupCall();
         }
       } catch (err) { console.error("Signaling Error:", err); }
-    }).subscribe();
 
-    if (autoJoinRef.current) {
-      autoJoinRef.current = false;
-      joinCall(); 
-    }
+    // 🌟 THE FIX: Wait for the radio to show the Green Light before joining!
+    }).subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        if (autoJoinRef.current) {
+          autoJoinRef.current = false;
+          joinCall(); 
+        }
+      }
+    });
 
     return () => { 
         supabase.removeChannel(chatChannel); 
@@ -380,7 +379,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
       let currentCallId = null;
 
-      // 🌟 NEW: Write on the Status Board!
       if (friendId) {
         const { data: newCall } = await supabase.from('calls').insert({
           caller_id: currentUser.id,
@@ -399,7 +397,7 @@ export default function SukoonChat({ T, lang, setTab }) {
           .from('profiles')
           .select('fcm_token')
           .eq('id', friendId)
-          .maybeSingle(); // 👈 The Magic Word! No more 406 panic crashes.
+          .maybeSingle(); 
 
         if (profileError) console.error("Database lookup error:", profileError);
         if (friendProfile?.fcm_token) {
@@ -417,7 +415,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       sendGlobalSignal({ 
         action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, 
         participants: activeRoom.participants, roomDetails: activeRoom, publicKey: myPublicKeyStrRef.current,
-        callId: currentCallId // Pass the ID so the whole app knows!
+        callId: currentCallId 
       });
 
     } catch (error) {
@@ -434,7 +432,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       myPrivateKeyRef.current = keys.privateKey;
       myPublicKeyStrRef.current = await SecurityKit.exportMixture(keys.publicKey);
 
-      // 🌟 NEW: Update the Status Board to "Accepted"
       if (activeCallIdRef.current) {
          await supabase.from('calls').update({ 
            status: 'accepted', receiver_public_key: myPublicKeyStrRef.current 
@@ -451,7 +448,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const endCall = async () => { 
     if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } }); 
     
-    // 🌟 NEW: Tell the Status Board the call is ended
     if (activeCallIdRef.current) {
        await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
     }
@@ -468,7 +464,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     setRemoteStreams([]); 
     safeSetIsInCall(false); 
-    // Clear the board ID
     setActiveCallId(null);
     activeCallIdRef.current = null;
   };
