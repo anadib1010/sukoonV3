@@ -149,10 +149,16 @@ export default function SukoonChat({ T, lang, setTab }) {
       if (data) setRooms(data);
       
       if (user) {
+        // ✅ NEW WAY (The Upsert Fix) - Properly bracketed!
         try {
           const token = await requestFirebaseToken();
           if (token) {
-            await supabase.from('profiles').update({ fcm_token: token }).eq('id', user.id);
+            // Upsert means: Create the folder if it's missing, or just update the token if it's there!
+            await supabase.from('profiles').upsert({ 
+              id: user.id, 
+              email: user.email, 
+              fcm_token: token 
+            });
           }
         } catch (e) {
           console.log("Could not register Nightwatchman: ", e);
