@@ -30,17 +30,17 @@ serve(async (req) => {
     // 4. GET THE GOOGLE "PERMISSION SLIP" (Access Token)
     const accessToken = await getGoogleAccessToken(serviceAccount)
 
-    // 5. BUILD THE NOTIFICATION
+    // 5. BUILD THE NOTIFICATION (Updated to match your Nightwatchman's Hindi/English rules!)
     const message = {
       message: {
         token: token,
         notification: {
-          title: "Sukoon Incoming Call! 📞",
-          body: `${callerName} is calling you on Sukoon.`
+          title: "सुकून कॉल (Sukoon Call)", // 🌟 Matches SW perfectly
+          body: `${callerName} is calling you on a secure line...` // 🌟 Professional tone
         },
         data: {
           roomId: roomId,
-          type: "INCOMING_CALL",
+          action: "incoming_call", // 🌟 Helps the SW know exactly what to do
           click_action: "FLUTTER_NOTIFICATION_CLICK"
         },
         android: { priority: "high" }
@@ -79,7 +79,7 @@ serve(async (req) => {
   }
 })
 
-// ─── THE GOOGLE HANDSHAKE ENGINE 🤝 ───
+// ─── THE GOOGLE HANDSHAKE ENGINE 🤝 (UNTOUCHED - MASTERPIECE) ───
 async function getGoogleAccessToken(serviceAccount: any) {
   const jwtHeader = { alg: "RS256", typ: "JWT" }
   const iat = Math.floor(Date.now() / 1000)
