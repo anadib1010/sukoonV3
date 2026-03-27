@@ -128,6 +128,82 @@ function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
   );
 }
 
+// ─── INCOMING CALL OVERLAY ───────────────────────────────────────────────────
+// Renders on top of any screen when a call invite arrives for the current user.
+function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecline }) {
+  const hi = lang === "Hindi";
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 30);
+    return () => clearTimeout(t);
+  }, []);
+
+  const s = {
+    overlay: {
+      position: "fixed", inset: 0, zIndex: 99997,
+      background: "rgba(0,0,0,0.75)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      opacity: visible ? 1 : 0,
+      transition: "opacity 0.3s ease",
+    },
+    card: {
+      background: T.bg, borderRadius: 24,
+      padding: "36px 28px", textAlign: "center",
+      width: "85%", maxWidth: 340,
+      border: `1px solid ${T.accent}40`,
+      boxShadow: `0 0 40px ${T.accent}30`,
+      transform: visible ? "scale(1)" : "scale(0.92)",
+      transition: "transform 0.3s ease",
+    },
+    icon: { fontSize: 52, marginBottom: 12 },
+    title: {
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: 22, color: T.text, fontWeight: 500,
+      marginBottom: 6,
+    },
+    caller: {
+      fontSize: 14, color: T.text, opacity: 0.6,
+      marginBottom: 28, fontFamily: "'DM Sans', sans-serif",
+    },
+    btnRow: { display: "flex", gap: 12, justifyContent: "center" },
+    acceptBtn: {
+      padding: "12px 28px", borderRadius: 25, border: "none",
+      cursor: "pointer", fontWeight: "bold", fontSize: 14,
+      backgroundColor: "#2ecc71", color: "#fff",
+      fontFamily: "'DM Sans', sans-serif", letterSpacing: "1px",
+    },
+    declineBtn: {
+      padding: "12px 28px", borderRadius: 25, border: "none",
+      cursor: "pointer", fontWeight: "bold", fontSize: 14,
+      backgroundColor: "#e74c3c", color: "#fff",
+      fontFamily: "'DM Sans', sans-serif", letterSpacing: "1px",
+    },
+  };
+
+  return (
+    <div style={s.overlay}>
+      <div style={s.card}>
+        <div style={s.icon}>{callType === "video" ? "🎥" : "📞"}</div>
+        <div style={s.title}>
+          {callType === "video"
+            ? (hi ? "वीडियो कॉल आ रही है..." : "Incoming Video Call...")
+            : (hi ? "वॉइस कॉल आ रही है..." : "Incoming Voice Call...")}
+        </div>
+        <div style={s.caller}>{callerEmail}</div>
+        <div style={s.btnRow}>
+          <button style={s.acceptBtn} onClick={onAccept}>
+            {hi ? "उठाएं" : "Accept"}
+          </button>
+          <button style={s.declineBtn} onClick={onDecline}>
+            {hi ? "काटें" : "Decline"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── APP CONTENT ─────────────────────────────────────────────────────────────
 function AppContent() {
   const navigate  = useNavigate();
@@ -144,6 +220,10 @@ function AppContent() {
   // Auth sheet state
   const [authSheet,      setAuthSheet]      = useState(null); // null | { reason }
   const [pendingTab,     setPendingTab]      = useState(null);
+
+  // ─── INCOMING CALL STATE ───
+  const [incomingCall,   setIncomingCall]   = useState(null); // null | { callUrl, callType, callerEmail }
+  const seenCallIds = React.useRef(new Set());
 
   const [lang,        setLang]        = useLS("jsukoon_lang", "English");
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
@@ -185,6 +265,59 @@ function AppContent() {
   useEffect(() => {
     if (hasOnboarded) track('View Feature', { featureName: location.pathname });
   }, [location, hasOnboarded]);
+
+  // ─── GLOBAL CALL WATCHER ─────────────────────────────────────────────────
+  // Stays alive on every screen. When a call invite arrives for this user,
+  // shows the ringing overlay no matter which screen they are on.
+  useEffect(() => {
+    if (!session?.user) return;
+    const userId = session.user.id;
+
+    const decrypt = (scrambled, key) => {
+      if (!scrambled || !key) return "";
+      const sk = String(key);
+      try {
+        const decodedXor = atob(scrambled).split('').map((char, i) =>
+          String.fromCharCode(char.charCodeAt(0) ^ sk.charCodeAt(i % sk.length))
+        ).join('');
+        return decodeURIComponent(decodedXor);
+      } catch { return ""; }
+    };
+
+    const callChannel = supabase.channel('global-call-watcher')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        async (payload) => {
+          const msg = payload.new;
+          if (msg.user_id === userId) return;
+          if (seenCallIds.current.has(msg.id)) return;
+
+          const { data: room } = await supabase
+            .from('rooms')
+            .select('*')
+            .eq('id', msg.room_id)
+            .single();
+
+          if (!room) return;
+          if (!room.participants || !room.participants.includes(userId)) return;
+
+          const decrypted = decrypt(msg.content, msg.room_id);
+          if (!decrypted.includes('[SUKOON_CALL]')) return;
+
+          seenCallIds.current.add(msg.id);
+
+          const parts = decrypted.split(':::');
+          const callUrl = parts[1];
+          const callType = parts[2] || 'voice';
+          const callerEmail = msg.user_email || 'Someone';
+
+          setIncomingCall({ callUrl, callType, callerEmail });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(callChannel); };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const browseTimer = setInterval(() => creditSession(1, true), 60000);
@@ -320,6 +453,21 @@ function AppContent() {
           
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
+
+        {/* ─── INCOMING CALL OVERLAY — shown on any screen ─── */}
+        {incomingCall && (
+          <IncomingCallOverlay
+            T={T}
+            lang={lang}
+            callerEmail={incomingCall.callerEmail}
+            callType={incomingCall.callType}
+            onAccept={() => {
+              window.open(incomingCall.callUrl, '_blank');
+              setIncomingCall(null);
+            }}
+            onDecline={() => setIncomingCall(null)}
+          />
+        )}
 
         {/* Auth sheet — slides up only when a protected action is triggered */}
         {authSheet && (
