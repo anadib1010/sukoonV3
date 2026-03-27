@@ -35,6 +35,25 @@ const SecurityKit = {
   }
 };
 
+// ─── 🌟 THE NEW DISPOSABLE SPEAKER BOX 🌟 ───
+// This guarantees a fresh, un-muted speaker for every single call!
+const AudioPlayer = ({ stream }) => {
+  const audioRef = useRef(null);
+  
+  useEffect(() => {
+    if (audioRef.current && stream) {
+      audioRef.current.srcObject = stream;
+      // We give the old Android phone exactly 100 milliseconds to catch its breath before playing!
+      setTimeout(() => {
+        audioRef.current?.play().catch(e => console.log("Old Android Auto-play wait:", e));
+      }, 100);
+    }
+  }, [stream]);
+
+  // Using visibility: hidden instead of display: none so the phone doesn't mute it!
+  return <audio ref={audioRef} autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />;
+};
+
 export default function SukoonChat({ T, lang, setTab }) {
   const location = useLocation(); 
   const hi = lang === "Hindi";
@@ -65,7 +84,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false); 
   
-  const remoteAudioRef = useRef(null);
+  const [remoteStreams, setRemoteStreams] = useState([]); 
   const localStream = useRef(null);
   const peers = useRef({}); 
   const signalingChannelRef = useRef(null);
@@ -359,6 +378,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const fetchSecureTrucks = async () => {
     try {
+      // Put your actual Metered keys back into the app if the vault isn't working for the older phones, 
+      // or continue using the secure vault invoke. For testing, hardcoding the fallback is okay!
       const { data } = await supabase.functions.invoke('get-turn-credentials');
       if (data && data.iceServers) {
         iceServersRef.current = data;
@@ -371,13 +392,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
     
-    // 🌟 THE FIX 1: Forcing the "Play" button for older Android phones
+    // 🌟 THE FIX: We build the fresh speaker box and throw it into our React state!
     pc.ontrack = (event) => {
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = event.streams[0];
-        // Explicitly command the older phone's speaker to wake up!
-        remoteAudioRef.current.play().catch(err => console.error("Could not wake up Android Speaker:", err));
-      }
+      setRemoteStreams(prev => {
+        // Clear out any old streams so we have a 100% fresh speaker
+        const cleanList = prev.filter(p => p.userId !== peerId);
+        return [...cleanList, { userId: peerId, stream: event.streams[0], uniqueId: Math.random() }];
+      });
     };
     
     pc.onicecandidate = (event) => { if (event.candidate && signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId } }); };
@@ -385,7 +406,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     return pc;
   };
 
-  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } };
+  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
 
   const sendGlobalSignal = (actionPayload) => {
     supabase.channel('global-call-radar').send({
@@ -488,13 +509,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     
-    // 🌟 THE FIX 2: Fully scrub the Android Speaker memory so it forgets the last call!
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.pause();
-      remoteAudioRef.current.removeAttribute('src'); 
-      remoteAudioRef.current.load(); 
-      remoteAudioRef.current.srcObject = null;
-    }
+    // 🌟 THE FIX: Throw all the old speaker boxes in the trash immediately!
+    setRemoteStreams([]);
 
     safeSetIsInCall(false); 
 
@@ -564,7 +580,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   };
 
   const handleLogout = async () => {
-    if (!window.confirm(hi ? "क्या आप लॉग out करना चाहते हैं?" : "Are you sure you want to logout?")) return;
+    if (!window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?")) return;
     await supabase.auth.signOut();
     setTab('home'); 
     window.location.reload();
@@ -580,7 +596,10 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={s.container}>
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+      {/* 🌟 THE FIX: Map over the stream array to build the Disposable Speaker Boxes! */}
+      {remoteStreams.map(peer => (
+        <AudioPlayer key={peer.uniqueId} stream={peer.stream} />
+      ))}
 
       {showGroupModal && (
         <div style={s.modalOverlay}>
