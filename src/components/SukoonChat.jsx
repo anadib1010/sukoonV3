@@ -309,6 +309,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         } 
         else if (payload.type === 'user-left') {
           removePeer(payload.sender);
+          cleanupCall();
         }
       } catch (err) { console.error("Signaling Error:", err); }
     }).subscribe();
