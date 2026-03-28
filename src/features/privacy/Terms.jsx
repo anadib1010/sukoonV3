@@ -1,0 +1,169 @@
+import React from 'react';
+import { PageNav } from '../../components/SharedUI';
+
+export function Terms({ setTab, goBack, T, lang }) {
+  const hi = lang === "Hindi";
+
+  const SECTIONS = [
+    {
+      icon: "🤝",
+      en: "1. Acceptance of Terms",
+      hi: "1. शर्तों की स्वीकृति",
+      enD: "By accessing or using JSukoon, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.",
+      hiD: "JSukoon का उपयोग करके, आप इन सेवा शर्तों से सहमत होते हैं। यदि आप सहमत नहीं हैं, तो कृपया ऐप का उपयोग न करें。",
+    },
+    {
+      icon: "📱",
+      en: "2. Description of Service",
+      hi: "2. सेवा का विवरण",
+      enD: "JSukoon is a self-help and wellness application that provides journaling tools, mood tracking, AI-assisted features, and communication features. It is intended for personal use only.",
+      hiD: "JSukoon एक सेल्फ-हेल्प और वेलनेस ऐप है, जिसमें जर्नलिंग, मूड ट्रैकिंग, एआई-सहायता प्राप्त सुविधाएं और संचार फीचर्स शामिल हैं। यह केवल व्यक्तिगत उपयोग के लिए है।",
+    },
+    {
+      icon: "⚠️",
+      en: "3. Not Medical or Professional Advice",
+      hi: "3. चिकित्सा या पेशेवर सलाह नहीं",
+      enD: "JSukoon does not provide medical, psychological, or therapeutic advice. The app is not a substitute for professional care.\n\nIf you are experiencing distress or health concerns, please consult a qualified professional.",
+      hiD: "JSukoon चिकित्सा, मनोवैज्ञानिक या चिकित्सीय सलाह प्रदान नहीं करता है। यह किसी पेशेवर उपचार का विकल्प नहीं है।\n\nयदि आप किसी परेशानी का अनुभव कर रहे हैं, तो कृपया किसी योग्य विशेषज्ञ से संपर्क करें।",
+    },
+    {
+      icon: "👤",
+      en: "4. User Accounts",
+      hi: "4. उपयोगकर्ता खाता",
+      enD: "• You are responsible for maintaining the confidentiality of your account.\n• You agree to provide accurate information during registration.\n• You are responsible for all activity under your account.",
+      hiD: "• अपने खाते की गोपनीयता बनाए रखना आपकी जिम्मेदारी है।\n• पंजीकरण के समय सही जानकारी देना आवश्यक है।\n• आपके खाते से होने वाली सभी गतिविधियों के लिए आप जिम्मेदार हैं।",
+    },
+    {
+      icon: "✅",
+      en: "5. Acceptable Use",
+      hi: "5. स्वीकार्य उपयोग",
+      enD: "You agree not to:\n• Use the app for unlawful or harmful activities\n• Harass, abuse, or harm others\n• Upload or share illegal, offensive, or harmful content\n• Attempt to disrupt or interfere with the app’s functionality\n\nUsers are responsible for their interactions and must not misuse communication features. We reserve the right to suspend or terminate accounts that violate these terms.",
+      hiD: "आप सहमत हैं कि आप:\n• ऐप का उपयोग अवैध या हानिकारक गतिविधियों के लिए नहीं करेंगे\n• किसी को परेशान, नुकसान या दुर्व्यवहार नहीं करेंगे\n• अवैध, आपत्तिजनक या हानिकारक सामग्री साझा नहीं करेंगे\n• ऐप के काम में बाधा डालने की कोशिश नहीं करेंगे\n\nउपयोगकर्ता अपनी बातचीत के लिए जिम्मेदार हैं और उन्हें संचार सुविधाओं का दुरुपयोग नहीं करना चाहिए। इन शर्तों का उल्लंघन करने पर आपका खाता निलंबित या समाप्त किया जा सकता है।",
+    },
+    {
+      icon: "📝",
+      en: "6. User Content",
+      hi: "6. उपयोगकर्ता सामग्री",
+      enD: "You retain ownership of the content you create (such as journal entries and messages).\n\nBy using the app, you grant us a limited right to process your content solely to operate and improve the service.",
+      hiD: "आप अपने द्वारा बनाई गई सामग्री (जैसे जर्नल और संदेश) के स्वामी बने रहते हैं।\n\nऐप का उपयोग करके, आप हमें केवल सेवा चलाने और सुधारने के लिए सीमित रूप से इस सामग्री को प्रोसेस करने की अनुमति देते हैं।",
+    },
+    {
+      icon: "🤖",
+      en: "7. AI Features",
+      hi: "7. एआई सुविधाएं",
+      enD: "AI-generated responses are provided for informational and self-help purposes only.\n\nThey may not always be accurate or appropriate. You should not rely on them as professional advice.",
+      hiD: "एआई द्वारा दिए गए उत्तर केवल जानकारी और सेल्फ-हेल्प के लिए हैं।\n\nवे हमेशा सही या उपयुक्त नहीं हो सकते। उन्हें पेशेवर सलाह के रूप में उपयोग नहीं किया जाना चाहिए।",
+    },
+    {
+      icon: "🔒",
+      en: "8. Privacy",
+      hi: "8. गोपनीयता",
+      enD: "Your use of the app is also governed by our Privacy Policy.",
+      hiD: "ऐप का उपयोग हमारी गोपनीयता नीति के अनुसार होता है।",
+    },
+    {
+      icon: "⚡",
+      en: "9. Service Availability",
+      hi: "9. सेवा की उपलब्धता",
+      enD: "We aim to provide a reliable service, but we do not guarantee uninterrupted or error-free operation.\n\nThe app may be modified, suspended, or discontinued at any time.",
+      hiD: "हम सेवा को स्थिर रखने का प्रयास करते हैं, लेकिन हम निरंतर या त्रुटि-रहित सेवा की गारंटी नहीं देते।\n\nऐप को कभी भी बदला, रोका या बंद किया जा सकता है।",
+    },
+    {
+      icon: "⚖️",
+      en: "10. Limitation of Liability",
+      hi: "10. दायित्व की सीमा",
+      enD: "To the maximum extent permitted by law:\n• JSukoon is provided “as is” and “as available”\n• We are not liable for any indirect, incidental, or consequential damages\n• We are not responsible for decisions made based on app content or AI responses",
+      hiD: "कानून द्वारा अनुमत सीमा तक:\n• JSukoon “जैसा है” और “उपलब्धता के अनुसार” प्रदान किया जाता है\n• किसी भी अप्रत्यक्ष या आकस्मिक नुकसान के लिए हम जिम्मेदार नहीं हैं\n• ऐप या एआई के आधार पर लिए गए निर्णयों के लिए हम जिम्मेदार नहीं हैं",
+    },
+    {
+      icon: "🛑",
+      en: "11. Termination",
+      hi: "11. समाप्ति",
+      enD: "We may suspend or terminate your access if you violate these Terms.\n\nYou may stop using the app at any time.",
+      hiD: "यदि आप इन शर्तों का उल्लंघन करते हैं, तो आपका उपयोग समाप्त किया जा सकता है।\n\nआप किसी भी समय ऐप का उपयोग बंद कर सकते हैं।",
+    },
+    {
+      icon: "🔄",
+      en: "12. Changes to Terms",
+      hi: "12. शर्तों में बदलाव",
+      enD: "We may update these Terms from time to time. Continued use of the app constitutes acceptance of the updated Terms.",
+      hiD: "हम समय-समय पर इन शर्तों को अपडेट कर सकते हैं। ऐप का उपयोग जारी रखना नए शर्तों की स्वीकृति माना जाएगा।",
+    },
+    {
+      icon: "🇮🇳",
+      en: "13. Governing Law",
+      hi: "13. लागू कानून",
+      enD: "These Terms are governed by the laws of India.",
+      hiD: "ये शर्तें भारत के कानूनों के अनुसार नियंत्रित होती हैं।",
+    },
+    {
+      icon: "✉️",
+      en: "14. Contact",
+      hi: "14. संपर्क",
+      enD: "For questions regarding these Terms:\nselfhelp97power@gmail.com",
+      hiD: "इन शर्तों से संबंधित प्रश्नों के लिए संपर्क करें:\nselfhelp97power@gmail.com",
+    },
+  ];
+
+  const s = {
+    page:        { height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" },
+    scroll:      { flex: 1, overflowY: "auto", padding: "10px 24px 80px" },
+    header:      { textAlign: "center", marginBottom: 40, marginTop: 10 },
+    iconCircle:  { width: 64, height: 64, borderRadius: "50%", background: `${T.accent}15`, border: `1px solid ${T.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, boxShadow: `0 4px 20px ${T.accent}20` },
+    heading:     { fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: T.text, fontWeight: 500, marginBottom: 8 },
+    updated:     { fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase" },
+    highlight:   { marginBottom: 32, lineHeight: 1.6, padding: 20, borderLeft: `3px solid ${T.accent}`, background: "rgba(255,255,255,0.03)", borderRadius: "0 12px 12px 0" },
+    hlTitle:     { marginBottom: 12, fontWeight: 600, color: T.text, fontSize: 18, fontFamily: "'Cormorant Garamond',serif" },
+    hlText:      { marginBottom: 10, color: T.textSoft, fontSize: 15, margin: 0, whiteSpace: 'pre-line' },
+    sectionCard: { marginBottom: 24, background: T.surfaceAlt, borderRadius: 20, padding: 24, border: `1px solid ${T.borderWarm}` },
+    sectionHead: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
+    sectionIcon: { fontSize: 24 },
+    sectionTitle:{ fontSize: 16, color: T.text, fontWeight: 600, margin: 0 },
+    sectionDesc: { fontSize: 14, color: T.textSoft, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-line' },
+    closing:     { textAlign: "center", marginTop: 48, marginBottom: 32 },
+    closingText: { fontSize: 18, color: T.accent, fontFamily: "'Cormorant Garamond',serif", fontStyle: "italic", lineHeight: 1.6 },
+  };
+
+  return (
+    <div style={s.page}>
+      <PageNav onBack={goBack || (() => setTab("settings"))} onHome={() => setTab("home")} backLabel={hi ? "वापस" : "Back"} T={T} lang={lang} />
+
+      <div className="scroll-area fade-up" style={s.scroll}>
+
+        <div style={s.header}>
+          <div style={s.iconCircle}>⚖️</div>
+          <h1 style={s.heading}>{hi ? "सेवा की शर्तें" : "Terms of Service"}</h1>
+          <p style={s.updated}>{hi ? "अंतिम अपडेट: मार्च 2026" : "Last updated: March 2026"}</p>
+        </div>
+
+        <div style={s.highlight}>
+          <h3 style={s.hlTitle}>{hi ? "आपकी गोपनीयता" : "Your Privacy"}</h3>
+          <p style={s.hlText}>
+            {hi
+              ? "हम एक सुरक्षित और निजी अनुभव प्रदान करने का प्रयास करते हैं। आपका डेटा आपका है। हम आपके व्यक्तिगत डेटा को न तो बेचते हैं और न ही इसका उपयोग विज्ञापन के लिए करते हैं।"
+              : "We aim to provide a private and secure experience. Your data belongs to you. We do not sell your personal data or use it for advertising purposes."}
+          </p>
+        </div>
+
+        {SECTIONS.map((sec, i) => (
+          <div key={i} style={s.sectionCard}>
+            <div style={s.sectionHead}>
+              <span style={s.sectionIcon}>{sec.icon}</span>
+              <h3 style={s.sectionTitle}>{hi ? sec.hi : sec.en}</h3>
+            </div>
+            <p style={s.sectionDesc}>{hi ? sec.hiD : sec.enD}</p>
+          </div>
+        ))}
+
+        <div style={s.closing}>
+          <p style={s.closingText}>
+            {hi
+              ? "JSukoon का उपयोग करने के लिए धन्यवाद।"
+              : "Thank you for using JSukoon."}
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+}

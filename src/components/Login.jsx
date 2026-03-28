@@ -384,7 +384,7 @@ export function Login({ onLogin, T, lang, embedded = false }) {
             {/* Turnstile CAPTCHA */}
             <div ref={captchaRef} style={s.captchaWrap} />
 
-            {/* DPDP Consent — signup only */}
+            {/* 🌟 DPDP Consent — signup only (Updated for Legal Compliance) */}
             {isSignUp && (
               <label style={{
                 display: "flex", alignItems: "flex-start", gap: 10,
@@ -399,16 +399,25 @@ export function Login({ onLogin, T, lang, embedded = false }) {
                 <span style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: 12, color: "rgba(255,255,255,0.55)",
-                  lineHeight: 1.5,
+                  lineHeight: 1.5, textAlign: "left"
                 }}>
-                  I agree to the{" "}
+                  {hi ? "मैं " : "I agree to the "}
                   <span
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('/terms', '_blank'); }}
                     style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
                   >
-                    Privacy Policy
+                    {hi ? "सेवा की शर्तें" : "Terms of Service"}
                   </span>
-                  {" "}and consent to my data being processed as described. Data may be processed on servers outside India.
+                  {hi ? " और " : " and "}
+                  <span
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('/privacy', '_blank'); }}
+                    style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    {hi ? "गोपनीयता नीति" : "Privacy Policy"}
+                  </span>
+                  {hi
+                    ? " से सहमत हूँ और अपने डेटा को प्रोसेस करने की अनुमति देता/देती हूँ। डेटा भारत के बाहर सर्वर पर प्रोसेस किया जा सकता है।"
+                    : ", and consent to my data being processed as described. Data may be processed on servers outside India."}
                 </span>
               </label>
             )}
@@ -426,6 +435,27 @@ export function Login({ onLogin, T, lang, embedded = false }) {
                   ? (hi ? "खाता बनाएं" : "Create Account")
                   : (hi ? "साइन इन करें" : "Sign In")}
             </button>
+
+            {/* 🌟 Tiny Disclaimer for Login mode */}
+            {!isSignUp && (
+              <div style={{ textAlign: "center", marginTop: "4px", fontSize: "12px", color: "rgba(255,255,255,0.45)", fontFamily: "'DM Sans', sans-serif" }}>
+                {hi ? "साइन इन करके, आप हमारी " : "By signing in, you agree to our "}
+                <span
+                  onClick={e => { e.preventDefault(); window.open('/terms', '_blank'); }}
+                  style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+                >
+                  {hi ? "शर्तों" : "Terms"}
+                </span>
+                {hi ? " और " : " & "}
+                <span
+                  onClick={e => { e.preventDefault(); window.open('/privacy', '_blank'); }}
+                  style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+                >
+                  {hi ? "गोपनीयता नीति" : "Privacy Policy"}
+                </span>
+                {hi ? " से सहमत होते हैं।" : "."}
+              </div>
+            )}
           </form>
 
           {/* Toggle sign in / sign up */}
