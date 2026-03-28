@@ -159,13 +159,12 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
 
+  // 🌟 Safety & Moderation State
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
-  
   const [showManageBlocks, setShowManageBlocks] = useState(false);
   const [blockedProfiles, setBlockedProfiles] = useState([]);
-  
   const lastMessageTimeRef = useRef(0);
 
   const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
@@ -568,11 +567,8 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
-          
-          // 🌟 REVERTED BACK TO ROCK SOLID STANDARD
-          const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+          const offer = await pc.createOffer(); // CLAUDE'S WORKING STANDARD
           await pc.setLocalDescription(offer);
-          
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
         }
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
@@ -756,7 +752,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(t => pc.addTrack(t, localStream.current));
     
-    // 🌟 REVERTED: Removed addTransceiver to fix "double track" crash on old Androids
+    // CLAUDE'S WORKING STANDARD (No addTransceiver)
 
     pc.ontrack = (event) => {
       const stream = event.streams[0];
@@ -785,7 +781,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       await new Promise(r => setTimeout(r, 300));
       await fetchSecureTrucks();
       
-      // 🌟 ADDED COFFEE SHOP FILTER
+      // 🌟 COFFEE SHOP FILTER APPLIED
       localStream.current = await navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, 
         video: false 
@@ -821,7 +817,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       const { data: ic } = await supabase.from('calls').select('id').eq('receiver_id', currentUser.id).eq('status', 'ringing').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
       
-      // 🌟 ADDED COFFEE SHOP FILTER
+      // 🌟 COFFEE SHOP FILTER APPLIED
       localStream.current = await navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, 
         video: false 
@@ -856,20 +852,24 @@ export default function SukoonChat({ T, lang, setTab }) {
     setActiveCallId(null); activeCallIdRef.current = null;
   };
 
-  // 🌟 FIXED STICKY GREEN BUTTON
+  // 🌟 CLAUDE'S WORKING AUDIO BRIDGE
   const handleStartAudio = () => {
-    setShowAudioBridge(false); // Hide the button instantly!
-    
     const audio = document.getElementById('sukoon-remote-audio');
-    if (!audio) return;
-    
-    if (remoteStreamRef.current && audio.srcObject !== remoteStreamRef.current) {
-      audio.srcObject = remoteStreamRef.current;
-    }
+    if (!audio) { setShowAudioBridge(false); return; }
+    if (remoteStreamRef.current && !audio.srcObject) audio.srcObject = remoteStreamRef.current;
     
     audio.playsInline = true;
     audio.muted = false;
-    audio.play().catch(e => console.warn("Audio play issue:", e));
+    
+    audio.play().then(() => {
+      setShowAudioBridge(false);
+    }).catch(e => {
+      console.error("Audio play failed:", e);
+      setTimeout(() => { 
+        audio.play().catch(console.error); 
+        setShowAudioBridge(false); 
+      }, 500);
+    });
   };
 
   // ─── CHAT MANAGEMENT & SAFETY ─────────────────────────────────────────────
@@ -934,6 +934,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
+  // 🌟 SAFETY ACTIONS
   const handleBlockUser = async () => {
     if (!activeRoom || !activeRoom.is_private) return;
     if (!window.confirm(hi ? "क्या आप वाकई इस उपयोगकर्ता को ब्लॉक करना चाहते हैं?" : "Are you sure you want to block this user? They will no longer be able to message or call you.")) return;
@@ -959,6 +960,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     alert(hi ? "रिपोर्ट सुरक्षित रूप से दर्ज कर ली गई है।" : "Report submitted securely.");
   };
 
+  // 🌟 THE SECURITY DESK (Unblock Logic)
   const openManageBlocks = async () => {
     if (blockedUsers.length > 0) {
       const { data } = await supabase.from('profiles').select('*').in('id', blockedUsers);
@@ -995,11 +997,13 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const typingUsers = Object.values(presentUsers).filter(u => u.is_typing && !blockedUsers.includes(u.id));
 
+  // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
       <audio id="sukoon-remote-audio" autoPlay playsInline muted
         style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
 
+      {/* 🌟 SECURITY DESK MODAL (Manage Blocks) */}
       {showManageBlocks && (
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
@@ -1034,6 +1038,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
+      {/* Safety & Moderation Modal */}
       {showSafetyModal && (
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
