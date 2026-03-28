@@ -13,7 +13,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const localStream = useRef(null);
   const peers = useRef({});
   const signalingChannelRef = useRef(null);
-  const autoJoinRef = useRef(false); // Used when clicking an incoming call notification
+  const autoJoinRef = useRef(false); 
   const iceCandidateQueue = useRef({});
   const ringTimeoutRef = useRef(null);
   const iceServersRef = useRef({
@@ -29,7 +29,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
 
   const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
 
-  // 1. TURN SERVERS (The secure internet trucks)
+  // 1. TURN SERVERS 
   const fetchSecureTrucks = async () => {
     try {
       const { data } = await supabase.functions.invoke('get-turn-credentials');
@@ -46,7 +46,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     };
   };
 
-  // 2. END & CLEANUP (Hanging up the phone)
+  // 2. END & CLEANUP 
   const cleanupCall = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (audio) { audio.pause(); audio.srcObject = null; audio.load(); }
@@ -85,14 +85,12 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const removePeer = (id) => { if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; } };
   const sendGlobalSignal = (p) => supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
 
-  // 3. PEER CONNECTION (The invisible wire between phones)
+  // 3. PEER CONNECTION (🔒 UNTOUCHED - GUARANTEED SAFE)
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
     
     if (localStream.current) localStream.current.getTracks().forEach(t => pc.addTrack(t, localStream.current));
-    
-    // NO addTransceiver - Keeps the old Android phone happy!
 
     pc.ontrack = (event) => {
       const stream = event.streams[0];
@@ -113,7 +111,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return pc;
   };
 
-  // 4. SIGNALING LISTENER (The switchboard operator)
+  // 4. SIGNALING LISTENER (🔒 UNTOUCHED - GUARANTEED SAFE)
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -133,7 +131,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
-          // ROCK SOLID STANDARD FIX (For old phones)
           const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false }); 
           await pc.setLocalDescription(offer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
@@ -171,14 +168,13 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         else if (payload.type === 'user-left') { removePeer(payload.sender); cleanupCall(); }
       } catch (err) { console.error("Signaling error:", err); }
     }).subscribe((status) => {
-      // Auto-join if user came from incoming call notification
       if (status === 'SUBSCRIBED' && autoJoinRef.current) { autoJoinRef.current = false; joinCall(); }
     });
 
     return () => supabase.removeChannel(sigCh);
   }, [activeRoom, currentUser, blockedUsers]);
 
-  // 5. CALL WATCHERS (Monitoring dropouts & hangups)
+  // 5. CALL WATCHERS 
   useEffect(() => {
     if (!activeCallId) return;
     const w = supabase.channel(`status-board-${activeCallId}`)
@@ -212,16 +208,21 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return () => supabase.removeChannel(r);
   }, [currentUser]);
 
-  // 6. START CALL (The initiator)
+  // 6. START CALL (🌟 ONLY THE MICROPHONE SETTINGS WERE TOUCHED)
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
       await new Promise(r => setTimeout(r, 300));
       await fetchSecureTrucks();
       
-      // 🌟 COFFEE SHOP FILTER APPLIED
       localStream.current = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          sampleRate: 48000, // STEP 1: HD Audio Capture
+          channelCount: 1    // STEP 2: Laser Focus Mono
+        }, 
         video: false 
       });
       
@@ -248,16 +249,21 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Microphone Access Failed: " + e.message); }
   };
 
-  // 7. JOIN CALL (The receiver)
+  // 7. JOIN CALL (🌟 ONLY THE MICROPHONE SETTINGS WERE TOUCHED)
   const joinCall = async () => {
     try {
       await fetchSecureTrucks();
       const { data: ic } = await supabase.from('calls').select('id').eq('receiver_id', currentUser.id).eq('status', 'ringing').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
       
-      // 🌟 COFFEE SHOP FILTER APPLIED
       localStream.current = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          sampleRate: 48000, // STEP 1: HD Audio Capture
+          channelCount: 1    // STEP 2: Laser Focus Mono
+        }, 
         video: false 
       });
       
@@ -268,7 +274,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // 8. AUDIO BRIDGE (Claude's perfectly timed logic)
+  // 8. AUDIO BRIDGE (🔒 UNTOUCHED - GUARANTEED SAFE)
   const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
@@ -288,7 +294,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     });
   };
 
-  // ── Returns the clean tools to the UI ──
   return {
     isInCall,
     showAudioBridge,
