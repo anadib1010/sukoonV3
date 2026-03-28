@@ -61,16 +61,24 @@ const SecurityKit = {
   }
 };
 
-// ─── XOR LEGACY FALLBACK ───────────────────────────────────────────────────
+// ─── XOR LEGACY FALLBACK (SURGICALLY HARDENED TO PREVENT GIBBERISH) ────────
 const decryptXORFallback = (scrambled, key) => {
   try {
     const keyStr = String(key);
-    return decodeURIComponent(
-      atob(scrambled).split('').map((char, i) =>
-        String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))
-      ).join('')
-    );
-  } catch (e) { return scrambled; }
+    const decodedBase64 = atob(scrambled);
+    const xored = decodedBase64.split('').map((char, i) =>
+      String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))
+    ).join('');
+    
+    try {
+      return decodeURIComponent(xored);
+    } catch (uriError) {
+      // If URI decode fails, it's safe to return the raw xor string, preventing Base64 gibberish
+      return xored;
+    }
+  } catch (e) { 
+    return "🔒 [Encrypted Message]"; 
+  }
 };
 
 // ─── iOS DETECTION ─────────────────────────────────────────────────────────
@@ -78,21 +86,24 @@ const isIOS = () =>
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-// ─── DECRYPT ONE MESSAGE ───────────────────────────────────────────────────
-// Returns msg with decrypted_content set.
-// If aesKey is not ready yet, sets _needs_decrypt=true so we can retry later.
-const decryptOneMessage = async (m, aesKey) => {
+// ─── DECRYPT ONE MESSAGE (FIXED TO PREVENT INFINITE "DECRYPTING" LOOP) ─────
+const decryptOneMessage = async (m, aesKey, friendHasKey) => {
   const msg = { ...m };
+  
   if (msg.content && msg.content.includes(':::')) {
     if (aesKey) {
       const [iv, cipher] = msg.content.split(':::');
       const result = await SecurityKit.decryptText(cipher, iv, aesKey);
       msg.decrypted_content = result !== null
         ? result
-        : '🔒 [Key mismatch — ask friend to reopen chat]';
+        : '🔒 [Key Mismatch: Devices out of sync]';
       msg._needs_decrypt = false;
+    } else if (!friendHasKey) {
+      // Friend hasn't logged in to generate a key yet. Stop waiting.
+      msg.decrypted_content = '🔒 [Waiting for friend\'s secure key]';
+      msg._needs_decrypt = false; 
     } else {
-      // Key not ready yet — mark for retry, show spinner text
+      // Key is still deriving asynchronously. We can wait safely.
       msg.decrypted_content = null;
       msg._needs_decrypt = true;
     }
@@ -139,12 +150,11 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const myMasterKeyRef = useRef(null);
   const activeAESKeysRef = useRef({});
+  
+  // 🌟 NEW: Tracks if the friend actually has a public key in the DB
+  const friendHasKeyRef = useRef({}); 
 
-  // FIX (timing): a per-room Promise that resolves once AES key derivation completes.
-  // Real-time INSERT handler awaits this before decrypting, so messages that arrive
-  // during the async key derivation are never shown as "Key not ready".
   const aesKeyReadyRef = useRef({});
-
   const keyWatcherChannelRef = useRef(null);
 
   const localStream = useRef(null);
@@ -179,9 +189,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       backgroundColor: T.bg, color: T.text, position: 'relative',
       fontFamily: "'DM Sans', sans-serif", overflow: 'hidden'
     },
-
-    // FIX (fixed header): sticky positioning so back + title + call btn
-    // are always visible no matter how far the user scrolls messages
     header: {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '12px 16px', borderBottom: `1px solid ${T.accent}20`,
@@ -192,13 +199,11 @@ export default function SukoonChat({ T, lang, setTab }) {
       flex: 1, textAlign: 'center', display: 'flex',
       flexDirection: 'column', alignItems: 'center', minWidth: 0, padding: '0 8px'
     },
-    // FIX (font): DM Sans for room name in header — Cormorant is hard to read at small sizes
     headerTitle: {
       fontWeight: '700', fontSize: '16px', fontFamily: "'DM Sans', sans-serif",
       letterSpacing: '0.2px', color: T.text,
       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px'
     },
-    // Keep Cormorant only for the home screen title — it looks great big
     headerTitleHome: {
       fontWeight: '700', fontSize: '20px', fontFamily: "'Cormorant Garamond', serif",
       letterSpacing: '1px', color: T.text
@@ -228,16 +233,11 @@ export default function SukoonChat({ T, lang, setTab }) {
       width: '40px', height: '40px', background: 'transparent',
       border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.3, flexShrink: 0
     },
-
-    // Scrollable area — this is the only part that scrolls
     chatBox: {
       flex: 1, padding: '16px', overflowY: 'auto', display: 'flex',
       flexDirection: 'column', WebkitOverflowScrolling: 'touch'
     },
-
     searchRow: { display: 'flex', gap: '10px', marginBottom: '14px' },
-
-    // FIX (font size): 16px minimum so it's readable on mobile without zooming
     searchInput: {
       flex: 1, padding: '13px 18px', borderRadius: '30px',
       border: `1px solid ${T.accent}30`, fontSize: '16px',
@@ -299,7 +299,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       display: 'flex', padding: '12px 16px', alignItems: 'center',
       gap: '10px', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}15`, flexShrink: 0
     },
-    // FIX (input font): DM Sans at 16px — Cormorant Garamond in a text input looks odd
     inputField: {
       flex: 1, padding: '14px 18px', borderRadius: '30px',
       border: `1px solid ${T.accent}30`, fontSize: '16px',
@@ -311,7 +310,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       cursor: 'pointer', fontWeight: '700', fontSize: '16px',
       backgroundColor: T.accent, color: T.bg, flexShrink: 0
     },
-
     modalOverlay: {
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex',
@@ -424,19 +422,23 @@ export default function SukoonChat({ T, lang, setTab }) {
   const fetchAndDecryptMessages = async (roomId) => {
     const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
     if (!data) return [];
+    
     const aesKey = activeAESKeysRef.current[roomId];
-    return Promise.all(data.map(m => decryptOneMessage(m, aesKey)));
+    const friendHasKey = friendHasKeyRef.current[roomId];
+    
+    return Promise.all(data.map(m => decryptOneMessage(m, aesKey, friendHasKey)));
   };
 
-  // Re-decrypt any messages that arrived before the AES key was ready
   const retryPendingDecrypts = async (roomId) => {
     const aesKey = activeAESKeysRef.current[roomId];
+    const friendHasKey = friendHasKeyRef.current[roomId];
+    
     if (!aesKey) return;
     setMessages(prev => {
       if (!prev.some(m => m._needs_decrypt)) return prev;
-      Promise.all(prev.map(m => m._needs_decrypt ? decryptOneMessage(m, aesKey) : Promise.resolve(m)))
+      Promise.all(prev.map(m => m._needs_decrypt ? decryptOneMessage(m, aesKey, friendHasKey) : Promise.resolve(m)))
         .then(updated => setMessages(updated));
-      return prev; // keep prev while async runs; the .then above will update
+      return prev; 
     });
   };
 
@@ -451,25 +453,23 @@ export default function SukoonChat({ T, lang, setTab }) {
         : null;
 
       if (friendId && myMasterKeyRef.current) {
-        // FIX (timing): create a promise that the realtime handler will await.
-        // This guarantees no message is ever decrypted before the key is ready.
         let resolveKeyReady;
         aesKeyReadyRef.current[activeRoom.id] = new Promise(res => { resolveKeyReady = res; });
 
-        const { data: fp } = await supabase.from('profiles')
-          .select('public_key').eq('id', friendId).maybeSingle();
+        const { data: fp } = await supabase.from('profiles').select('public_key').eq('id', friendId).maybeSingle();
+        
         if (fp?.public_key) {
+          friendHasKeyRef.current[activeRoom.id] = true;
           const key = await deriveAESKey(fp.public_key);
           if (key) activeAESKeysRef.current[activeRoom.id] = key;
+        } else {
+          friendHasKeyRef.current[activeRoom.id] = false;
         }
 
-        // Key is now ready (or we failed — either way, unblock the queue)
         resolveKeyReady();
 
-        // Decrypt anything that arrived during key derivation
         if (isSubscribed) await retryPendingDecrypts(activeRoom.id);
 
-        // Watch for partner's key rotation (logout → new keypair)
         if (keyWatcherChannelRef.current) {
           await supabase.removeChannel(keyWatcherChannelRef.current);
           keyWatcherChannelRef.current = null;
@@ -480,6 +480,7 @@ export default function SukoonChat({ T, lang, setTab }) {
             async (payload) => {
               const newPub = payload.new?.public_key;
               if (newPub && newPub !== payload.old?.public_key) {
+                friendHasKeyRef.current[activeRoom.id] = true;
                 const freshKey = await deriveAESKey(newPub);
                 if (freshKey && isSubscribed) {
                   activeAESKeysRef.current[activeRoom.id] = freshKey;
@@ -489,7 +490,7 @@ export default function SukoonChat({ T, lang, setTab }) {
               }
             }).subscribe();
       } else {
-        // Group room — resolve immediately (no per-user E2EE for groups)
+        friendHasKeyRef.current[activeRoom.id] = false;
         aesKeyReadyRef.current[activeRoom.id] = Promise.resolve();
       }
 
@@ -511,12 +512,10 @@ export default function SukoonChat({ T, lang, setTab }) {
           if (payload.eventType === 'INSERT') {
             const raw = { ...payload.new };
 
-            // FIX (timing): wait for key derivation to finish before decrypting.
-            // On slow devices the INSERT fires before setup() finishes its await chain.
             const keyReady = aesKeyReadyRef.current[activeRoom.id];
             if (keyReady) await keyReady;
 
-            const decrypted = await decryptOneMessage(raw, activeAESKeysRef.current[activeRoom.id]);
+            const decrypted = await decryptOneMessage(raw, activeAESKeysRef.current[activeRoom.id], friendHasKeyRef.current[activeRoom.id]);
             setMessages(prev => prev.find(m => m.id === decrypted.id) ? prev : [...prev, decrypted]);
             if (decrypted.user_id !== currentUser.id) {
               supabase.from('messages').update({ is_read: true }).eq('id', decrypted.id).then();
@@ -615,9 +614,12 @@ export default function SukoonChat({ T, lang, setTab }) {
     let content = "";
     const aesKey = activeAESKeysRef.current[activeRoom.id];
     if (aesKey) {
-      try { const enc = await SecurityKit.encryptText(raw, aesKey); content = `${enc.iv}:::${enc.cipherText}`; }
-      catch (e) { console.error("Encrypt failed, XOR fallback", e); }
+      try { 
+        const enc = await SecurityKit.encryptText(raw, aesKey); 
+        content = `${enc.iv}:::${enc.cipherText}`; 
+      } catch (e) { console.error("Encrypt failed, XOR fallback", e); }
     }
+    
     if (!content) {
       const k = String(activeRoom.id);
       content = btoa(encodeURIComponent(raw).split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ k.charCodeAt(i % k.length))).join(''));
@@ -732,6 +734,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: ev.candidate, sender: currentUser.id, target: peerId } });
     };
     pc.oniceconnectionstatechange = () => {
+      console.log(`ICE state [${peerId}]:`, pc.iceConnectionState);
       if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) cleanupCall();
     };
     return pc;
@@ -876,11 +879,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
-      {/* Muted on mount — iOS requires muted before first user gesture */}
       <audio id="sukoon-remote-audio" autoPlay playsInline muted
         style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
 
-      {/* Group Modal */}
       {showGroupModal && (
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
@@ -908,10 +909,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
-      {/*
-        FIXED HEADER — sticky, never scrolls away.
-        Contains: back/home btn | room name + online status | call btn or logout btn
-      */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={handleBackOrHome}>
           {activeRoom ? "◀ Back" : "◀ Home"}
@@ -942,7 +939,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
-      {/* Active call banner */}
       {isInCall && (
         <div style={s.callBanner}>
           <span style={{ color: '#4ade80' }}>🟢 {hi ? "कॉल जारी है" : "Secure Call Active"}</span>
@@ -950,7 +946,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
-      {/* Audio bridge overlay — satisfies iOS + old Android autoplay policy */}
       {showAudioBridge && (
         <div style={s.bridgeOverlay}>
           <div style={{ fontSize: '52px', marginBottom: '16px' }}>📞</div>
@@ -968,7 +963,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
-      {/* Main scrollable chat area */}
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
@@ -1004,7 +998,6 @@ export default function SukoonChat({ T, lang, setTab }) {
             ) : (
               messages.map(m => {
                 const isMe = m.user_id === currentUser?.id;
-                // Show spinner text for messages still awaiting key, real content otherwise
                 const content = m._needs_decrypt
                   ? "🔄 Decrypting..."
                   : (m.decrypted_content || "🔒 [Encrypted]");
@@ -1030,21 +1023,18 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
-      {/* Auto scroll toggle */}
       {activeRoom && messages.length > 5 && (
         <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={s.autoScrollBtn(isAutoScrolling)}>
           {isAutoScrolling ? "⏸️" : "⏬"}
         </button>
       )}
 
-      {/* Typing indicator */}
       {activeRoom && typingUsers.length > 0 && (
         <div style={{ fontSize: '12px', color: T.accent, padding: '0 18px 6px', fontStyle: 'italic', fontWeight: '700', flexShrink: 0 }}>
           {typingUsers.map(u => u.email?.split('@')[0]).join(', ')} {hi ? "टाइप कर रहे हैं..." : "is typing..."}
         </div>
       )}
 
-      {/* Message input */}
       {activeRoom && (
         <div style={s.inputArea}>
           <input style={s.inputField} value={message} onChange={handleTyping}
