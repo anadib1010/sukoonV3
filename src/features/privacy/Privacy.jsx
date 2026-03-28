@@ -19,28 +19,35 @@ export function Privacy({ setTab, goBack, T, lang }) {
       enD: "Your data is used solely to operate the app — to save your journal, remember your session progress, and personalise your experience. We do not use your personal data for advertising or sell it to any third party.",
       hiD: "आपका डेटा केवल ऐप चलाने के लिए उपयोग किया जाता है — आपकी जर्नल सहेजने, सत्र प्रगति याद रखने और अनुभव को व्यक्तिगत बनाने के लिए। हम विज्ञापन के लिए आपके व्यक्तिगत डेटा का उपयोग नहीं करते।",
     },
-    // ─── NEW INTERNATIONAL SECURITY SECTIONS ───
+    // ─── UPDATED INTERNATIONAL SECURITY SECTIONS (MILITARY GRADE E2EE) ───
     {
       icon: "🔐",
-      en: "End-to-End Encrypted Chat",
-      hi: "एंड-टू-एंड एन्क्रिप्टेड चैट",
-      enD: "Your private messages are secured with End-to-End Encryption (E2EE) before they ever leave your device. Our database only stores scrambled, unreadable text. We cannot read your private messages, and neither can anyone else.",
-      hiD: "आपके निजी संदेश आपके डिवाइस से निकलने से पहले एंड-टू-एंड एन्क्रिप्शन (E2EE) से सुरक्षित होते हैं। हमारा डेटाबेस केवल अव्यवस्थित, अपठनीय टेक्स्ट संग्रहीत करता है। हम आपके निजी संदेश नहीं पढ़ सकते, और न ही कोई और।",
+      en: "Military-Grade End-to-End Encrypted Chat",
+      hi: "मिलिट्री-ग्रेड एंड-टू-एंड एन्क्रिप्टेड चैट",
+      enD: "Your private messages are secured with Military-Grade End-to-End Encryption (AES-GCM + ECDH) before they leave your device. Our database only stores locked, unbreakable text. Even we cannot read your messages, and neither can anyone else.",
+      hiD: "आपके निजी संदेश आपके डिवाइस से निकलने से पहले मिलिट्री-ग्रेड एंड-टू-एंड एन्क्रिप्शन (AES-GCM + ECDH) से सुरक्षित होते हैं। हमारा डेटाबेस केवल लॉक किया हुआ, अपठनीय टेक्स्ट संग्रहीत करता है। यहाँ तक कि हम भी आपके संदेश नहीं पढ़ सकते, और न ही कोई और।",
     },
-
+    {
+      icon: "📞",
+      en: "E2EE Secure Peer-to-Peer Calls",
+      hi: "E2EE सुरक्षित पीयर-टू-पीयर कॉल",
+      enD: "Your voice calls are also End-to-End Encrypted using ephemeral ECDH keys. Every call generates a fresh, temporary lock and key that is destroyed immediately after hanging up. Your audio travels directly between devices and can never be intercepted or recorded.",
+      hiD: "आपकी वॉयस कॉल भी अस्थायी ECDH कुंजियों का उपयोग करके एंड-टू-एंड एन्क्रिप्टेड (E2EE) होती हैं। हर कॉल एक नया, अस्थायी ताला और चाबी बनाती है जो कॉल कटते ही नष्ट हो जाती है। आपकी आवाज़ सीधे उपकरणों के बीच जाती है और उसे कभी भी बीच में सुना या रिकॉर्ड नहीं किया जा सकता।",
+    },
+    // ───────────────────────────────────────────
     {
       icon: "🤖",
       en: "AI Processing",
       hi: "AI प्रोसेसिंग",
       enD: "When you use the AI journal feature, your text is sent to the AI API solely to generate a response. It is not stored by the AI provider and is not used to train any model.",
-      hiD: "जब आप AI जर्नल सुविधा का उपयोग करते हैं, तो आपका टेक्स्ट केवल उत्तर उत्पन्न करने के लिए AI API को भेजा जाता है। इसे AI प्रदाता द्वारा संग्रहीत नहीं किया जाता है।",
+      hiD: "जब आप AI जर्नल सुविधा का उपयोग करते हैं, तो आपका टेक्स्ट केवल उत्तर उत्पन्न करने के लिए AI API को भेजा जाता है। इसे AI प्रदाता द्वारा संग्रहीत नहीं किया जाता है और किसी भी मॉडल को प्रशिक्षित करने के लिए उपयोग नहीं किया जाता है।",
     },
     {
       icon: "📊",
       en: "Analytics",
       hi: "एनालिटिक्स",
       enD: "JSukoon uses PostHog to collect anonymous usage data — pages visited and features used. Your journal entries, thoughts, and personal writing are never tracked or stored in analytics.",
-      hiD: "JSukoon PostHog एनालिटिक्स का उपयोग करता है। आपकी जर्नल प्रविष्टियां और व्यक्तिगत लेखन कभी ट्रैक नहीं किया जाता।",
+      hiD: "JSukoon PostHog एनालिटिक्स का उपयोग करता है — केवल देखे गए पृष्ठ और उपयोग की गई सुविधाएँ। आपकी जर्नल प्रविष्टियां और व्यक्तिगत लेखन कभी ट्रैक नहीं किया जाता।",
     },
     {
       icon: "🌍",
@@ -54,7 +61,7 @@ export function Privacy({ setTab, goBack, T, lang }) {
       en: "How Long We Keep It",
       hi: "हम इसे कितने समय तक रखते हैं",
       enD: "Your data is retained as long as your account is active. If your account is inactive for 2 years, data may be deleted. You can delete your account and all associated data at any time from Settings.",
-      hiD: "आपका डेटा तब तक रखा जाता है जब तक आपका खाता सक्रिय है। आप किसी भी समय Settings से अपना खाता और सभी डेटा हटा सकते हैं।",
+      hiD: "आपका डेटा तब तक रखा जाता है जब तक आपका खाता सक्रिय है। यदि आपका खाता 2 वर्षों तक निष्क्रिय रहता है, तो डेटा हटाया जा सकता है। आप किसी भी समय Settings से अपना खाता हटा सकते हैं।",
     },
     {
       icon: "🗑️",
@@ -68,14 +75,14 @@ export function Privacy({ setTab, goBack, T, lang }) {
       en: "No Ad Tracking. No Data Sales.",
       hi: "कोई विज्ञापन ट्रैकिंग नहीं। कोई डेटा बिक्री नहीं।",
       enD: "JSukoon does not use third-party tracking cookies, does not sell your data to advertisers, and does not share your personal data with any third party except as required to operate the app.",
-      hiD: "JSukoon थर्ड-पार्टी ट्रैकिंग कुकीज़ का उपयोग नहीं करता, आपका डेटा विज्ञापनदाताओं को नहीं बेचता।",
+      hiD: "JSukoon थर्ड-पार्टी ट्रैकिंग कुकीज़ का उपयोग नहीं करता, आपका डेटा विज्ञापनदाताओं को नहीं बेचता, और किसी तीसरे पक्ष के साथ डेटा साझा नहीं करता।",
     },
     {
       icon: "🛡️",
       en: "Security",
       hi: "सुरक्षा",
       enD: "We take every reasonable precaution to protect your data including encryption in transit and row-level security in our database. No method of internet transmission is 100% secure, but we commit to notifying you of any breach that affects your data.",
-      hiD: "हम आपके डेटा की सुरक्षा के लिए हर उचित सावधानी बरतते हैं। कोई भी उल्लंघन होने पर हम आपको सूचित करेंगे।",
+      hiD: "हम आपके डेटा की सुरक्षा के लिए हर उचित सावधानी बरतते हैं। इंटरनेट पर कोई भी तरीका 100% सुरक्षित नहीं है, लेकिन हम किसी भी उल्लंघन की स्थिति में आपको सूचित करने के लिए प्रतिबद्ध हैं।",
     },
   ];
 
@@ -113,11 +120,11 @@ export function Privacy({ setTab, goBack, T, lang }) {
         </div>
 
         <div style={s.highlight}>
-          <h3 style={s.hlTitle}>{hi ? "आपकी गोपनीयता" : "Your Privacy"}</h3>
+          <h3 style={s.hlTitle}>{hi ? "आपकी गोपनीयता, हमारी प्राथमिकता" : "Your Privacy, Our Priority"}</h3>
           <p style={s.hlText}>
             {hi
-              ? "यह एक निजी स्थान है। आपका डेटा आपका है। हम इसे नहीं बेचते, विज्ञापनों के लिए उपयोग नहीं करते।"
-              : "This is a private space. Your data is yours. We do not sell it, we do not use it for ads."}
+              ? "यह एक निजी स्थान है। आपका डेटा पूरी तरह से आपका है। हमने मिलिट्री-ग्रेड एन्क्रिप्शन का उपयोग किया है ताकि आपके सिवा कोई भी आपके संदेश या कॉल को न सुन सके।"
+              : "This is a private space. Your data is yours. We have implemented military-grade encryption so that no one but you can read your messages or hear your calls."}
           </p>
         </div>
 
@@ -131,12 +138,11 @@ export function Privacy({ setTab, goBack, T, lang }) {
           </div>
         ))}
 
-        {/* Grievance Officer — DPDP requirement */}
         <div style={s.grievance}>
           <p style={s.grievanceText}>
-            <strong>{hi ? "शिकायत अधिकारी, डिजिटल व्यक्तिगत डेटा संरक्षण (डीपीडीपी) अधिनियम, 2023" : "Grievance Officer (DPDP Act 2023)"}</strong><br />
+            <strong>{hi ? "शिकायत अधिकारी (डीपीडीपी अधिनियम, 2023)" : "Grievance Officer (DPDP Act 2023)"}</strong><br />
             {hi
-              ? "किसी भी डेटा संबंधी शिकायत के लिए संपर्क करें:"
+              ? "किसी भी डेटा संबंधी शिकायत या अनुरोध के लिए संपर्क करें:"
               : "For any data-related concerns or requests:"}<br />
             selfhelp97power@gmail.com<br />
             {hi ? "हम 30 दिनों के भीतर उत्तर देंगे।" : "We will respond within 30 days."}
@@ -146,8 +152,8 @@ export function Privacy({ setTab, goBack, T, lang }) {
         <div style={s.closing}>
           <p style={s.closingText}>
             {hi
-              ? "JSukoon में, गोपनीयता कोई फीचर नहीं है — यह एक मूल्य है।"
-              : "At JSukoon, privacy is not a feature — it is a value."}
+              ? "JSukoon में, गोपनीयता कोई फीचर नहीं है — यह हमारा सबसे बड़ा मूल्य है।"
+              : "At JSukoon, privacy is not just a feature — it is our core value."}
           </p>
         </div>
 
