@@ -456,6 +456,8 @@ export default function SukoonChat({ T, lang, setTab }) {
     { icon: '🫧', title: hi ? 'कमरे और बातचीत' : 'Rooms & Conversations', body: hi ? 'ईमेल से दोस्त खोजें। प्राइवेट चैट या ग्रुप रूम बनाएं।' : 'Search any friend by email. Start a private chat or create a group room instantly.' },
     { icon: '🌙', title: hi ? 'संदेश गायब हो सकते हैं' : 'Messages can disappear', body: hi ? '1 मिनट से 7 दिन तक — आपकी शर्तों पर।' : 'Set disappearing messages from 1 minute to 7 days. Your thoughts, your terms.' },
     { icon: '📞', title: hi ? 'सुरक्षित वॉयस कॉल' : 'Encrypted voice calls', body: hi ? 'E2E encrypted audio calls — ब्राउज़र या मोबाइल से।' : 'End-to-end encrypted voice calls directly from browser or mobile.' },
+    // 🛑 NEW WARNING SLIDE
+    { icon: '⚠️', title: hi ? 'महत्वपूर्ण चेतावनी' : 'CRITICAL WARNING', body: hi ? 'हम आपकी एन्क्रिप्शन कुंजी नहीं जानते। यदि आप कुंजी खो देते हैं, तो हम आपकी चैट वापस नहीं ला सकते। कृपया सुरक्षा वॉल्ट (🗝️) में जाकर अपना पिन या QR कोड सुरक्षित करें।' : 'We DO NOT have your encryption key. If you lose it, we cannot recover your chats. Please use the Security Vault (🗝️) to backup your key via PIN or QR code. We cannot help you recover lost data.' },
   ];
 
   // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────
@@ -655,6 +657,14 @@ export default function SukoonChat({ T, lang, setTab }) {
           <div style={{ ...s.modalBox, textAlign: 'center', padding: '24px' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '40px', marginBottom: '10px' }}>🗝️</div>
             <h3 style={{ margin: '0 0 15px 0', color: T.text, fontFamily: "'DM Sans', sans-serif" }}>{hi ? "सुरक्षा वॉल्ट" : "Security Vault"}</h3>
+
+            {/* 🛑 NEW RED WARNING BOX */}
+            {!vaultMode && (
+              <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '12px', padding: '12px', marginBottom: '16px', fontSize: '13px', color: T.text, lineHeight: '1.5' }}>
+                <strong style={{ color: '#ef4444' }}>{hi ? 'महत्वपूर्ण: ' : 'CRITICAL: '}</strong>
+                {hi ? 'हम आपकी चैट नहीं पढ़ सकते और खोया हुआ डेटा वापस नहीं ला सकते। अपना पिन याद रखें या QR कोड सुरक्षित रखें, अन्यथा आपकी चैट हमेशा के लिए नष्ट हो जाएगी।' : 'We cannot read your chats or recover lost data. Memorize your PIN or save your QR code, otherwise your chats will be lost forever.'}
+              </div>
+            )}
 
             {!vaultMode ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
