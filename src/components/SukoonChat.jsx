@@ -342,7 +342,19 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
-      <audio id="sukoon-remote-audio" autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute' }} />
+      <video 
+        id="sukoon-remote-audio" 
+        autoPlay 
+        playsInline 
+        style={{ 
+          position: 'absolute', 
+          top: '-100px', 
+          left: '-100px', 
+          width: '1px', 
+          height: '1px', 
+          opacity: 0.01 
+      }} 
+    />
 
       {/* 🌟 SECURITY DESK MODAL */}
       {showManageBlocks && (
