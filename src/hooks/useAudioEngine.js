@@ -302,26 +302,43 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // 8. AUDIO BRIDGE (BULLETPROOF VERSION)
-  const handleStartAudio = () => {
+  // 8. AUDIO BRIDGE (GENTLE BOOSTER)
+  const handleStartAudio = async () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
 
-    // Direct connection - No digital mixers to avoid mobile crashes
-    if (remoteStreamRef.current && audio.srcObject !== remoteStreamRef.current) {
+    try {
+      // Check if we can use the "Volume Knob" tool
+      if (remoteStreamRef.current && (window.AudioContext || window.webkitAudioContext)) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        const source = ctx.createMediaStreamSource(remoteStreamRef.current);
+        
+        // 🌟 THE VOLUME KNOB: We set it to 4.0 (400% volume)
+        // This pushes the sound through the "ceiling"
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = 4.0; 
+
+        const dest = ctx.createMediaStreamDestination();
+        source.connect(gainNode);
+        gainNode.connect(dest);
+
+        audio.srcObject = dest.stream;
+        if (ctx.state === 'suspended') await ctx.resume();
+      } else {
+        // Fallback for very old phones that don't have the Volume Knob tool
+        audio.srcObject = remoteStreamRef.current;
+      }
+    } catch (e) {
+      console.warn("Booster failed, using raw audio", e);
       audio.srcObject = remoteStreamRef.current;
     }
 
-    audio.muted = false; // Ensure it is not muted
-    
+    audio.muted = false;
     audio.play().then(() => {
       setShowAudioBridge(false);
     }).catch(e => {
-      console.error("Audio play failed, retrying...", e);
-      setTimeout(() => { 
-        audio.play().catch(console.error); 
-        setShowAudioBridge(false); 
-      }, 500);
+      setTimeout(() => { audio.play(); setShowAudioBridge(false); }, 500);
     });
   };
 
