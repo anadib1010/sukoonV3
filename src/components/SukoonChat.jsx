@@ -99,6 +99,8 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false); 
+  
+  const [remoteStreams, setRemoteStreams] = useState([]); 
   const [showAudioBridge, setShowAudioBridge] = useState(false);
 
   // 🌟 TEXT MESSAGE VAULT KEYS 🌟
@@ -114,9 +116,10 @@ export default function SukoonChat({ T, lang, setTab }) {
   const ringTimeoutRef = useRef(null);
   const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
-  // WebRTC Call Ephemeral Keys
+  // 🌟 WEBRTC CALL EPHEMERAL KEYS 🌟
   const callPrivateKeyRef = useRef(null); 
   const callPublicKeyStrRef = useRef(null); 
+  const callSharedSecretRef = useRef(null); 
   
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
@@ -152,7 +155,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' },
     emptyRoom: { textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.5, color: T.text },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
-    getBubble: (isMe) => ({ padding: '12px 18px', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', backgroundColor: isMe ? T.accent : `${T.accent}15`, color: isMe ? T.bg : T.text, border: isMe ? 'none' : `1px solid ${T.accent}20`, maxWidth: '75%', fontSize: '15px', lineHeight: '1.4' }),
+    getBubble: (isMe) => ({ padding: '12px 18px', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', backgroundColor: isMe ? T.accent : `${T.accent}15`, color: isMe ? T.bg : T.text, border: isMe ? 'none' : `1px solid ${T.accent}20`, maxWidth: '75%', fontSize: '15px', lineHeight: '1.4', wordBreak: 'break-word' }),
     senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.7, fontWeight: 'bold', color: T.text, marginLeft: '5px' },
     statusBar: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', marginRight: '5px' },
     timestamp: { fontSize: '10px', opacity: 0.5, color: T.text },
@@ -209,59 +212,59 @@ export default function SukoonChat({ T, lang, setTab }) {
     initializeKeysAndUser();
   }, []);
 
-  // Backwards compatibility for your old messages so they don't break!
+  // Backwards compatibility for old XOR messages so chat history survives
   const decryptXORFallback = (scrambled, key) => {
     try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ key.charCodeAt(i % key.length))).join('')); } 
     catch (e) { return scrambled; }
   };
 
-  const fetchAndDecryptMessages = async (roomId) => {
-    const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
-    if (!data) return [];
-    
-    const aesKey = activeAESKeysRef.current[roomId];
-    const decryptedData = await Promise.all(data.map(async (m) => {
-      // AES-GCM Encrypted messages have the ::: separator
-      if (m.content.includes(':::') && aesKey) {
-        const [iv, cipher] = m.content.split(':::');
-        m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
-      } else {
-        m.decrypted_content = decryptXORFallback(m.content, roomId);
-      }
-      return m;
-    }));
-    return decryptedData;
-  };
-
+  // 🌟 THE RESTORED TEXT ENGINE 🌟
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
-    // 🌟 SETUP DH+AES STEEL SAFE FOR THIS ROOM 🌟
-    const setupRoomEncryption = async () => {
+    let isSubscribed = true;
+
+    const setupRoomEncryptionAndFetch = async () => {
+      // 1. Handshake the AES Keys
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
       if (friendId && myMasterKeyRef.current) {
-        const { data: friendProfile } = await supabase.from('profiles').select('public_key').eq('id', friendId).single();
-        
+        const { data: friendProfile } = await supabase.from('profiles').select('public_key').eq('id', friendId).maybeSingle();
         if (friendProfile && friendProfile.public_key) {
-          const friendPub = await SecurityKit.importPublicKey(friendProfile.public_key);
-          const sharedBits = await SecurityKit.deriveSecretBits(myMasterKeyRef.current, friendPub);
-          const aesKey = await SecurityKit.createAESKey(sharedBits);
-          activeAESKeysRef.current[activeRoom.id] = aesKey;
-        } else {
-          activeAESKeysRef.current[activeRoom.id] = null;
+          try {
+            const friendPub = await SecurityKit.importPublicKey(friendProfile.public_key);
+            const sharedBits = await SecurityKit.deriveSecretBits(myMasterKeyRef.current, friendPub);
+            const aesKey = await SecurityKit.createAESKey(sharedBits);
+            activeAESKeysRef.current[activeRoom.id] = aesKey;
+          } catch (e) { console.error("AES Key Derivation Failed", e); }
         }
       }
 
-      const decryptedMessages = await fetchAndDecryptMessages(activeRoom.id);
-      setMessages(decryptedMessages);
+      // 2. Fetch the texts!
+      const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
       
-      const unreadIds = decryptedMessages.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
-      if (unreadIds.length > 0) supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
-      setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
+      if (data && isSubscribed) {
+        const aesKey = activeAESKeysRef.current[activeRoom.id];
+        const decryptedData = await Promise.all(data.map(async (m) => {
+          if (m.content.includes(':::') && aesKey) {
+            const [iv, cipher] = m.content.split(':::');
+            m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
+          } else {
+            m.decrypted_content = decryptXORFallback(m.content, activeRoom.id);
+          }
+          return m;
+        }));
+        
+        setMessages(decryptedData);
+        
+        const unreadIds = decryptedData.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
+        if (unreadIds.length > 0) supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
+      }
     };
 
-    setupRoomEncryption();
+    setupRoomEncryptionAndFetch();
 
+    // 3. Listen for NEW text messages
     const chatChannel = supabase.channel(`room-${activeRoom.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         async (payload) => {
@@ -292,9 +295,78 @@ export default function SukoonChat({ T, lang, setTab }) {
       setPresentUsers(activeUsers);
     }).subscribe(async (status) => { if (status === 'SUBSCRIBED') await presenceRoom.track({ email: currentUser.email, is_typing: false }); });
 
-    return () => { supabase.removeChannel(chatChannel); supabase.removeChannel(presenceRoom); };
+    const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
+    signalingChannelRef.current = sigChannel;
+
+    sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
+      if (payload.sender === currentUser.id) return; 
+      try {
+        if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
+          const theirPublicKey = await SecurityKit.importPublicKey(payload.publicKey);
+          const finalSecret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, theirPublicKey);
+          const secretArray = Array.from(new Uint8Array(finalSecret));
+          callSharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        if (payload.type === 'user-joined' && isInCallRef.current) {
+          const pc = createPeerConnection(payload.sender);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
+        } 
+        else if (payload.type === 'offer' && payload.target === currentUser.id) {
+          const pc = createPeerConnection(payload.sender);
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          if (iceCandidateQueue.current[payload.sender]) {
+            iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log(e)));
+            iceCandidateQueue.current[payload.sender] = [];
+          }
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
+        } 
+        else if (payload.type === 'answer' && payload.target === currentUser.id) {
+          const pc = peers.current[payload.sender];
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            if (iceCandidateQueue.current[payload.sender]) {
+              iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log(e)));
+              iceCandidateQueue.current[payload.sender] = [];
+            }
+          }
+        } 
+        else if (payload.type === 'ice-candidate' && payload.target === currentUser.id) {
+          const pc = peers.current[payload.sender];
+          if (pc) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e => console.log("ICE Error", e));
+            } else {
+              if (!iceCandidateQueue.current[payload.sender]) iceCandidateQueue.current[payload.sender] = [];
+              iceCandidateQueue.current[payload.sender].push(payload.candidate);
+            }
+          }
+        } 
+        else if (payload.type === 'user-left') {
+          removePeer(payload.sender);
+          cleanupCall();
+        }
+      } catch (err) { console.error("Signaling Error:", err); }
+    }).subscribe((status) => {
+      if (status === 'SUBSCRIBED' && autoJoinRef.current) {
+        autoJoinRef.current = false;
+        joinCall(); 
+      }
+    });
+
+    return () => { 
+      isSubscribed = false;
+      supabase.removeChannel(chatChannel); 
+      supabase.removeChannel(presenceRoom); 
+      supabase.removeChannel(sigChannel); 
+    };
   }, [activeRoom, currentUser]); 
 
+  // ─── THE SEND TEXT MESSAGE ENGINE ───
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
     
@@ -317,7 +389,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   };
 
 
-  // ─── THE REST OF THE APP (Calls, Modals, Audio Bridge, UI) ───
+  // ─── BACKGROUND LOGIC ───
   useEffect(() => {
     if (!activeCallId) return;
     const boardWatcher = supabase.channel(`status-board-${activeCallId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` }, (payload) => {
@@ -367,63 +439,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   }, [currentUser?.id]); 
 
   useEffect(() => {
-    if (location.state?.incomingCallRoom && !activeRoomRef.current) {
-      setActiveRoom(location.state.incomingCallRoom);
-      autoJoinRef.current = true; 
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    if (!activeRoom || !currentUser) return;
-    const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
-    signalingChannelRef.current = sigChannel;
-
-    sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
-      if (payload.sender === currentUser.id) return; 
-      try {
-        if (payload.type === 'user-joined' && isInCallRef.current) {
-          const pc = createPeerConnection(payload.sender);
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender } });
-        } 
-        else if (payload.type === 'offer' && payload.target === currentUser.id) {
-          const pc = createPeerConnection(payload.sender);
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          if (iceCandidateQueue.current[payload.sender]) {
-            iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log(e)));
-            iceCandidateQueue.current[payload.sender] = [];
-          }
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
-        } 
-        else if (payload.type === 'answer' && payload.target === currentUser.id) {
-          const pc = peers.current[payload.sender];
-          if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            if (iceCandidateQueue.current[payload.sender]) {
-              iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log(e)));
-              iceCandidateQueue.current[payload.sender] = [];
-            }
-          }
-        } 
-        else if (payload.type === 'ice-candidate' && payload.target === currentUser.id) {
-          const pc = peers.current[payload.sender];
-          if (pc) {
-            if (pc.remoteDescription && pc.remoteDescription.type) pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e => console.log("ICE Error", e));
-            else { if (!iceCandidateQueue.current[payload.sender]) iceCandidateQueue.current[payload.sender] = []; iceCandidateQueue.current[payload.sender].push(payload.candidate); }
-          }
-        } 
-        else if (payload.type === 'user-left') { cleanupCall(); }
-      } catch (err) { console.error("Signaling Error:", err); }
-    }).subscribe((status) => { if (status === 'SUBSCRIBED' && autoJoinRef.current) { autoJoinRef.current = false; joinCall(); } });
-
-    return () => { supabase.removeChannel(sigChannel); };
-  }, [activeRoom, currentUser]); 
-
-  useEffect(() => {
     if (!isAutoScrolling && chatBoxRef.current) chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, activeRoom]);
 
@@ -448,7 +463,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
     
-    // 🌟 Native HTML Speaker Fix for Android
+    // 🌟 NATIVE HTML FIX for Android Audio
     pc.ontrack = (event) => {
       const remoteAudio = document.getElementById('sukoon-remote-audio');
       if (remoteAudio) {
@@ -462,6 +477,8 @@ export default function SukoonChat({ T, lang, setTab }) {
     return pc;
   };
 
+  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
+
   const sendGlobalSignal = (actionPayload) => { supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: actionPayload }); };
 
   const startCall = async () => {
@@ -471,13 +488,17 @@ export default function SukoonChat({ T, lang, setTab }) {
       await fetchSecureTrucks(); 
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
+      
+      const keys = await SecurityKit.generateKeys();
+      callPrivateKeyRef.current = keys.privateKey;
+      callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
 
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
       let currentCallId = null;
 
       if (friendId) {
         await supabase.from('calls').delete().eq('caller_id', currentUser.id).eq('status', 'ringing');
-        const { data: newCall } = await supabase.from('calls').insert({ caller_id: currentUser.id, receiver_id: friendId, status: 'ringing' }).select().single();
+        const { data: newCall } = await supabase.from('calls').insert({ caller_id: currentUser.id, receiver_id: friendId, status: 'ringing', caller_public_key: callPublicKeyStrRef.current }).select().single();
 
         if (newCall) {
           setActiveCallId(newCall.id); activeCallIdRef.current = newCall.id; currentCallId = newCall.id;
@@ -492,8 +513,8 @@ export default function SukoonChat({ T, lang, setTab }) {
         if (friendProfile?.fcm_token) await supabase.functions.invoke('send-call-notification', { body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id } });
       }
 
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email } });
-      sendGlobalSignal({ action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom, callId: currentCallId });
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current } });
+      sendGlobalSignal({ action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom, publicKey: callPublicKeyStrRef.current, callId: currentCallId });
 
     } catch (error) { alert("Microphone Access Failed: " + error.message); }
   };
@@ -508,8 +529,12 @@ export default function SukoonChat({ T, lang, setTab }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
 
-      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted' }).eq('id', activeCallIdRef.current);
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id } });
+      const keys = await SecurityKit.generateKeys();
+      callPrivateKeyRef.current = keys.privateKey;
+      callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
+
+      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted', receiver_public_key: callPublicKeyStrRef.current }).eq('id', activeCallIdRef.current);
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current } });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
 
@@ -518,7 +543,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } });
       if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
       if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
-    } catch (error) { console.error("DB error on end call"); } finally { cleanupCall(); }
+    } catch (error) { console.error("Database failure"); } finally { cleanupCall(); }
   };
 
   const cleanupCall = () => { 
@@ -528,6 +553,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current = {}; iceCandidateQueue.current = {}; 
     if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
     safeSetIsInCall(false); setShowAudioBridge(false); 
+    callPrivateKeyRef.current = null; callPublicKeyStrRef.current = null; callSharedSecretRef.current = null;
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
     setActiveCallId(null); activeCallIdRef.current = null;
   };
@@ -598,7 +624,7 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={s.container}>
-      {/* 🌟 NATIVE HTML AUDIO (Android Fix) */}
+      {/* 🌟 NATIVE HTML FIX: One permanent speaker that React CANNOT destroy! */}
       <audio id="sukoon-remote-audio" autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
 
       {showGroupModal && (
@@ -656,7 +682,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
-      {/* 🌟 AUDIO BRIDGE OVERLAY */}
       {showAudioBridge && (
         <div style={s.bridgeOverlay}>
           <h2 style={{ color: '#fff', marginBottom: '20px' }}>{hi ? "कॉल कनेक्टेड" : "Secure Call Established"}</h2>
