@@ -282,23 +282,43 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
   }, [handleSendMessage]);
 
-  // ─── NEW: MISSED CALLS WATCHER ───────────────────────────────────────────
+  // ─── NEW: MISSED CALLS WATCHER (BULLETPROOF VERSION) ───────────────────
   useEffect(() => {
     if (!currentUser) return;
+    
     (async () => {
-      const { data } = await supabase
+      // Step 1: Grab the missed calls safely (No fancy bridges)
+      const { data: callsData } = await supabase
         .from('calls')
-        .select('*, caller:profiles!calls_caller_id_fkey(email)')
+        .select('*')
         .eq('receiver_id', currentUser.id)
         .eq('status', 'missed')
         .order('created_at', { ascending: false })
         .limit(5);
-      if (data) setMissedCalls(data);
+
+      if (callsData && callsData.length > 0) {
+        // Step 2: Grab the emails for those specific callers
+        const callerIds = callsData.map(c => c.caller_id);
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('id', callerIds);
+
+        // Step 3: Match the email to the call
+        const finalCalls = callsData.map(call => {
+          const profile = profilesData?.find(p => p.id === call.caller_id);
+          return { ...call, caller: { email: profile?.email } };
+        });
+        
+        setMissedCalls(finalCalls);
+      }
     })();
+
     const mc = supabase.channel(`missed-${currentUser.id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `receiver_id=eq.${currentUser.id}` }, (p) => {
         if (p.new.status === 'missed') setMissedCalls(prev => [p.new, ...prev.slice(0, 4)]);
       }).subscribe();
+      
     return () => supabase.removeChannel(mc);
   }, [currentUser?.id]);
 
