@@ -11,7 +11,6 @@ export function Login({ onLogin, T, lang, embedded = false }) {
   const [message, setMessage]       = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
   const [visible, setVisible]       = useState(false);
-  const [consent, setConsent]       = useState(false);
   const [forgotSent, setForgotSent]   = useState(false);
   const captchaRef = useRef(null);
 
@@ -138,7 +137,6 @@ export function Login({ onLogin, T, lang, embedded = false }) {
       overflow: "hidden",
     },
 
-    // Ambient glow behind the title
     ambientGlow: {
       position: "absolute",
       top: "15%",
@@ -384,47 +382,9 @@ export function Login({ onLogin, T, lang, embedded = false }) {
             {/* Turnstile CAPTCHA */}
             <div ref={captchaRef} style={s.captchaWrap} />
 
-            {/* 🌟 DPDP Consent — signup only (Updated for Legal Compliance) */}
-            {isSignUp && (
-              <label style={{
-                display: "flex", alignItems: "flex-start", gap: 10,
-                cursor: "pointer", margin: "4px 0 8px",
-              }}>
-                <input
-                  type="checkbox"
-                  checked={consent}
-                  onChange={e => setConsent(e.target.checked)}
-                  style={{ marginTop: 3, accentColor: T.accent, flexShrink: 0, width: 15, height: 15 }}
-                />
-                <span style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: 12, color: "rgba(255,255,255,0.55)",
-                  lineHeight: 1.5, textAlign: "left"
-                }}>
-                  {hi ? "मैं " : "I agree to the "}
-                  <span
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('/terms', '_blank'); }}
-                    style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
-                  >
-                    {hi ? "सेवा की शर्तें" : "Terms of Service"}
-                  </span>
-                  {hi ? " और " : " and "}
-                  <span
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('/privacy', '_blank'); }}
-                    style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
-                  >
-                    {hi ? "गोपनीयता नीति" : "Privacy Policy"}
-                  </span>
-                  {hi
-                    ? " से सहमत हूँ और अपने डेटा को प्रोसेस करने की अनुमति देता/देती हूँ। डेटा भारत के बाहर सर्वर पर प्रोसेस किया जा सकता है।"
-                    : ", and consent to my data being processed as described. Data may be processed on servers outside India."}
-                </span>
-              </label>
-            )}
-
             <button
               type="submit"
-              disabled={loading || (isSignUp && !consent)}
+              disabled={loading}
               style={s.submitBtn}
               onMouseEnter={e => { e.currentTarget.style.background = `${T.accent}18`; e.currentTarget.style.transform = "translateY(-1px)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.transform = "translateY(0)"; }}
@@ -436,31 +396,31 @@ export function Login({ onLogin, T, lang, embedded = false }) {
                   : (hi ? "साइन इन करें" : "Sign In")}
             </button>
 
-            {/* 🌟 Tiny Disclaimer for Login mode */}
-            {!isSignUp && (
-              <div style={{ textAlign: "center", marginTop: "4px", fontSize: "12px", color: "rgba(255,255,255,0.45)", fontFamily: "'DM Sans', sans-serif" }}>
-                {hi ? "साइन इन करके, आप हमारी " : "By signing in, you agree to our "}
-                <span
-                  onClick={e => { e.preventDefault(); window.open('/terms', '_blank'); }}
-                  style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
-                >
-                  {hi ? "शर्तों" : "Terms"}
-                </span>
-                {hi ? " और " : " & "}
-                <span
-                  onClick={e => { e.preventDefault(); window.open('/privacy', '_blank'); }}
-                  style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
-                >
-                  {hi ? "गोपनीयता नीति" : "Privacy Policy"}
-                </span>
-                {hi ? " से सहमत होते हैं।" : "."}
-              </div>
-            )}
+            {/* 🌟 Industry Standard Disclaimer Text */}
+            <div style={{ textAlign: "center", marginTop: "4px", fontSize: "12px", color: "rgba(255,255,255,0.45)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
+              {hi ? "जारी रखकर, आप हमारी " : "By continuing, you agree to the "}
+              <span
+                onClick={e => { e.preventDefault(); window.open('/terms', '_blank'); }}
+                style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+              >
+                {hi ? "सेवा की शर्तों" : "Terms of Service"}
+              </span>
+              {hi ? " और " : " and "}
+              <span
+                onClick={e => { e.preventDefault(); window.open('/privacy', '_blank'); }}
+                style={{ color: T.accent, textDecoration: "underline", cursor: "pointer" }}
+              >
+                {hi ? "गोपनीयता नीति" : "Privacy Policy"}
+              </span>
+              {hi 
+                ? " से सहमत होते हैं और समझते हैं कि JSukoon एक सेल्फ-हेल्प टूल है, कोई चिकित्सा या पेशेवर सेवा नहीं।" 
+                : " and understand that JSukoon is a self-help tool and not a medical or professional service."}
+            </div>
           </form>
 
           {/* Toggle sign in / sign up */}
           <button
-            onClick={() => { setIsSignUp(!isSignUp); setConsent(false); }}
+            onClick={() => { setIsSignUp(!isSignUp); }}
             style={s.toggleBtn}
             onMouseEnter={e => e.currentTarget.style.opacity = "1"}
             onMouseLeave={e => e.currentTarget.style.opacity = "0.7"}

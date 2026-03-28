@@ -61,7 +61,7 @@ const SecurityKit = {
   }
 };
 
-// ─── XOR LEGACY FALLBACK (SURGICALLY HARDENED TO PREVENT GIBBERISH) ────────
+// ─── XOR LEGACY FALLBACK ────────
 const decryptXORFallback = (scrambled, key) => {
   try {
     const keyStr = String(key);
@@ -69,41 +69,26 @@ const decryptXORFallback = (scrambled, key) => {
     const xored = decodedBase64.split('').map((char, i) =>
       String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))
     ).join('');
-    
-    try {
-      return decodeURIComponent(xored);
-    } catch (uriError) {
-      // If URI decode fails, it's safe to return the raw xor string, preventing Base64 gibberish
-      return xored;
-    }
-  } catch (e) { 
-    return "🔒 [Encrypted Message]"; 
-  }
+    try { return decodeURIComponent(escape(xored)); } catch (e) { return xored; }
+  } catch (e) { return "🔒 [Encrypted Message]"; }
 };
 
-// ─── iOS DETECTION ─────────────────────────────────────────────────────────
 const isIOS = () =>
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-// ─── DECRYPT ONE MESSAGE (FIXED TO PREVENT INFINITE "DECRYPTING" LOOP) ─────
 const decryptOneMessage = async (m, aesKey, friendHasKey) => {
   const msg = { ...m };
-  
   if (msg.content && msg.content.includes(':::')) {
     if (aesKey) {
       const [iv, cipher] = msg.content.split(':::');
       const result = await SecurityKit.decryptText(cipher, iv, aesKey);
-      msg.decrypted_content = result !== null
-        ? result
-        : '🔒 [Key Mismatch: Devices out of sync]';
+      msg.decrypted_content = result !== null ? result : '🔒 [Key mismatch — ask friend to reopen chat]';
       msg._needs_decrypt = false;
     } else if (!friendHasKey) {
-      // Friend hasn't logged in to generate a key yet. Stop waiting.
-      msg.decrypted_content = '🔒 [Waiting for friend\'s secure key]';
-      msg._needs_decrypt = false; 
+      msg.decrypted_content = "🔒 [Waiting for friend's secure key]";
+      msg._needs_decrypt = false;
     } else {
-      // Key is still deriving asynchronously. We can wait safely.
       msg.decrypted_content = null;
       msg._needs_decrypt = true;
     }
@@ -150,9 +135,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const myMasterKeyRef = useRef(null);
   const activeAESKeysRef = useRef({});
-  
-  // 🌟 NEW: Tracks if the friend actually has a public key in the DB
-  const friendHasKeyRef = useRef({}); 
+  const friendHasKeyRef = useRef({});
 
   const aesKeyReadyRef = useRef({});
   const keyWatcherChannelRef = useRef(null);
@@ -176,13 +159,24 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
 
+  // 🌟 Safety & Anti-Spam State
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  
+  // 🌟 New: Unblock Management State
+  const [showManageBlocks, setShowManageBlocks] = useState(false);
+  const [blockedProfiles, setBlockedProfiles] = useState([]);
+  
+  const lastMessageTimeRef = useRef(0);
+
   const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
 
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
-  // ─── STYLES ──────────────────────────────────────────────────────────────
+  // ─── STYLES ─────────────────────────────────────────────────────────────
   const s = {
     container: {
       display: 'flex', flexDirection: 'column', height: '100%',
@@ -233,6 +227,10 @@ export default function SukoonChat({ T, lang, setTab }) {
       width: '40px', height: '40px', background: 'transparent',
       border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.3, flexShrink: 0
     },
+    shieldBtn: {
+      background: 'transparent', border: 'none', cursor: 'pointer',
+      fontSize: '20px', padding: '10px', color: T.accent, opacity: 0.7, flexShrink: 0
+    },
     chatBox: {
       flex: 1, padding: '16px', overflowY: 'auto', display: 'flex',
       flexDirection: 'column', WebkitOverflowScrolling: 'touch'
@@ -252,9 +250,9 @@ export default function SukoonChat({ T, lang, setTab }) {
     bigGroupBtn: {
       width: '100%', padding: '15px', borderRadius: '16px',
       border: `2px dashed ${T.accent}`, backgroundColor: `${T.accent}10`,
-      color: T.accent, fontWeight: '700', fontSize: '16px', cursor: 'pointer',
-      marginBottom: '18px', display: 'flex', justifyContent: 'center',
-      alignItems: 'center', gap: '10px', fontFamily: "'DM Sans', sans-serif"
+      color: T.accent, fontWeight: '700', fontSize: '15px', cursor: 'pointer',
+      display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', 
+      fontFamily: "'DM Sans', sans-serif"
     },
     roomCard: {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -294,7 +292,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     timestamp: { fontSize: '11px', opacity: 0.4, color: T.text },
     readTick: (r) => ({ fontSize: '12px', color: r ? '#3b82f6' : T.text, opacity: r ? 1 : 0.4 }),
     deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', opacity: 0.45, padding: 0 },
-
     inputArea: {
       display: 'flex', padding: '12px 16px', alignItems: 'center',
       gap: '10px', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}15`, flexShrink: 0
@@ -356,7 +353,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   };
 
-  // ─── INIT: KEYS + USER ───────────────────────────────────────────────────
+  // ─── INIT & BLOCK LIST ───────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
@@ -364,14 +361,29 @@ export default function SukoonChat({ T, lang, setTab }) {
       }
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      const { data } = await supabase.from('rooms').select('*');
-      if (data) setRooms(data);
 
       if (user) {
+        const { data: blocks } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', user.id);
+        const blockedIds = blocks ? blocks.map(b => b.blocked_id) : [];
+        setBlockedUsers(blockedIds);
+
+        const { data } = await supabase.from('rooms').select('*');
+        if (data) {
+          const filteredRooms = data.filter(room => {
+            if (room.is_private) {
+              const otherUser = room.participants.find(p => p !== user.id);
+              return !blockedIds.includes(otherUser);
+            }
+            return true;
+          });
+          setRooms(filteredRooms);
+        }
+
         try {
           const token = await requestFirebaseToken();
           if (token) await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
         } catch (e) { console.log("Push token skip"); }
+        
         try {
           const savedPriv = localStorage.getItem('sukoon_master_key');
           const savedPub = localStorage.getItem('sukoon_public_key');
@@ -400,6 +412,10 @@ export default function SukoonChat({ T, lang, setTab }) {
     if (location.state?.incomingCallRoom) {
       const room = location.state.incomingCallRoom;
       window.history.replaceState({}, document.title);
+      
+      const callerId = room.participants.find(p => p !== currentUser?.id);
+      if (blockedUsers.includes(callerId)) return;
+
       if (activeRoomRef.current?.id === room.id) {
         if (!isInCallRef.current) joinCall();
       } else {
@@ -407,7 +423,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         setActiveRoom(room);
       }
     }
-  }, [location.state]);
+  }, [location.state, blockedUsers]);
 
   // ─── HELPERS ─────────────────────────────────────────────────────────────
   const deriveAESKey = async (publicKeyStr) => {
@@ -433,7 +449,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     const aesKey = activeAESKeysRef.current[roomId];
     const friendHasKey = friendHasKeyRef.current[roomId];
     
-    if (!aesKey) return;
+    if (!aesKey && !friendHasKey) return;
     setMessages(prev => {
       if (!prev.some(m => m._needs_decrypt)) return prev;
       Promise.all(prev.map(m => m._needs_decrypt ? decryptOneMessage(m, aesKey, friendHasKey) : Promise.resolve(m)))
@@ -505,12 +521,13 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     setup();
 
-    // ── Realtime messages ──
     const chatCh = supabase.channel(`room-${activeRoom.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
             const raw = { ...payload.new };
+            
+            if (blockedUsers.includes(raw.user_id)) return;
 
             const keyReady = aesKeyReadyRef.current[activeRoom.id];
             if (keyReady) await keyReady;
@@ -525,7 +542,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           }
         }).subscribe();
 
-    // ── Presence / typing ──
     const presenceCh = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
     presenceChannelRef.current = presenceCh;
     presenceCh
@@ -539,12 +555,11 @@ export default function SukoonChat({ T, lang, setTab }) {
         if (status === 'SUBSCRIBED') await presenceCh.track({ email: currentUser.email, is_typing: false });
       });
 
-    // ── WebRTC signaling ──
     const sigCh = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
     signalingChannelRef.current = sigCh;
 
     sigCh.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
-      if (payload.sender === currentUser.id) return;
+      if (payload.sender === currentUser.id || blockedUsers.includes(payload.sender)) return;
       try {
         if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
           try {
@@ -555,7 +570,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
-          const offer = await pc.createOffer({ offerToReceiveAudio: true });
+          const offer = await pc.createOffer({ offerToReceiveAudio: 1, offerToReceiveVideo: 0 });
           await pc.setLocalDescription(offer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
         }
@@ -602,11 +617,19 @@ export default function SukoonChat({ T, lang, setTab }) {
       supabase.removeChannel(sigCh);
       if (keyWatcherChannelRef.current) { supabase.removeChannel(keyWatcherChannelRef.current); keyWatcherChannelRef.current = null; }
     };
-  }, [activeRoom, currentUser, isVaultUnlocked]);
+  }, [activeRoom, currentUser, isVaultUnlocked, blockedUsers]);
 
   // ─── SEND ────────────────────────────────────────────────────────────────
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
+
+    const now = Date.now();
+    if (now - lastMessageTimeRef.current < 1000) {
+      alert(hi ? "कृपया धीरे-धीरे संदेश भेजें।" : "Please slow down. You are sending messages too fast.");
+      return;
+    }
+    lastMessageTimeRef.current = now;
+
     const raw = message;
     setMessage(""); setIsTyping(false);
     if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
@@ -614,12 +637,9 @@ export default function SukoonChat({ T, lang, setTab }) {
     let content = "";
     const aesKey = activeAESKeysRef.current[activeRoom.id];
     if (aesKey) {
-      try { 
-        const enc = await SecurityKit.encryptText(raw, aesKey); 
-        content = `${enc.iv}:::${enc.cipherText}`; 
-      } catch (e) { console.error("Encrypt failed, XOR fallback", e); }
+      try { const enc = await SecurityKit.encryptText(raw, aesKey); content = `${enc.iv}:::${enc.cipherText}`; }
+      catch (e) { console.error("Encrypt failed, XOR fallback", e); }
     }
-    
     if (!content) {
       const k = String(activeRoom.id);
       content = btoa(encodeURIComponent(raw).split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ k.charCodeAt(i % k.length))).join(''));
@@ -667,20 +687,32 @@ export default function SukoonChat({ T, lang, setTab }) {
     (async () => {
       const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
       const counts = {};
-      if (data) data.forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
+      if (data) {
+        data.forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
+      }
       setUnreadCounts(counts);
     })();
+
     const rc = supabase.channel('live-rooms-radar')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, (p) => {
-        if (p.new.participants?.includes(currentUser.id)) setRooms(prev => [...prev, p.new]);
+        if (p.new.participants?.includes(currentUser.id)) {
+          if (p.new.is_private) {
+            const otherUser = p.new.participants.find(u => u !== currentUser.id);
+            if (blockedUsers.includes(otherUser)) return;
+          }
+          setRooms(prev => [...prev, p.new]);
+        }
       }).subscribe();
+
     const mc = supabase.channel('global-message-scanner')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
-        if (p.new.user_id !== currentUser.id && activeRoomRef.current?.id !== p.new.room_id)
+        if (p.new.user_id !== currentUser.id && activeRoomRef.current?.id !== p.new.room_id && !blockedUsers.includes(p.new.user_id)) {
           setUnreadCounts(prev => ({ ...prev, [p.new.room_id]: (prev[p.new.room_id] || 0) + 1 }));
+        }
       }).subscribe();
+
     return () => { supabase.removeChannel(rc); supabase.removeChannel(mc); };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, blockedUsers]);
 
   // ─── AUTO SCROLL ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -722,6 +754,9 @@ export default function SukoonChat({ T, lang, setTab }) {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(t => pc.addTrack(t, localStream.current));
+    
+    if (pc.addTransceiver) { pc.addTransceiver('audio', { direction: 'sendrecv' }); }
+
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       remoteStreamRef.current = stream;
@@ -734,7 +769,6 @@ export default function SukoonChat({ T, lang, setTab }) {
         signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: ev.candidate, sender: currentUser.id, target: peerId } });
     };
     pc.oniceconnectionstatechange = () => {
-      console.log(`ICE state [${peerId}]:`, pc.iceConnectionState);
       if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) cleanupCall();
     };
     return pc;
@@ -809,7 +843,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     setActiveCallId(null); activeCallIdRef.current = null;
   };
 
-  // ─── AUDIO BRIDGE (iOS + Old Android) ────────────────────────────────────
   const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
@@ -822,35 +855,42 @@ export default function SukoonChat({ T, lang, setTab }) {
     });
   };
 
-  // ─── CHAT MANAGEMENT ─────────────────────────────────────────────────────
+  // ─── CHAT MANAGEMENT & SAFETY ─────────────────────────────────────────────
   const handleSearch = async () => {
     if (!currentUser || searchTerm.length < 3) return;
     const { data } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
-    setSearchResults(data || []);
+    const filteredResults = data ? data.filter(u => !blockedUsers.includes(u.id)) : [];
+    setSearchResults(filteredResults);
   };
+
   const startPrivateChat = async (friend) => {
-    const { data: ex } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
-    if (ex?.length > 0) { setActiveRoom(ex[0]); }
+    const { data: existing } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
+    if (existing?.length > 0) { setActiveRoom(existing[0]); }
     else {
       const { data: nr } = await supabase.from('rooms').insert([{ name: `${currentUser.email}:::${friend.email}`, is_private: true, participants: [currentUser.id, friend.id] }]).select();
       if (nr) { setRooms(p => [...p, nr[0]]); setActiveRoom(nr[0]); }
     }
     setSearchTerm(""); setSearchResults([]);
   };
+
   const searchForGroup = async () => {
     if (!currentUser || groupSearchTerm.length < 3) return;
     const { data } = await supabase.from('profiles').select('*').ilike('email', `%${groupSearchTerm}%`).neq('id', currentUser.id);
-    setGroupSearchResults(data || []);
+    const filteredResults = data ? data.filter(u => !blockedUsers.includes(u.id)) : [];
+    setGroupSearchResults(filteredResults);
   };
+
   const addFriendToGroupList = (f) => {
     if (!selectedFriends.find(x => x.id === f.id)) setSelectedFriends([...selectedFriends, f]);
     setGroupSearchTerm(""); setGroupSearchResults([]);
   };
+
   const createGroupChat = async () => {
     if (!groupName.trim() || selectedFriends.length === 0) return alert(hi ? "एक नाम और मित्र की आवश्यकता है!" : "Need a group name and at least 1 friend!");
     const { data: nr } = await supabase.from('rooms').insert([{ name: groupName, is_private: false, participants: [currentUser.id, ...selectedFriends.map(f => f.id)] }]).select();
     if (nr) { setRooms(p => [...p, nr[0]]); setShowGroupModal(false); setGroupName(""); setSelectedFriends([]); setActiveRoom(nr[0]); }
   };
+
   const getRoomDisplayName = (room) => {
     if (room.is_private && room.name.includes(':::')) {
       const [a, b] = room.name.split(':::');
@@ -858,15 +898,18 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
     return `👥 ${room.name}`;
   };
+
   const handleLogout = async () => {
     if (!window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?")) return;
     await supabase.auth.signOut(); setTab('home'); window.location.reload();
   };
+
   const handleDeleteMessage = async (id) => {
     if (!window.confirm(hi ? "हटाएं?" : "Delete?")) return;
     setMessages(p => p.filter(m => m.id !== id));
     await supabase.from('messages').delete().eq('id', id);
   };
+
   const handleBackOrHome = () => {
     setIsAutoScrolling(false);
     if (isInCallRef.current) endCall();
@@ -874,13 +917,144 @@ export default function SukoonChat({ T, lang, setTab }) {
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
-  const typingUsers = Object.values(presentUsers).filter(u => u.is_typing);
+  // 🌟 SAFETY ACTIONS
+  const handleBlockUser = async () => {
+    if (!activeRoom || !activeRoom.is_private) return;
+    if (!window.confirm(hi ? "क्या आप वाकई इस उपयोगकर्ता को ब्लॉक करना चाहते हैं?" : "Are you sure you want to block this user? They will no longer be able to message or call you.")) return;
+    
+    const friendId = activeRoom.participants.find(id => id !== currentUser.id);
+    await supabase.from('blocks').insert({ blocker_id: currentUser.id, blocked_id: friendId });
+    
+    setBlockedUsers(prev => [...prev, friendId]);
+    setRooms(prev => prev.filter(r => r.id !== activeRoom.id));
+    setActiveRoom(null);
+    setShowSafetyModal(false);
+    alert(hi ? "उपयोगकर्ता को ब्लॉक कर दिया गया है।" : "User has been blocked.");
+  };
+
+  const handleReportUser = async () => {
+    if (!activeRoom || !reportReason.trim()) return alert(hi ? "कृपया कारण दर्ज करें।" : "Please enter a reason.");
+    const friendId = activeRoom.is_private ? activeRoom.participants.find(id => id !== currentUser.id) : null;
+    
+    await supabase.from('reports').insert({ reporter_id: currentUser.id, reported_id: friendId, reason: reportReason });
+    
+    setShowSafetyModal(false);
+    setReportReason("");
+    alert(hi ? "रिपोर्ट सुरक्षित रूप से दर्ज कर ली गई है।" : "Report submitted securely.");
+  };
+
+  // 🌟 THE SECURITY DESK (Unblock Logic)
+  const openManageBlocks = async () => {
+    if (blockedUsers.length > 0) {
+      const { data } = await supabase.from('profiles').select('*').in('id', blockedUsers);
+      setBlockedProfiles(data || []);
+    } else {
+      setBlockedProfiles([]);
+    }
+    setShowManageBlocks(true);
+  };
+
+  const handleUnblock = async (targetId) => {
+    if (!window.confirm(hi ? "क्या आप इस उपयोगकर्ता को अनब्लॉक करना चाहते हैं?" : "Are you sure you want to unblock this user?")) return;
+    
+    await supabase.from('blocks').delete().eq('blocker_id', currentUser.id).eq('blocked_id', targetId);
+    
+    const newBlockedList = blockedUsers.filter(id => id !== targetId);
+    setBlockedUsers(newBlockedList);
+    setBlockedProfiles(prev => prev.filter(u => u.id !== targetId));
+    
+    // Refresh rooms so the unblocked private chat reappears
+    const { data } = await supabase.from('rooms').select('*');
+    if (data) {
+      const filteredRooms = data.filter(room => {
+        if (room.is_private) {
+          const otherUser = room.participants.find(p => p !== currentUser.id);
+          return !newBlockedList.includes(otherUser);
+        }
+        return true;
+      });
+      setRooms(filteredRooms);
+    }
+    
+    alert(hi ? "उपयोगकर्ता को अनब्लॉक कर दिया गया है।" : "User has been unblocked.");
+  };
+
+  const typingUsers = Object.values(presentUsers).filter(u => u.is_typing && !blockedUsers.includes(u.id));
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
       <audio id="sukoon-remote-audio" autoPlay playsInline muted
         style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
+
+      {/* 🌟 SECURITY DESK MODAL (Manage Blocks) */}
+      {showManageBlocks && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalBox}>
+            <h3 style={{ margin: '0 0 15px 0', color: T.text, fontFamily: "'DM Sans', sans-serif" }}>
+              🛡️ {hi ? "ब्लॉक किए गए उपयोगकर्ता" : "Manage Blocked Users"}
+            </h3>
+            
+            {blockedProfiles.length === 0 ? (
+              <p style={{ color: T.textSoft, fontSize: '14px', marginBottom: '20px' }}>
+                {hi ? "कोई उपयोगकर्ता ब्लॉक नहीं है।" : "No users are currently blocked."}
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', maxHeight: '200px', overflowY: 'auto' }}>
+                {blockedProfiles.map(u => (
+                  <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: `${T.accent}05`, borderRadius: '12px', border: `1px solid ${T.accent}20` }}>
+                    <span style={{ fontSize: '14px', color: T.text }}>{u.email.split('@')[0]}</span>
+                    <button 
+                      style={{ background: '#2ecc71', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }} 
+                      onClick={() => handleUnblock(u.id)}
+                    >
+                      {hi ? "अनब्लॉक" : "Unblock"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <button style={{ ...s.backBtn, width: '100%' }} onClick={() => setShowManageBlocks(false)}>
+              {hi ? "बंद करें" : "Close"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Safety & Moderation Modal */}
+      {showSafetyModal && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalBox}>
+            <h3 style={{ margin: '0 0 15px 0', color: T.text, fontFamily: "'DM Sans', sans-serif" }}>
+              {hi ? "सुरक्षा और गोपनीयता" : "Safety & Privacy"}
+            </h3>
+            
+            <p style={{ fontSize: '14px', color: T.textSoft, marginBottom: '20px' }}>
+              {hi ? "JSukoon एक सुरक्षित स्थान है। यदि कोई आपको परेशान कर रहा है, तो आप उन्हें रोक सकते हैं या रिपोर्ट कर सकते हैं।" : "JSukoon is a safe space. If someone is bothering you, you can block or report them."}
+            </p>
+
+            <input 
+              style={{ ...s.searchInput, width: '100%', boxSizing: 'border-box', marginBottom: '15px' }}
+              placeholder={hi ? "रिपोर्ट का कारण..." : "Reason for reporting..."} 
+              value={reportReason} 
+              onChange={e => setReportReason(e.target.value)} 
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button style={{ ...s.actionBtn, background: '#ef4444', color: '#fff' }} onClick={handleReportUser}>
+                🚨 {hi ? "रिपोर्ट करें" : "Report User"}
+              </button>
+              <button style={{ ...s.actionBtn, background: 'transparent', border: `1px solid #ef4444`, color: '#ef4444' }} onClick={handleBlockUser}>
+                🚫 {hi ? "ब्लॉक करें" : "Block User"}
+              </button>
+              <button style={{ ...s.backBtn, alignSelf: 'center', marginTop: '10px' }} onClick={() => setShowSafetyModal(false)}>
+                {hi ? "रद्द करें" : "Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showGroupModal && (
         <div style={s.modalOverlay}>
@@ -929,11 +1103,18 @@ export default function SukoonChat({ T, lang, setTab }) {
           )}
         </div>
         {activeRoom ? (
-          <button
-            style={isInCallRef.current ? s.callBtnDisabled : s.callBtn}
-            onClick={startCall} disabled={isInCallRef.current}
-            title={hi ? "वॉयस कॉल" : "Voice call"}
-          >📞</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <button
+              style={isInCallRef.current ? s.callBtnDisabled : s.callBtn}
+              onClick={startCall} disabled={isInCallRef.current}
+              title={hi ? "वॉयस कॉल" : "Voice call"}
+            >📞</button>
+            {activeRoom.is_private && (
+              <button style={s.shieldBtn} onClick={() => setShowSafetyModal(true)} title="Safety & Privacy">
+                🛡️
+              </button>
+            )}
+          </div>
         ) : (
           <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "Logout"}</button>
         )}
@@ -966,9 +1147,15 @@ export default function SukoonChat({ T, lang, setTab }) {
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
-            <button style={s.bigGroupBtn} onClick={() => setShowGroupModal(true)}>
-              👥 {hi ? "+ नया ग्रुप बनाएं" : "+ Create New Group"}
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
+              <button style={{ ...s.bigGroupBtn, flex: 1, marginBottom: 0 }} onClick={() => setShowGroupModal(true)}>
+                👥 {hi ? "नया ग्रुप" : "New Group"}
+              </button>
+              <button style={{ ...s.bigGroupBtn, flex: 1, marginBottom: 0, border: `1px solid ${T.accent}`, background: 'transparent' }} onClick={openManageBlocks}>
+                🛡️ {hi ? "ब्लॉक सूची" : "Blocked Users"}
+              </button>
+            </div>
+            
             <div style={s.searchRow}>
               <input style={s.searchInput}
                 placeholder={hi ? "ईमेल से दोस्त खोजें..." : "Find friend by email..."}
