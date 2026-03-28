@@ -46,7 +46,6 @@ const SecurityKit = {
       "raw", sharedSecretBits, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]
     );
   },
-  // 🌟 RESTORED: Standard, Unbreakable Web APIs (No more crashing Send button!)
   encryptText: async (text, aesKey) => {
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const encoded = new TextEncoder().encode(text);
@@ -64,16 +63,6 @@ const SecurityKit = {
       return new TextDecoder().decode(decrypted);
     } catch (e) { return "🔒 [Encrypted Message]"; }
   }
-};
-
-// ─── DISPOSABLE SPEAKER BOX (Hardware Audio Fix) ───
-const AudioPlayer = ({ stream }) => {
-  const audioRef = useRef(null);
-  useEffect(() => {
-    if (audioRef.current && stream) audioRef.current.srcObject = stream;
-    return () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.srcObject = null; } };
-  }, [stream]);
-  return <audio ref={audioRef} autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />;
 };
 
 export default function SukoonChat({ T, lang, setTab }) {
@@ -109,7 +98,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [remoteStreams, setRemoteStreams] = useState([]); 
   const [showAudioBridge, setShowAudioBridge] = useState(false);
 
-  // 🌟 THE VAULT STATE LOCK (Fixes the Race Condition!)
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const myMasterKeyRef = useRef(null); 
   const activeAESKeysRef = useRef({}); 
@@ -173,7 +161,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', zIndex: 50 },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' },
     autoScrollBtn: (active) => ({ position: 'absolute', bottom: '100px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, color: active ? T.bg : T.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 100, transition: '0.3s' }),
-    bridgeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(15px)', textAlign: 'center', padding: '20px' },
+    bridgeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(15px)', textAlign: 'center', padding: '20px' },
     bridgeBtn: { padding: '20px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', boxShadow: '0 0 20px #4ade80' }
   };
 
@@ -183,7 +171,6 @@ export default function SukoonChat({ T, lang, setTab }) {
       
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      
       const { data } = await supabase.from('rooms').select('*');
       if (data) setRooms(data);
       
@@ -208,7 +195,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           }
         } catch (e) { console.error("E2EE Initialization failed", e); }
         
-        // 🌟 UNLOCK THE VAULT ONLY WHEN MASTER KEYS ARE READY
         setIsVaultUnlocked(true);
       }
       setLoading(false);
@@ -222,6 +208,23 @@ export default function SukoonChat({ T, lang, setTab }) {
       return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))).join('')); 
     } catch (e) { return scrambled; }
   };
+
+  // 🌟 BUG FIX 1: Allow joining the call even if you are ALREADY inside the chat room!
+  useEffect(() => {
+    if (location.state?.incomingCallRoom) {
+      const room = location.state.incomingCallRoom;
+      window.history.replaceState({}, document.title); // Clear the trigger
+
+      if (activeRoomRef.current?.id === room.id) {
+        // You are already in the room chatting! Bypass the channel setup and join immediately.
+        if (!isInCallRef.current) joinCall();
+      } else {
+        // You are outside the room. Set the room, and let the channel setup trigger the join.
+        autoJoinRef.current = true;
+        setActiveRoom(room);
+      }
+    }
+  }, [location.state]);
 
   const fetchAndDecryptMessages = async (roomId) => {
     const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
@@ -240,7 +243,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     return decryptedData;
   };
 
-  // 🌟 THE FIX: The Chat Room is locked until `isVaultUnlocked` is true!
   useEffect(() => {
     if (!activeRoom || !currentUser || !isVaultUnlocked) return;
     let isSubscribed = true;
@@ -306,12 +308,15 @@ export default function SukoonChat({ T, lang, setTab }) {
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
-        if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
-          const theirPublicKey = await SecurityKit.importPublicKey(payload.publicKey);
-          const finalSecret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, theirPublicKey);
-          const secretArray = Array.from(new Uint8Array(finalSecret));
-          callSharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
+        // 🌟 BUG FIX 2: Prevent missing keys from silently killing the call
+        try {
+          if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
+            const theirPublicKey = await SecurityKit.importPublicKey(payload.publicKey);
+            const finalSecret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, theirPublicKey);
+            const secretArray = Array.from(new Uint8Array(finalSecret));
+            callSharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          }
+        } catch (cryptoErr) { console.warn("ECDH Handshake skipped for this call"); }
 
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
@@ -369,7 +374,7 @@ export default function SukoonChat({ T, lang, setTab }) {
       supabase.removeChannel(presenceRoom); 
       supabase.removeChannel(sigChannel); 
     };
-  }, [activeRoom, currentUser, isVaultUnlocked]); // 🌟 Dependency added!
+  }, [activeRoom, currentUser, isVaultUnlocked]); 
 
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
@@ -401,7 +406,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     
     await supabase.from('messages').insert([{ content: finalContentToSave, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email }]);
   };
-
 
   useEffect(() => {
     if (!activeCallId) return;
@@ -489,7 +493,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     return pc;
   };
 
-  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } setRemoteStreams(prev => prev.filter(p => p.userId !== peerId)); };
+  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } };
 
   const sendGlobalSignal = (actionPayload) => { supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: actionPayload }); };
 
@@ -501,9 +505,11 @@ export default function SukoonChat({ T, lang, setTab }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
       
-      const keys = await SecurityKit.generateKeys();
-      callPrivateKeyRef.current = keys.privateKey;
-      callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
+      try {
+        const keys = await SecurityKit.generateKeys();
+        callPrivateKeyRef.current = keys.privateKey;
+        callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
+      } catch (keyErr) { console.warn("Call key gen failed", keyErr); }
 
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
       let currentCallId = null;
@@ -541,11 +547,13 @@ export default function SukoonChat({ T, lang, setTab }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
 
-      const keys = await SecurityKit.generateKeys();
-      callPrivateKeyRef.current = keys.privateKey;
-      callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
+      try {
+        const keys = await SecurityKit.generateKeys();
+        callPrivateKeyRef.current = keys.privateKey;
+        callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
+      } catch (keyErr) { console.warn("Join key gen failed", keyErr); }
 
-      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted', receiver_public_key: callPublicKeyStrRef.current }).eq('id', activeCallIdRef.current);
+      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted', receiver_public_key: callPublicKeyStrRef.current || null }).eq('id', activeCallIdRef.current);
       signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current } });
     } catch (error) { alert("Failed to join call: " + error.message); }
   };
