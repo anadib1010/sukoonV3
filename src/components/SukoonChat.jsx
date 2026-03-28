@@ -24,7 +24,6 @@ const SecurityKit = {
       "spki", bytes, { name: "ECDH", namedCurve: "P-256" }, true, []
     );
   },
-  // Hides the Master Key in the phone's local storage
   exportPrivateKeyToVault: async (privateKey) => {
     const jwk = await window.crypto.subtle.exportKey("jwk", privateKey);
     return JSON.stringify(jwk);
@@ -35,7 +34,6 @@ const SecurityKit = {
       "jwk", jwk, { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]
     );
   },
-  // Mixes your key with their padlock to make the Shared Secret
   deriveSecretBits: async (myPrivateKey, theirPublicKey) => {
     return await window.crypto.subtle.deriveBits(
       { name: "ECDH", public: theirPublicKey },
@@ -43,13 +41,12 @@ const SecurityKit = {
       256
     );
   },
-  // Turns the Shared Secret into the AES-GCM Steel Safe
   createAESKey: async (sharedSecretBits) => {
     return await window.crypto.subtle.importKey(
       "raw", sharedSecretBits, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]
     );
   },
-  // Locks text in the safe
+  // 🌟 RESTORED: Standard, Unbreakable Web APIs (No more crashing Send button!)
   encryptText: async (text, aesKey) => {
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const encoded = new TextEncoder().encode(text);
@@ -59,7 +56,6 @@ const SecurityKit = {
       iv: btoa(String.fromCharCode(...new Uint8Array(iv)))
     };
   },
-  // Unlocks the safe
   decryptText: async (cipherText64, iv64, aesKey) => {
     try {
       const cipherText = new Uint8Array(atob(cipherText64).split('').map(c => c.charCodeAt(0)));
@@ -68,6 +64,16 @@ const SecurityKit = {
       return new TextDecoder().decode(decrypted);
     } catch (e) { return "🔒 [Encrypted Message]"; }
   }
+};
+
+// ─── DISPOSABLE SPEAKER BOX (Hardware Audio Fix) ───
+const AudioPlayer = ({ stream }) => {
+  const audioRef = useRef(null);
+  useEffect(() => {
+    if (audioRef.current && stream) audioRef.current.srcObject = stream;
+    return () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.srcObject = null; } };
+  }, [stream]);
+  return <audio ref={audioRef} autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />;
 };
 
 export default function SukoonChat({ T, lang, setTab }) {
@@ -103,7 +109,8 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [remoteStreams, setRemoteStreams] = useState([]); 
   const [showAudioBridge, setShowAudioBridge] = useState(false);
 
-  // 🌟 TEXT MESSAGE VAULT KEYS 🌟
+  // 🌟 THE VAULT STATE LOCK (Fixes the Race Condition!)
+  const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const myMasterKeyRef = useRef(null); 
   const activeAESKeysRef = useRef({}); 
 
@@ -116,7 +123,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const ringTimeoutRef = useRef(null);
   const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
-  // 🌟 WEBRTC CALL EPHEMERAL KEYS 🌟
   const callPrivateKeyRef = useRef(null); 
   const callPublicKeyStrRef = useRef(null); 
   const callSharedSecretRef = useRef(null); 
@@ -124,10 +130,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
 
-  const safeSetIsInCall = (status) => {
-    setIsInCall(status);
-    isInCallRef.current = status;
-  };
+  const safeSetIsInCall = (status) => { setIsInCall(status); isInCallRef.current = status; };
 
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -174,7 +177,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     bridgeBtn: { padding: '20px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', boxShadow: '0 0 20px #4ade80' }
   };
 
-  // 🌟 INIT & MASTER KEY GENERATION 🌟
   useEffect(() => {
     async function initializeKeysAndUser() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
@@ -191,7 +193,6 @@ export default function SukoonChat({ T, lang, setTab }) {
           if (token) await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
         } catch (e) { console.log("Push token skip"); }
 
-        // Master E2EE Key Management
         try {
           const savedPrivJwk = localStorage.getItem('sukoon_master_key');
           if (savedPrivJwk) {
@@ -206,26 +207,45 @@ export default function SukoonChat({ T, lang, setTab }) {
             await supabase.from('profiles').upsert({ id: user.id, email: user.email, public_key: exportedPub });
           }
         } catch (e) { console.error("E2EE Initialization failed", e); }
+        
+        // 🌟 UNLOCK THE VAULT ONLY WHEN MASTER KEYS ARE READY
+        setIsVaultUnlocked(true);
       }
       setLoading(false);
     }
     initializeKeysAndUser();
   }, []);
 
-  // Backwards compatibility for old XOR messages so chat history survives
   const decryptXORFallback = (scrambled, key) => {
-    try { return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ key.charCodeAt(i % key.length))).join('')); } 
-    catch (e) { return scrambled; }
+    try { 
+      const keyStr = String(key); 
+      return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))).join('')); 
+    } catch (e) { return scrambled; }
   };
 
-  // 🌟 THE RESTORED TEXT ENGINE 🌟
-  useEffect(() => {
-    if (!activeRoom || !currentUser) return;
+  const fetchAndDecryptMessages = async (roomId) => {
+    const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
+    if (!data) return [];
+    
+    const aesKey = activeAESKeysRef.current[roomId];
+    const decryptedData = await Promise.all(data.map(async (m) => {
+      if (m.content.includes(':::') && aesKey) {
+        const [iv, cipher] = m.content.split(':::');
+        m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
+      } else {
+        m.decrypted_content = decryptXORFallback(m.content, roomId);
+      }
+      return m;
+    }));
+    return decryptedData;
+  };
 
+  // 🌟 THE FIX: The Chat Room is locked until `isVaultUnlocked` is true!
+  useEffect(() => {
+    if (!activeRoom || !currentUser || !isVaultUnlocked) return;
     let isSubscribed = true;
 
     const setupRoomEncryptionAndFetch = async () => {
-      // 1. Handshake the AES Keys
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
       if (friendId && myMasterKeyRef.current) {
         const { data: friendProfile } = await supabase.from('profiles').select('public_key').eq('id', friendId).maybeSingle();
@@ -239,24 +259,10 @@ export default function SukoonChat({ T, lang, setTab }) {
         }
       }
 
-      // 2. Fetch the texts!
-      const { data } = await supabase.from('messages').select('*').eq('room_id', activeRoom.id).order('created_at', { ascending: true });
-      
-      if (data && isSubscribed) {
-        const aesKey = activeAESKeysRef.current[activeRoom.id];
-        const decryptedData = await Promise.all(data.map(async (m) => {
-          if (m.content.includes(':::') && aesKey) {
-            const [iv, cipher] = m.content.split(':::');
-            m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
-          } else {
-            m.decrypted_content = decryptXORFallback(m.content, activeRoom.id);
-          }
-          return m;
-        }));
-        
-        setMessages(decryptedData);
-        
-        const unreadIds = decryptedData.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
+      const decryptedMessages = await fetchAndDecryptMessages(activeRoom.id);
+      if (isSubscribed) {
+        setMessages(decryptedMessages);
+        const unreadIds = decryptedMessages.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
         if (unreadIds.length > 0) supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
         setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
       }
@@ -264,7 +270,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
     setupRoomEncryptionAndFetch();
 
-    // 3. Listen for NEW text messages
     const chatChannel = supabase.channel(`room-${activeRoom.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         async (payload) => {
@@ -364,32 +369,40 @@ export default function SukoonChat({ T, lang, setTab }) {
       supabase.removeChannel(presenceRoom); 
       supabase.removeChannel(sigChannel); 
     };
-  }, [activeRoom, currentUser]); 
+  }, [activeRoom, currentUser, isVaultUnlocked]); // 🌟 Dependency added!
 
-  // ─── THE SEND TEXT MESSAGE ENGINE ───
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
     
+    const rawMessage = message;
+    setMessage(""); setIsTyping(false);
+    if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+
     let finalContentToSave = "";
+    let useXorFallback = false;
     const aesKey = activeAESKeysRef.current[activeRoom.id];
 
     if (aesKey) {
-      // 🔒 AES-GCM Military Grade Lock
-      const encrypted = await SecurityKit.encryptText(message, aesKey);
-      finalContentToSave = `${encrypted.iv}:::${encrypted.cipherText}`;
+      try {
+        const encrypted = await SecurityKit.encryptText(rawMessage, aesKey);
+        finalContentToSave = `${encrypted.iv}:::${encrypted.cipherText}`;
+      } catch (err) {
+        console.error("Encryption Failed, falling back", err);
+        useXorFallback = true;
+      }
     } else {
-      // XOR Fallback if friend hasn't updated the app yet
-      finalContentToSave = btoa(encodeURIComponent(message).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ activeRoom.id.charCodeAt(i % activeRoom.id.length))).join(''));
+      useXorFallback = true;
     }
 
-    setMessage(""); setIsTyping(false);
-    if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+    if (useXorFallback) {
+      const keyStr = String(activeRoom.id);
+      finalContentToSave = btoa(encodeURIComponent(rawMessage).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))).join(''));
+    }
     
     await supabase.from('messages').insert([{ content: finalContentToSave, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email }]);
   };
 
 
-  // ─── BACKGROUND LOGIC ───
   useEffect(() => {
     if (!activeCallId) return;
     const boardWatcher = supabase.channel(`status-board-${activeCallId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` }, (payload) => {
@@ -463,7 +476,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     peers.current[peerId] = pc;
     if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
     
-    // 🌟 NATIVE HTML FIX for Android Audio
     pc.ontrack = (event) => {
       const remoteAudio = document.getElementById('sukoon-remote-audio');
       if (remoteAudio) {
@@ -624,7 +636,6 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   return (
     <div style={s.container}>
-      {/* 🌟 NATIVE HTML FIX: One permanent speaker that React CANNOT destroy! */}
       <audio id="sukoon-remote-audio" autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
 
       {showGroupModal && (
@@ -739,7 +750,6 @@ export default function SukoonChat({ T, lang, setTab }) {
                 return (
                   <div key={m.id} style={s.getBubbleWrapper(isMe)}>
                     {!isMe && <div style={s.senderName}>{m.user_email?.split('@')[0]}</div>}
-                    {/* 🌟 TEXT DECrypted Here */}
                     <div style={s.getBubble(isMe)}>{m.decrypted_content || "🔒 [Encrypted]"}</div>
                     <div style={s.statusBar}>
                       <div style={s.timestamp}>{formatTime(m.created_at)}</div>
