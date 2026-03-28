@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { SecurityKit } from '../utils/security';
 
 // 🌟 STEP 3: THE STUDIO ENGINEER ROBOT (SDP Munging)
+// This safely rewrites the invitation letter to force max quality Opus audio
 const enforceHighQualityOpus = (sdp) => {
   let modifiedSdp = sdp;
   const opusRegex = /a=rtpmap:(\d+) opus\/48000\/2/;
@@ -67,7 +68,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   // 2. END & CLEANUP 
   const cleanupCall = () => {
     const audio = document.getElementById('sukoon-remote-audio');
-    if (audio) { audio.pause(); audio.srcObject = null; audio.load(); audio._studioProcessed = false; }
+    if (audio) { audio.pause(); audio.srcObject = null; audio.load(); }
     remoteStreamRef.current = null;
     
     Object.values(peers.current).forEach(pc => { 
@@ -103,7 +104,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const removePeer = (id) => { if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; } };
   const sendGlobalSignal = (p) => supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
 
-  // 3. PEER CONNECTION 
+  // 3. PEER CONNECTION (🔒 UNTOUCHED)
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
@@ -113,13 +114,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       remoteStreamRef.current = stream;
-      
-      // 🌟 STEP 4: THE ANTI-JITTER SHIELD
-      const receiver = event.receiver;
-      if (receiver && 'playoutDelayHint' in receiver) {
-        receiver.playoutDelayHint = 0.05; // 50 millisecond waiting room
-      }
-
       const audio = document.getElementById('sukoon-remote-audio');
       if (audio) { audio.srcObject = stream; audio.playsInline = true; }
       setShowAudioBridge(true);
@@ -136,7 +130,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return pc;
   };
 
-  // 4. SIGNALING LISTENER
+  // 4. SIGNALING LISTENER (🌟 STEP 3 APPLIED: SDP MUNGING)
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -157,7 +151,10 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false }); 
-          offer.sdp = enforceHighQualityOpus(offer.sdp); 
+          
+          // 🌟 The Secret P.S. Note for the Offer
+          offer.sdp = enforceHighQualityOpus(offer.sdp);
+          
           await pc.setLocalDescription(offer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
         }
@@ -169,7 +166,10 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           iceCandidateQueue.current[payload.sender] = [];
           
           const answer = await pc.createAnswer();
+          
+          // 🌟 The Secret P.S. Note for the Answer
           answer.sdp = enforceHighQualityOpus(answer.sdp);
+          
           await pc.setLocalDescription(answer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
         }
@@ -236,7 +236,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return () => supabase.removeChannel(r);
   }, [currentUser]);
 
-  // 6. START CALL
+  // 6. START CALL (🌟 STEP 1 & 2 APPLIED)
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
@@ -244,7 +244,13 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       await fetchSecureTrucks();
       
       localStream.current = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 }, 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          sampleRate: 48000, 
+          channelCount: 1    
+        }, 
         video: false 
       });
       
@@ -271,7 +277,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Microphone Access Failed: " + e.message); }
   };
 
-  // 7. JOIN CALL 
+  // 7. JOIN CALL (🌟 STEP 1 & 2 APPLIED)
   const joinCall = async () => {
     try {
       await fetchSecureTrucks();
@@ -279,7 +285,13 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
       
       localStream.current = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 }, 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          sampleRate: 48000, 
+          channelCount: 1    
+        }, 
         video: false 
       });
       
@@ -290,61 +302,15 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // 8. AUDIO BRIDGE (🌟 STEP 5: THE STUDIO ENGINEER WITH TITANIUM SAFETY NET)
-  const handleStartAudio = async () => {
+  // 8. AUDIO BRIDGE (🔒 UNTOUCHED)
+  const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
-
-    let streamToPlay = remoteStreamRef.current;
-
-    try {
-      // If the browser supports the mixer, and we haven't mixed it yet
-      if (remoteStreamRef.current && !audio._studioProcessed && (window.AudioContext || window.webkitAudioContext)) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioContext();
-        const source = ctx.createMediaStreamSource(remoteStreamRef.current);
-
-        // A. The Dynamics Compressor (Levels the volume)
-        const compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = -24;
-        compressor.knee.value = 30;
-        compressor.ratio.value = 12;
-        compressor.attack.value = 0.003;
-        compressor.release.value = 0.25;
-
-        // B. The EQ (Boosts 2500Hz Voice Clarity)
-        const filter = ctx.createBiquadFilter();
-        filter.type = "peaking";
-        filter.frequency.value = 2500;
-        filter.Q.value = 1;
-        filter.gain.value = 3;
-
-        const dest = ctx.createMediaStreamDestination();
-
-        // Connect the wires: Raw Audio -> EQ -> Compressor -> Output
-        source.connect(filter);
-        filter.connect(compressor);
-        compressor.connect(dest);
-
-        streamToPlay = dest.stream; // Use the polished audio!
-        audio._studioProcessed = true;
-
-        if (ctx.state === 'suspended') await ctx.resume();
-      }
-    } catch (e) {
-      // TITANIUM SAFETY NET: If the old phone gets confused, bypass the mixer entirely!
-      console.warn("Studio Engineer fallback triggered. Using raw crystal clear audio.", e);
-      streamToPlay = remoteStreamRef.current; 
-    }
-
-    // Assign whichever stream survived (Mixed or Raw) to the speakers
-    if (streamToPlay && audio.srcObject !== streamToPlay) {
-       audio.srcObject = streamToPlay;
-    }
-
+    if (remoteStreamRef.current && !audio.srcObject) audio.srcObject = remoteStreamRef.current;
+    
     audio.playsInline = true;
     audio.muted = false;
-
+    
     audio.play().then(() => {
       setShowAudioBridge(false);
     }).catch(e => {
