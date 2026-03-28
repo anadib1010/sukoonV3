@@ -184,22 +184,38 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       maxWidth: "340px",
       lineHeight: 1.5,
       margin: "12px 0 0 0",
+    },
+    // 🌟 New: The 600px Picture Frame Style for Legal Popups
+    legalOverlay: {
+      position: 'fixed', inset: 0, zIndex: 99999, 
+      background: "#080808", 
+      display: "flex", justifyContent: "center"
+    },
+    legalFrame: {
+      width: "100%", maxWidth: "600px", height: "100%", 
+      background: T.bg, 
+      boxShadow: "0 0 50px rgba(0,0,0,0.55)",
+      position: "relative"
     }
   };
 
-  // 🌟 Render Legal Screens if selected
+  // 🌟 Render Legal Screens inside the 600px Frame
   if (legalView === 'terms') {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: T.bg }}>
-        <Terms goBack={() => setLegalView(null)} T={T} lang="English" setTab={() => {}} />
+      <div style={st.legalOverlay}>
+        <div style={st.legalFrame}>
+          <Terms goBack={() => setLegalView(null)} T={T} lang="English" setTab={() => {}} />
+        </div>
       </div>
     );
   }
 
   if (legalView === 'privacy') {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: T.bg }}>
-        <Privacy goBack={() => setLegalView(null)} T={T} lang="English" setTab={() => {}} />
+      <div style={st.legalOverlay}>
+        <div style={st.legalFrame}>
+          <Privacy goBack={() => setLegalView(null)} T={T} lang="English" setTab={() => {}} />
+        </div>
       </div>
     );
   }
@@ -244,7 +260,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
         <div style={st.vibrationDot} />
         <p style={st.vibrationText}>Turn on vibration mode</p>
         
-        {/* 🌟 New Clickable Legal Disclaimer */}
+        {/* Clickable Legal Disclaimer */}
         <p style={st.legalText}>
           By continuing, you agree to the{" "}
           <span 
