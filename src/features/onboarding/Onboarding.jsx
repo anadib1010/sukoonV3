@@ -161,12 +161,15 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       letterSpacing: "0.5px",
       margin: 0, textAlign: "center",
     },
-    // Bottom — vibration nudge
+    // Bottom — vibration nudge + legal
     bottomSection: {
       position: "absolute",
-      bottom: 40,
+      bottom: 24, // Slightly raised to fit the new text
       display: "flex", flexDirection: "column",
       alignItems: "center", gap: 6,
+      width: "100%",
+      padding: "0 24px",
+      boxSizing: "border-box",
     },
     vibrationDot: {
       width: 6, height: 6, borderRadius: "50%",
@@ -180,6 +183,16 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       color: "rgba(255,255,255,0.35)",
       margin: 0,
     },
+    // 🌟 New Legal Disclaimer Style
+    legalText: {
+      fontFamily: "'DM Sans', sans-serif",
+      fontSize: "9px",
+      color: "rgba(255,255,255,0.35)",
+      textAlign: "center",
+      maxWidth: "340px",
+      lineHeight: 1.5,
+      margin: "12px 0 0 0",
+    }
   };
 
   return (
@@ -217,10 +230,29 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
         <p style={st.disclaimer}>A simple guided experience, not medical advice.</p>
       </div>
 
-      {/* BOTTOM — vibration nudge */}
+      {/* BOTTOM — vibration nudge & Legal Text */}
       <div style={st.bottomSection}>
         <div style={st.vibrationDot} />
         <p style={st.vibrationText}>Turn on vibration mode</p>
+        
+        {/* 🌟 New Legal Disclaimer */}
+        <p style={st.legalText}>
+          By continuing, you agree to the{" "}
+          <span 
+            onClick={(e) => { e.stopPropagation(); window.open('/terms', '_blank'); }} 
+            style={{ textDecoration: "underline", cursor: "pointer" }}
+          >
+            Terms of Service
+          </span>{" "}
+          and{" "}
+          <span 
+            onClick={(e) => { e.stopPropagation(); window.open('/privacy', '_blank'); }} 
+            style={{ textDecoration: "underline", cursor: "pointer" }}
+          >
+            Privacy Policy
+          </span>{" "}
+          and understand that JSukoon is a self-help tool and not a medical or professional service.
+        </p>
       </div>
 
     </div>

@@ -333,7 +333,7 @@ export function Settings({
                 : (hi ? "सारा डेटा मिटाएं" : "Clear All App Data")}
             </button>
 
-            {/* Delete Account (Now safely inside the data section) */}
+            {/* Delete Account */}
             <button
               onClick={handleDeleteAccount}
               disabled={deleting}
@@ -356,6 +356,9 @@ export function Settings({
             </button>
             <button onClick={() => setTab("privacy")} style={s.footerLink}>
               {hi ? "गोपनीयता नीति" : "Privacy Policy"}
+            </button>
+            <button onClick={() => setTab("terms")} style={s.footerLink}>
+              {hi ? "सेवा की शर्तें" : "Terms of Service"}
             </button>
             <button onClick={() => setTab("legal")} style={s.footerLinkSmall}>
               {hi ? "कानूनी अस्वीकरण और शर्तें" : "Long Detailed Legal Disclaimer"}

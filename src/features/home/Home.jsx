@@ -101,9 +101,8 @@ export function Home({ setTab, T, lang }) {
       fontSize: "14px",
       fontWeight: 600,
       letterSpacing: "1.5px",
-      transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", // Updated transition for smooth rise
+      transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
       transform: "translateY(0px)",
-      // ADDED: Small shadow for a less flat look using the Rule of T
       boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`,
     },
     footerWrap: {
@@ -199,13 +198,11 @@ export function Home({ setTab, T, lang }) {
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = `${T.accent}20`;
               e.currentTarget.style.transform = "translateY(-2px)";
-              // ADDED: Increased shadow on hover for a floating 3D effect
               e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px ${T.accent}40`;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = "transparent";
               e.currentTarget.style.transform = "translateY(0px)";
-              // ADDED: Reset back to standard small shadow
               e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`;
             }}
             {...pressable}
@@ -217,6 +214,9 @@ export function Home({ setTab, T, lang }) {
 
         <div style={s.footerWrap}>
           <div style={s.footerLinks}>
+            <button onClick={() => setTab('terms')} style={s.footerLink}>
+              {hi ? "सेवा की शर्तें" : "Terms"}
+            </button>
             <button onClick={() => setTab('privacy')} style={s.footerLink}>
               {hi ? "गोपनीयता" : "Privacy"}
             </button>
