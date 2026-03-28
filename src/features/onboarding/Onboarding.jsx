@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Privacy } from '../privacy/Privacy';
+import { Terms } from '../privacy/Terms';
 
 export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
   const [visible, setVisible]     = useState(false);
   const [handLeft, setHandLeft]   = useState(true); // true = left hand showing
   const [handOpacity, setHandOpacity] = useState(1);
+  const [legalView, setLegalView] = useState(null); // 'terms' | 'privacy' | null
   const hasSpoken = useRef(false);
 
   useEffect(() => {
@@ -13,23 +16,23 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
   }, []);
 
   useEffect(() => {
+    if (legalView) return; // Don't force black background if viewing legal pages
     const prev = document.body.style.background;
     document.body.style.background = "#050505";
     return () => { document.body.style.background = prev; };
-  }, []);
+  }, [legalView]);
 
-  // Speak "Use your other hand" once on load — 0.8s after page fades in
+  // Speak "Use your other hand" once on load
   useEffect(() => {
-    if (!visible || hasSpoken.current) return;
+    if (!visible || hasSpoken.current || legalView) return;
     hasSpoken.current = true;
     const t = setTimeout(() => {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance("Use your other hand");
-      u.rate   = 0.85;   // slightly slower — calm, deliberate
-      u.pitch  = 0.9;    // slightly lower — grounded
+      u.rate   = 0.85;   
+      u.pitch  = 0.9;    
       u.volume = 0.9;
-      // Prefer a natural English voice if available
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find(v =>
         v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Samantha') || v.name.includes('Daniel'))
@@ -38,19 +41,20 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       window.speechSynthesis.speak(u);
     }, 800);
     return () => clearTimeout(t);
-  }, [visible]);
+  }, [visible, legalView]);
 
-  // Alternating hands — smooth crossfade every 1.8s
+  // Alternating hands
   useEffect(() => {
+    if (legalView) return;
     const interval = setInterval(() => {
       setHandOpacity(0);
       setTimeout(() => {
         setHandLeft(prev => !prev);
         setHandOpacity(1);
-      }, 500); // fade out 500ms, swap, fade in
+      }, 500); 
     }, 1800);
     return () => clearInterval(interval);
-  }, []);
+  }, [legalView]);
 
   const handleStart = () => {
     window.speechSynthesis?.cancel();
@@ -59,27 +63,19 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
     onComplete('reset');
   };
 
-  // Refined hand SVGs — clean line art, minimal
   const LeftHand = () => (
     <svg width="64" height="72" viewBox="0 0 64 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Palm */}
       <rect x="12" y="32" width="40" height="28" rx="8" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-      {/* Thumb */}
       <rect x="4" y="38" width="10" height="18" rx="5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-      {/* Index */}
       <rect x="14" y="12" width="9" height="22" rx="4.5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-      {/* Middle */}
       <rect x="25" y="8" width="9" height="26" rx="4.5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-      {/* Ring */}
       <rect x="36" y="10" width="9" height="24" rx="4.5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-      {/* Pinky */}
       <rect x="47" y="16" width="7" height="18" rx="3.5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
     </svg>
   );
 
   const RightHand = () => (
     <svg width="64" height="72" viewBox="0 0 64 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{transform:"scaleX(-1)"}}>
-      {/* Mirror of left hand */}
       <rect x="12" y="32" width="40" height="28" rx="8" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
       <rect x="4" y="38" width="10" height="18" rx="5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
       <rect x="14" y="12" width="9" height="22" rx="4.5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
@@ -100,7 +96,6 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       transition: "opacity 0.8s ease",
       gap: 0,
     },
-    // Top section — "Use your other hand" + hands
     topSection: {
       display: "flex", flexDirection: "column",
       alignItems: "center", gap: 16,
@@ -123,7 +118,6 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       opacity: handOpacity,
       transition: "opacity 0.5s ease",
     },
-    // Middle — hero button
     middleSection: {
       display: "flex", flexDirection: "column",
       alignItems: "center", width: "100%", maxWidth: 360, gap: 12,
@@ -161,10 +155,9 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       letterSpacing: "0.5px",
       margin: 0, textAlign: "center",
     },
-    // Bottom — vibration nudge + legal
     bottomSection: {
       position: "absolute",
-      bottom: 24, // Slightly raised to fit the new text
+      bottom: 24, 
       display: "flex", flexDirection: "column",
       alignItems: "center", gap: 6,
       width: "100%",
@@ -183,7 +176,6 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       color: "rgba(255,255,255,0.35)",
       margin: 0,
     },
-    // 🌟 New Legal Disclaimer Style
     legalText: {
       fontFamily: "'DM Sans', sans-serif",
       fontSize: "9px",
@@ -194,6 +186,23 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
       margin: "12px 0 0 0",
     }
   };
+
+  // 🌟 Render Legal Screens if selected
+  if (legalView === 'terms') {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: T.bg }}>
+        <Terms goBack={() => setLegalView(null)} T={T} lang="English" setTab={() => {}} />
+      </div>
+    );
+  }
+
+  if (legalView === 'privacy') {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: T.bg }}>
+        <Privacy goBack={() => setLegalView(null)} T={T} lang="English" setTab={() => {}} />
+      </div>
+    );
+  }
 
   return (
     <div style={st.page}>
@@ -235,19 +244,19 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T }) {
         <div style={st.vibrationDot} />
         <p style={st.vibrationText}>Turn on vibration mode</p>
         
-        {/* 🌟 New Legal Disclaimer */}
+        {/* 🌟 New Clickable Legal Disclaimer */}
         <p style={st.legalText}>
           By continuing, you agree to the{" "}
           <span 
-            onClick={(e) => { e.stopPropagation(); window.open('/terms', '_blank'); }} 
-            style={{ textDecoration: "underline", cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); setLegalView('terms'); }} 
+            style={{ textDecoration: "underline", cursor: "pointer", color: "rgba(255,255,255,0.7)" }}
           >
             Terms of Service
           </span>{" "}
           and{" "}
           <span 
-            onClick={(e) => { e.stopPropagation(); window.open('/privacy', '_blank'); }} 
-            style={{ textDecoration: "underline", cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); setLegalView('privacy'); }} 
+            style={{ textDecoration: "underline", cursor: "pointer", color: "rgba(255,255,255,0.7)" }}
           >
             Privacy Policy
           </span>{" "}
