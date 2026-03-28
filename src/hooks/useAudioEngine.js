@@ -20,6 +20,23 @@ const enforceHighQualityOpus = (sdp) => {
   return modifiedSdp;
 };
 
+// ─── SAMSUNG-SAFE AUDIO CONSTRAINTS ──────────────────────────────────────────
+// goog-prefixed constraints force Chrome/Samsung browser into the voice call
+// audio pipeline (same as WhatsApp) instead of the media/music pipeline
+// which Samsung browser quietly throttles at lower volume.
+const AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  sampleRate: { ideal: 48000 },
+  channelCount: { ideal: 1 },
+  googEchoCancellation: true,
+  googAutoGainControl: true,
+  googNoiseSuppression: true,
+  googHighpassFilter: true,
+  googAudioMirroring: false,
+};
+
 export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false);
@@ -48,7 +65,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const callPublicKeyStrRef = useRef(null);
   const callSharedSecretRef = useRef(null);
 
-  // Keep activeRoomRef in sync
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
 
   const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
@@ -63,27 +79,25 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80',               username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp',username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
       ]
     };
   };
 
   // ─── 2. AUDIO BOOST ENGINE ────────────────────────────────────────────────
-  // Compensates for old Samsung/Android browser gain reduction
   const applyAudioBoost = (stream) => {
+    if (!stream) return;
     try {
-      // Reuse existing context if possible
       if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
       if (ctx.state === 'suspended') ctx.resume();
-
       const source = ctx.createMediaStreamSource(stream);
       const gainNode = ctx.createGain();
-      gainNode.gain.value = 2.0; // Double volume for old devices
+      gainNode.gain.value = 2.0;
       source.connect(gainNode);
       gainNode.connect(ctx.destination);
     } catch (e) {
@@ -91,22 +105,25 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     }
   };
 
-  // ─── 3. PLAY AUDIO ELEMENT ────────────────────────────────────────────────
+  // ─── 3. PLAY REMOTE AUDIO ─────────────────────────────────────────────────
   const playRemoteAudio = (stream) => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(true); return; }
 
-    if (audio.srcObject !== stream) {
-      audio.srcObject = stream;
-    }
+    if (audio.srcObject !== stream) audio.srcObject = stream;
     audio.muted = false;
     audio.volume = 1.0;
     audio.playsInline = true;
 
+    // SAMSUNG FIX: setSinkId('') routes audio through the voice call
+    // pipeline instead of the media stream — this is why WhatsApp is loud
+    if (typeof audio.setSinkId === 'function') {
+      audio.setSinkId('').catch(e => console.warn('setSinkId failed:', e));
+    }
+
     audio.play()
       .then(() => {
         setShowAudioBridge(false);
-        // Apply gain boost after play succeeds — helps old Samsung devices
         applyAudioBoost(stream);
       })
       .catch((e) => {
@@ -121,7 +138,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     if (audio) { audio.pause(); audio.srcObject = null; audio.load(); }
     remoteStreamRef.current = null;
 
-    // Close AudioContext to free resources
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
@@ -144,7 +160,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     safeSetIsInCall(false);
     setShowAudioBridge(false);
 
-    // ─── CRITICAL: always null these refs so ECDH re-runs on next call ───
+    // CRITICAL: always null these so ECDH re-runs fresh on next call
     callPrivateKeyRef.current = null;
     callPublicKeyStrRef.current = null;
     callSharedSecretRef.current = null;
@@ -196,7 +212,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       const stream = event.streams[0];
       if (!stream) return;
       remoteStreamRef.current = stream;
-      // ─── FIX: play immediately on track arrival, don't wait for bridge ───
       playRemoteAudio(stream);
     };
 
@@ -210,9 +225,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) {
-        cleanupCall();
-      }
+      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) cleanupCall();
     };
 
     return pc;
@@ -230,7 +243,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     sigCh.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id || blockedUsers.includes(payload.sender)) return;
       try {
-        // ECDH key exchange
         if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
           try {
             const pub = await SecurityKit.importPublicKey(payload.publicKey);
@@ -253,9 +265,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          for (const c of (iceCandidateQueue.current[payload.sender] || [])) {
+          for (const c of (iceCandidateQueue.current[payload.sender] || []))
             await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
-          }
           iceCandidateQueue.current[payload.sender] = [];
           const answer = await pc.createAnswer();
           answer.sdp = enforceHighQualityOpus(answer.sdp);
@@ -269,9 +280,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           const pc = peers.current[payload.sender];
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            for (const c of (iceCandidateQueue.current[payload.sender] || [])) {
+            for (const c of (iceCandidateQueue.current[payload.sender] || []))
               await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
-            }
             iceCandidateQueue.current[payload.sender] = [];
           }
         }
@@ -344,14 +354,9 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       await new Promise(r => setTimeout(r, 300));
       await fetchSecureTrucks();
 
+      // SAMSUNG FIX: use AUDIO_CONSTRAINTS with goog prefix
       localStream.current = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: { ideal: 48000 },
-          channelCount: { ideal: 1 }
-        },
+        audio: AUDIO_CONSTRAINTS,
         video: false
       });
 
@@ -445,14 +450,9 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
 
       if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
 
+      // SAMSUNG FIX: use AUDIO_CONSTRAINTS with goog prefix on join side too
       localStream.current = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: { ideal: 48000 },
-          channelCount: { ideal: 1 }
-        },
+        audio: AUDIO_CONSTRAINTS,
         video: false
       });
 
@@ -493,6 +493,10 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
 
     audio.muted = false;
     audio.volume = 1.0;
+
+    if (typeof audio.setSinkId === 'function') {
+      audio.setSinkId('').catch(e => console.warn('setSinkId failed:', e));
+    }
 
     audio.play()
       .then(() => {
