@@ -3,13 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { requestFirebaseToken } from '../firebaseSetup';
 
-// ─── ECDH + AES-GCM SECURITY KIT ───────────────────────────────────────────
+// ─── ECDH + AES-GCM SECURITY KIT ──────────────────────────────────────────
 const SecurityKit = {
   generateKeys: async () => {
     return await window.crypto.subtle.generateKey(
-      { name: "ECDH", namedCurve: "P-256" },
-      true,
-      ["deriveKey", "deriveBits"]
+      { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]
     );
   },
   exportPublicKey: async (publicKey) => {
@@ -36,9 +34,7 @@ const SecurityKit = {
   },
   deriveSecretBits: async (myPrivateKey, theirPublicKey) => {
     return await window.crypto.subtle.deriveBits(
-      { name: "ECDH", public: theirPublicKey },
-      myPrivateKey,
-      256
+      { name: "ECDH", public: theirPublicKey }, myPrivateKey, 256
     );
   },
   createAESKey: async (sharedSecretBits) => {
@@ -61,11 +57,11 @@ const SecurityKit = {
       const iv = new Uint8Array(atob(iv64).split('').map(c => c.charCodeAt(0)));
       const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, cipherText);
       return new TextDecoder().decode(decrypted);
-    } catch (e) { return null; } // return null so caller can decide what to show
+    } catch (e) { return null; }
   }
 };
 
-// ─── XOR LEGACY FALLBACK ────────────────────────────────────────────────────
+// ─── XOR LEGACY FALLBACK ───────────────────────────────────────────────────
 const decryptXORFallback = (scrambled, key) => {
   try {
     const keyStr = String(key);
@@ -77,10 +73,34 @@ const decryptXORFallback = (scrambled, key) => {
   } catch (e) { return scrambled; }
 };
 
-// ─── DETECT iOS ─────────────────────────────────────────────────────────────
-const isIOS = () => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// ─── iOS DETECTION ─────────────────────────────────────────────────────────
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+// ─── DECRYPT ONE MESSAGE ───────────────────────────────────────────────────
+// Returns msg with decrypted_content set.
+// If aesKey is not ready yet, sets _needs_decrypt=true so we can retry later.
+const decryptOneMessage = async (m, aesKey) => {
+  const msg = { ...m };
+  if (msg.content && msg.content.includes(':::')) {
+    if (aesKey) {
+      const [iv, cipher] = msg.content.split(':::');
+      const result = await SecurityKit.decryptText(cipher, iv, aesKey);
+      msg.decrypted_content = result !== null
+        ? result
+        : '🔒 [Key mismatch — ask friend to reopen chat]';
+      msg._needs_decrypt = false;
+    } else {
+      // Key not ready yet — mark for retry, show spinner text
+      msg.decrypted_content = null;
+      msg._needs_decrypt = true;
+    }
+  } else {
+    msg.decrypted_content = decryptXORFallback(msg.content, msg.room_id);
+    msg._needs_decrypt = false;
+  }
+  return msg;
 };
 
 export default function SukoonChat({ T, lang, setTab }) {
@@ -113,22 +133,24 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false);
-
   const [showAudioBridge, setShowAudioBridge] = useState(false);
-  // FIX (Old Android + iOS): store remote stream in a ref so it survives re-renders
   const remoteStreamRef = useRef(null);
 
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const myMasterKeyRef = useRef(null);
   const activeAESKeysRef = useRef({});
-  // Track key-watcher channels so we can clean them up
+
+  // FIX (timing): a per-room Promise that resolves once AES key derivation completes.
+  // Real-time INSERT handler awaits this before decrypting, so messages that arrive
+  // during the async key derivation are never shown as "Key not ready".
+  const aesKeyReadyRef = useRef({});
+
   const keyWatcherChannelRef = useRef(null);
 
   const localStream = useRef(null);
   const peers = useRef({});
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
-
   const iceCandidateQueue = useRef({});
   const ringTimeoutRef = useRef(null);
   const iceServersRef = useRef({
@@ -141,65 +163,207 @@ export default function SukoonChat({ T, lang, setTab }) {
   const callPrivateKeyRef = useRef(null);
   const callPublicKeyStrRef = useRef(null);
   const callSharedSecretRef = useRef(null);
-
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
 
-  const safeSetIsInCall = (status) => { setIsInCall(status); isInCallRef.current = status; };
+  const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
 
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
-  // ─── STYLES ───────────────────────────────────────────────────────────────
+  // ─── STYLES ──────────────────────────────────────────────────────────────
   const s = {
-    container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative', fontFamily: "'DM Sans', sans-serif" },
-    header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}95`, backdropFilter: 'blur(10px)', zIndex: 10 },
-    headerTitleBox: { flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-    headerTitle: { fontWeight: 'bold', fontSize: '18px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '1px', color: T.text },
-    onlineStatus: { fontSize: '11px', color: '#4ade80', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' },
-    greenDot: { width: '8px', height: '8px', backgroundColor: '#4ade80', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #4ade80' },
-    backBtn: { padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', backgroundColor: `${T.accent}20`, color: T.accent, transition: '0.2s' },
-    logoutBtn: { padding: '8px 16px', borderRadius: '20px', border: `1px solid ${T.accent}30`, cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', background: 'transparent', color: T.text, opacity: 0.8 },
-    callBtn: { padding: '10px', background: `${T.accent}15`, border: `1px solid ${T.accent}40`, borderRadius: '50%', cursor: 'pointer', fontSize: '18px', color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' },
-    callBtnDisabled: { padding: '10px', background: 'transparent', border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.4 },
-    chatBox: { flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' },
-    searchRow: { display: 'flex', gap: '10px', marginBottom: '15px' },
-    searchInput: { flex: 1, padding: '14px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
-    actionBtn: { padding: '14px 20px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg, boxShadow: `0 4px 15px ${T.accent}40`, transition: '0.2s' },
-    bigGroupBtn: { width: '100%', padding: '15px', borderRadius: '16px', border: `2px dashed ${T.accent}`, backgroundColor: `${T.accent}10`, color: T.accent, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' },
-    roomCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', margin: '8px 0', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}`, boxShadow: `0 2px 10px rgba(0,0,0,0.05)`, cursor: 'pointer', color: T.text, fontWeight: '500' },
-    roomCardSearch: { padding: '15px', margin: '10px 0', borderRadius: '12px', border: `1px dashed ${T.accent}`, backgroundColor: `${T.accent}05`, cursor: 'pointer', color: T.text },
-    unreadBadge: { backgroundColor: '#ef4444', color: '#fff', borderRadius: '20px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' },
-    messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' },
-    emptyRoom: { textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.5, color: T.text },
-    getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%' }),
-    getBubble: (isMe) => ({ padding: '12px 18px', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', backgroundColor: isMe ? T.accent : `${T.accent}15`, color: isMe ? T.bg : T.text, border: isMe ? 'none' : `1px solid ${T.accent}20`, maxWidth: '75%', fontSize: '15px', lineHeight: '1.4', wordBreak: 'break-word' }),
-    senderName: { fontSize: '11px', marginBottom: '4px', opacity: 0.7, fontWeight: 'bold', color: T.text, marginLeft: '5px' },
-    statusBar: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', marginRight: '5px' },
-    timestamp: { fontSize: '10px', opacity: 0.5, color: T.text },
-    readTick: (isRead) => ({ fontSize: '12px', color: isRead ? '#3b82f6' : T.text, opacity: isRead ? 1 : 0.4 }),
-    deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px', opacity: 0.5, padding: 0 },
-    inputArea: { display: 'flex', padding: '15px 20px', alignItems: 'center', gap: '10px', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}15` },
-    inputField: { flex: 1, padding: '15px 20px', borderRadius: '30px', border: `1px solid ${T.accent}30`, fontSize: '15px', backgroundColor: `${T.accent}05`, color: T.text, outline: 'none' },
-    sendBtn: { padding: '15px 25px', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', backgroundColor: T.accent, color: T.bg },
-    modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
-    modalBox: { backgroundColor: T.bg, padding: '25px', borderRadius: '20px', width: '90%', maxWidth: '400px', border: `1px solid ${T.accent}40`, boxShadow: `0 10px 40px rgba(0,0,0,0.2)` },
-    selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '12px', margin: '2px', fontWeight: 'bold' },
-    callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', zIndex: 50 },
-    declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' },
-    autoScrollBtn: (active) => ({ position: 'absolute', bottom: '100px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, color: active ? T.bg : T.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 100, transition: '0.3s' }),
-    bridgeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(15px)', textAlign: 'center', padding: '20px' },
-    bridgeBtn: { padding: '20px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', boxShadow: '0 0 20px #4ade80' }
+    container: {
+      display: 'flex', flexDirection: 'column', height: '100%',
+      backgroundColor: T.bg, color: T.text, position: 'relative',
+      fontFamily: "'DM Sans', sans-serif", overflow: 'hidden'
+    },
+
+    // FIX (fixed header): sticky positioning so back + title + call btn
+    // are always visible no matter how far the user scrolls messages
+    header: {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '12px 16px', borderBottom: `1px solid ${T.accent}20`,
+      backgroundColor: T.bg, position: 'sticky', top: 0, zIndex: 50,
+      flexShrink: 0,
+    },
+    headerTitleBox: {
+      flex: 1, textAlign: 'center', display: 'flex',
+      flexDirection: 'column', alignItems: 'center', minWidth: 0, padding: '0 8px'
+    },
+    // FIX (font): DM Sans for room name in header — Cormorant is hard to read at small sizes
+    headerTitle: {
+      fontWeight: '700', fontSize: '16px', fontFamily: "'DM Sans', sans-serif",
+      letterSpacing: '0.2px', color: T.text,
+      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px'
+    },
+    // Keep Cormorant only for the home screen title — it looks great big
+    headerTitleHome: {
+      fontWeight: '700', fontSize: '20px', fontFamily: "'Cormorant Garamond', serif",
+      letterSpacing: '1px', color: T.text
+    },
+    onlineStatus: {
+      fontSize: '11px', color: '#4ade80', marginTop: '2px',
+      display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700'
+    },
+    greenDot: { width: '7px', height: '7px', backgroundColor: '#4ade80', borderRadius: '50%' },
+    backBtn: {
+      padding: '8px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+      fontWeight: '700', fontSize: '13px', backgroundColor: `${T.accent}20`,
+      color: T.accent, whiteSpace: 'nowrap', flexShrink: 0
+    },
+    logoutBtn: {
+      padding: '8px 14px', borderRadius: '20px', border: `1px solid ${T.accent}30`,
+      cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: 'transparent',
+      color: T.text, opacity: 0.8, whiteSpace: 'nowrap', flexShrink: 0
+    },
+    callBtn: {
+      width: '40px', height: '40px', background: `${T.accent}15`,
+      border: `1px solid ${T.accent}40`, borderRadius: '50%', cursor: 'pointer',
+      fontSize: '18px', color: T.accent, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0
+    },
+    callBtnDisabled: {
+      width: '40px', height: '40px', background: 'transparent',
+      border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.3, flexShrink: 0
+    },
+
+    // Scrollable area — this is the only part that scrolls
+    chatBox: {
+      flex: 1, padding: '16px', overflowY: 'auto', display: 'flex',
+      flexDirection: 'column', WebkitOverflowScrolling: 'touch'
+    },
+
+    searchRow: { display: 'flex', gap: '10px', marginBottom: '14px' },
+
+    // FIX (font size): 16px minimum so it's readable on mobile without zooming
+    searchInput: {
+      flex: 1, padding: '13px 18px', borderRadius: '30px',
+      border: `1px solid ${T.accent}30`, fontSize: '16px',
+      backgroundColor: `${T.accent}05`, color: T.text, outline: 'none',
+      fontFamily: "'DM Sans', sans-serif"
+    },
+    actionBtn: {
+      padding: '13px 20px', borderRadius: '30px', border: 'none', cursor: 'pointer',
+      fontWeight: '700', fontSize: '15px', backgroundColor: T.accent, color: T.bg,
+      boxShadow: `0 4px 15px ${T.accent}40`, flexShrink: 0
+    },
+    bigGroupBtn: {
+      width: '100%', padding: '15px', borderRadius: '16px',
+      border: `2px dashed ${T.accent}`, backgroundColor: `${T.accent}10`,
+      color: T.accent, fontWeight: '700', fontSize: '16px', cursor: 'pointer',
+      marginBottom: '18px', display: 'flex', justifyContent: 'center',
+      alignItems: 'center', gap: '10px', fontFamily: "'DM Sans', sans-serif"
+    },
+    roomCard: {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '16px 18px', margin: '6px 0', borderRadius: '16px',
+      border: `1px solid ${T.accent}20`, backgroundColor: T.bg,
+      boxShadow: `0 2px 8px rgba(0,0,0,0.05)`, cursor: 'pointer',
+      color: T.text, fontWeight: '500', fontSize: '15px'
+    },
+    roomCardSearch: {
+      padding: '14px 16px', margin: '8px 0', borderRadius: '12px',
+      border: `1px dashed ${T.accent}`, backgroundColor: `${T.accent}05`,
+      cursor: 'pointer', color: T.text, fontSize: '15px'
+    },
+    unreadBadge: {
+      backgroundColor: '#ef4444', color: '#fff', borderRadius: '20px',
+      padding: '3px 10px', fontSize: '12px', fontWeight: '700', flexShrink: 0
+    },
+    messageList: { flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' },
+    emptyRoom: { textAlign: 'center', marginTop: '40px', padding: '20px', opacity: 0.45, fontSize: '15px' },
+    getBubbleWrapper: (isMe) => ({
+      display: 'flex', flexDirection: 'column',
+      alignItems: isMe ? 'flex-end' : 'flex-start', width: '100%'
+    }),
+    getBubble: (isMe) => ({
+      padding: '11px 16px',
+      borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+      backgroundColor: isMe ? T.accent : `${T.accent}15`,
+      color: isMe ? T.bg : T.text,
+      border: isMe ? 'none' : `1px solid ${T.accent}20`,
+      maxWidth: '78%', fontSize: '15px', lineHeight: '1.5', wordBreak: 'break-word'
+    }),
+    senderName: {
+      fontSize: '12px', marginBottom: '3px', opacity: 0.6,
+      fontWeight: '700', color: T.text, marginLeft: '4px'
+    },
+    statusBar: { display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', marginRight: '4px' },
+    timestamp: { fontSize: '11px', opacity: 0.4, color: T.text },
+    readTick: (r) => ({ fontSize: '12px', color: r ? '#3b82f6' : T.text, opacity: r ? 1 : 0.4 }),
+    deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', opacity: 0.45, padding: 0 },
+
+    inputArea: {
+      display: 'flex', padding: '12px 16px', alignItems: 'center',
+      gap: '10px', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}15`, flexShrink: 0
+    },
+    // FIX (input font): DM Sans at 16px — Cormorant Garamond in a text input looks odd
+    inputField: {
+      flex: 1, padding: '14px 18px', borderRadius: '30px',
+      border: `1px solid ${T.accent}30`, fontSize: '16px',
+      backgroundColor: `${T.accent}05`, color: T.text, outline: 'none',
+      fontFamily: "'DM Sans', sans-serif"
+    },
+    sendBtn: {
+      padding: '14px 22px', borderRadius: '30px', border: 'none',
+      cursor: 'pointer', fontWeight: '700', fontSize: '16px',
+      backgroundColor: T.accent, color: T.bg, flexShrink: 0
+    },
+
+    modalOverlay: {
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex',
+      justifyContent: 'center', alignItems: 'center',
+      zIndex: 1000, backdropFilter: 'blur(6px)'
+    },
+    modalBox: {
+      backgroundColor: T.bg, padding: '24px', borderRadius: '20px',
+      width: '90%', maxWidth: '400px', border: `1px solid ${T.accent}40`,
+      boxShadow: `0 10px 40px rgba(0,0,0,0.2)`, maxHeight: '80vh', overflowY: 'auto'
+    },
+    selectedFriendPill: {
+      display: 'inline-block', padding: '5px 12px', borderRadius: '15px',
+      backgroundColor: `${T.accent}20`, color: T.accent,
+      fontSize: '13px', margin: '3px', fontWeight: '700'
+    },
+    callBanner: {
+      backgroundColor: `${T.accent}15`, color: T.text, padding: '10px 16px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', flexShrink: 0
+    },
+    declineBtn: {
+      padding: '6px 16px', background: '#ef4444', color: '#fff',
+      border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: '700'
+    },
+    autoScrollBtn: (active) => ({
+      position: 'absolute', bottom: '88px', right: '16px',
+      width: '38px', height: '38px', borderRadius: '50%', border: 'none',
+      backgroundColor: active ? T.accent : `${T.accent}30`,
+      color: active ? T.bg : T.accent, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '16px', zIndex: 40, boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+    }),
+    bridgeOverlay: {
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex',
+      flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+      zIndex: 2000, backdropFilter: 'blur(12px)', textAlign: 'center', padding: '24px'
+    },
+    bridgeBtn: {
+      padding: '18px 40px', borderRadius: '50px', backgroundColor: '#4ade80',
+      color: '#000', border: 'none', fontWeight: '700', fontSize: '18px',
+      cursor: 'pointer', fontFamily: "'DM Sans', sans-serif"
+    }
   };
 
-  // ─── INIT: KEYS + USER ────────────────────────────────────────────────────
+  // ─── INIT: KEYS + USER ───────────────────────────────────────────────────
   useEffect(() => {
-    async function initializeKeysAndUser() {
+    async function init() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission();
       }
-
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
       const { data } = await supabase.from('rooms').select('*');
@@ -210,35 +374,30 @@ export default function SukoonChat({ T, lang, setTab }) {
           const token = await requestFirebaseToken();
           if (token) await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
         } catch (e) { console.log("Push token skip"); }
-
-        // SELF-HEALING VAULT
         try {
-          const savedPrivJwk = localStorage.getItem('sukoon_master_key');
-          const savedPubStr = localStorage.getItem('sukoon_public_key');
-
-          if (savedPrivJwk && savedPubStr) {
-            myMasterKeyRef.current = await SecurityKit.importPrivateKeyFromVault(savedPrivJwk);
-            // Always sync our public key to DB so partners can re-derive
-            await supabase.from('profiles').update({ public_key: savedPubStr }).eq('id', user.id);
+          const savedPriv = localStorage.getItem('sukoon_master_key');
+          const savedPub = localStorage.getItem('sukoon_public_key');
+          if (savedPriv && savedPub) {
+            myMasterKeyRef.current = await SecurityKit.importPrivateKeyFromVault(savedPriv);
+            await supabase.from('profiles').update({ public_key: savedPub }).eq('id', user.id);
           } else {
-            const keyPair = await SecurityKit.generateKeys();
-            myMasterKeyRef.current = keyPair.privateKey;
-            const exportedPriv = await SecurityKit.exportPrivateKeyToVault(keyPair.privateKey);
-            const exportedPub = await SecurityKit.exportPublicKey(keyPair.publicKey);
-            localStorage.setItem('sukoon_master_key', exportedPriv);
-            localStorage.setItem('sukoon_public_key', exportedPub);
-            await supabase.from('profiles').update({ public_key: exportedPub }).eq('id', user.id);
+            const kp = await SecurityKit.generateKeys();
+            myMasterKeyRef.current = kp.privateKey;
+            const priv = await SecurityKit.exportPrivateKeyToVault(kp.privateKey);
+            const pub = await SecurityKit.exportPublicKey(kp.publicKey);
+            localStorage.setItem('sukoon_master_key', priv);
+            localStorage.setItem('sukoon_public_key', pub);
+            await supabase.from('profiles').update({ public_key: pub }).eq('id', user.id);
           }
-        } catch (e) { console.error("E2EE Initialization failed", e); }
-
+        } catch (e) { console.error("E2EE init failed", e); }
         setIsVaultUnlocked(true);
       }
       setLoading(false);
     }
-    initializeKeysAndUser();
+    init();
   }, []);
 
-  // ─── INCOMING CALL VIA NAVIGATION STATE ───────────────────────────────────
+  // ─── INCOMING CALL VIA NAV STATE ─────────────────────────────────────────
   useEffect(() => {
     if (location.state?.incomingCallRoom) {
       const room = location.state.incomingCallRoom;
@@ -252,785 +411,494 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   }, [location.state]);
 
-  // ─── HELPER: DERIVE AES KEY FROM A PARTNER'S PUBLIC KEY STRING ────────────
-  const deriveAESKeyFromPublicKeyStr = async (publicKeyStr) => {
+  // ─── HELPERS ─────────────────────────────────────────────────────────────
+  const deriveAESKey = async (publicKeyStr) => {
     if (!myMasterKeyRef.current || !publicKeyStr) return null;
     try {
-      const theirPub = await SecurityKit.importPublicKey(publicKeyStr);
-      const sharedBits = await SecurityKit.deriveSecretBits(myMasterKeyRef.current, theirPub);
-      return await SecurityKit.createAESKey(sharedBits);
-    } catch (e) {
-      console.error("AES Key Derivation Failed", e);
-      return null;
-    }
+      const pub = await SecurityKit.importPublicKey(publicKeyStr);
+      const bits = await SecurityKit.deriveSecretBits(myMasterKeyRef.current, pub);
+      return await SecurityKit.createAESKey(bits);
+    } catch (e) { console.error("Key derivation failed", e); return null; }
   };
 
-  // ─── HELPER: DECRYPT A SINGLE MESSAGE OBJECT ─────────────────────────────
-  const decryptMessage = async (m, aesKey) => {
-    if (m.content && m.content.includes(':::')) {
-      if (aesKey) {
-        const [iv, cipher] = m.content.split(':::');
-        const result = await SecurityKit.decryptText(cipher, iv, aesKey);
-        // FIX (Bug 1): null result means key mismatch, show helpful message
-        m.decrypted_content = result !== null ? result : "🔒 [Key mismatch - ask friend to re-open chat]";
-      } else {
-        m.decrypted_content = "🔒 [Secured Message - Key not ready]";
-      }
-    } else {
-      m.decrypted_content = decryptXORFallback(m.content, m.room_id);
-    }
-    return m;
-  };
-
-  // ─── FETCH + DECRYPT ALL MESSAGES FOR A ROOM ──────────────────────────────
   const fetchAndDecryptMessages = async (roomId) => {
     const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
     if (!data) return [];
     const aesKey = activeAESKeysRef.current[roomId];
-    return await Promise.all(data.map(m => decryptMessage({ ...m }, aesKey)));
+    return Promise.all(data.map(m => decryptOneMessage(m, aesKey)));
   };
 
-  // ─── MAIN ROOM EFFECT: ENCRYPTION + REALTIME + SIGNALING ─────────────────
+  // Re-decrypt any messages that arrived before the AES key was ready
+  const retryPendingDecrypts = async (roomId) => {
+    const aesKey = activeAESKeysRef.current[roomId];
+    if (!aesKey) return;
+    setMessages(prev => {
+      if (!prev.some(m => m._needs_decrypt)) return prev;
+      Promise.all(prev.map(m => m._needs_decrypt ? decryptOneMessage(m, aesKey) : Promise.resolve(m)))
+        .then(updated => setMessages(updated));
+      return prev; // keep prev while async runs; the .then above will update
+    });
+  };
+
+  // ─── MAIN ROOM EFFECT ────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeRoom || !currentUser || !isVaultUnlocked) return;
     let isSubscribed = true;
 
-    const setupRoomEncryptionAndFetch = async () => {
-      // Only do key exchange for 1-to-1 private rooms
+    const setup = async () => {
       const friendId = activeRoom.is_private
         ? activeRoom.participants.find(id => id !== currentUser.id)
         : null;
 
       if (friendId && myMasterKeyRef.current) {
-        const { data: friendProfile } = await supabase.from('profiles').select('public_key').eq('id', friendId).maybeSingle();
-        if (friendProfile?.public_key) {
-          const aesKey = await deriveAESKeyFromPublicKeyStr(friendProfile.public_key);
-          if (aesKey) activeAESKeysRef.current[activeRoom.id] = aesKey;
+        // FIX (timing): create a promise that the realtime handler will await.
+        // This guarantees no message is ever decrypted before the key is ready.
+        let resolveKeyReady;
+        aesKeyReadyRef.current[activeRoom.id] = new Promise(res => { resolveKeyReady = res; });
+
+        const { data: fp } = await supabase.from('profiles')
+          .select('public_key').eq('id', friendId).maybeSingle();
+        if (fp?.public_key) {
+          const key = await deriveAESKey(fp.public_key);
+          if (key) activeAESKeysRef.current[activeRoom.id] = key;
         }
 
-        // FIX (Bug 1): Watch for partner's public key rotation (logout/new device)
-        // Clean up any existing watcher first
+        // Key is now ready (or we failed — either way, unblock the queue)
+        resolveKeyReady();
+
+        // Decrypt anything that arrived during key derivation
+        if (isSubscribed) await retryPendingDecrypts(activeRoom.id);
+
+        // Watch for partner's key rotation (logout → new keypair)
         if (keyWatcherChannelRef.current) {
           await supabase.removeChannel(keyWatcherChannelRef.current);
           keyWatcherChannelRef.current = null;
         }
-
-        const keyWatcher = supabase
+        keyWatcherChannelRef.current = supabase
           .channel(`key-watch-${activeRoom.id}-${friendId}`)
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: `id=eq.${friendId}`
-          }, async (payload) => {
-            const newPubKey = payload.new?.public_key;
-            const oldPubKey = payload.old?.public_key;
-            if (newPubKey && newPubKey !== oldPubKey) {
-              console.log("Partner rotated public key — re-deriving AES key...");
-              const freshAES = await deriveAESKeyFromPublicKeyStr(newPubKey);
-              if (freshAES) {
-                activeAESKeysRef.current[activeRoom.id] = freshAES;
-                // Re-decrypt all messages with the new key
-                if (isSubscribed) {
-                  const redecrypted = await fetchAndDecryptMessages(activeRoom.id);
-                  setMessages(redecrypted);
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${friendId}` },
+            async (payload) => {
+              const newPub = payload.new?.public_key;
+              if (newPub && newPub !== payload.old?.public_key) {
+                const freshKey = await deriveAESKey(newPub);
+                if (freshKey && isSubscribed) {
+                  activeAESKeysRef.current[activeRoom.id] = freshKey;
+                  const msgs = await fetchAndDecryptMessages(activeRoom.id);
+                  setMessages(msgs);
                 }
               }
-            }
-          })
-          .subscribe();
-
-        keyWatcherChannelRef.current = keyWatcher;
+            }).subscribe();
+      } else {
+        // Group room — resolve immediately (no per-user E2EE for groups)
+        aesKeyReadyRef.current[activeRoom.id] = Promise.resolve();
       }
 
-      const decryptedMessages = await fetchAndDecryptMessages(activeRoom.id);
+      const msgs = await fetchAndDecryptMessages(activeRoom.id);
       if (isSubscribed) {
-        setMessages(decryptedMessages);
-        const unreadIds = decryptedMessages
-          .filter(m => !m.is_read && m.user_id !== currentUser.id)
-          .map(m => m.id);
-        if (unreadIds.length > 0) {
-          supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
-        }
+        setMessages(msgs);
+        const unreadIds = msgs.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
+        if (unreadIds.length > 0) supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
         setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
       }
     };
 
-    setupRoomEncryptionAndFetch();
+    setup();
 
-    // ── Real-time chat messages ──
-    const chatChannel = supabase.channel(`room-${activeRoom.id}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'messages',
-        filter: `room_id=eq.${activeRoom.id}`
-      }, async (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newMsg = { ...payload.new };
-          const aesKey = activeAESKeysRef.current[activeRoom.id];
-          await decryptMessage(newMsg, aesKey);
-          setMessages(prev => prev.find(m => m.id === newMsg.id) ? prev : [...prev, newMsg]);
-          if (newMsg.user_id !== currentUser.id) {
-            supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id).then();
+    // ── Realtime messages ──
+    const chatCh = supabase.channel(`room-${activeRoom.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
+        async (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const raw = { ...payload.new };
+
+            // FIX (timing): wait for key derivation to finish before decrypting.
+            // On slow devices the INSERT fires before setup() finishes its await chain.
+            const keyReady = aesKeyReadyRef.current[activeRoom.id];
+            if (keyReady) await keyReady;
+
+            const decrypted = await decryptOneMessage(raw, activeAESKeysRef.current[activeRoom.id]);
+            setMessages(prev => prev.find(m => m.id === decrypted.id) ? prev : [...prev, decrypted]);
+            if (decrypted.user_id !== currentUser.id) {
+              supabase.from('messages').update({ is_read: true }).eq('id', decrypted.id).then();
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setMessages(prev => prev.filter(m => m.id !== payload.old?.id));
           }
-        } else if (payload.eventType === 'DELETE') {
-          setMessages(prev => prev.filter(m => m.id !== payload.old?.id));
-        }
-      }).subscribe();
+        }).subscribe();
 
     // ── Presence / typing ──
-    const presenceRoom = supabase.channel(
-      `presence-${activeRoom.id}`,
-      { config: { presence: { key: currentUser.id } } }
-    );
-    presenceChannelRef.current = presenceRoom;
-    presenceRoom
+    const presenceCh = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
+    presenceChannelRef.current = presenceCh;
+    presenceCh
       .on('presence', { event: 'sync' }, () => {
-        const state = presenceRoom.presenceState();
-        const activeUsers = {};
-        Object.keys(state).forEach(key => {
-          if (key !== currentUser.id) activeUsers[key] = state[key][0];
-        });
-        setPresentUsers(activeUsers);
+        const state = presenceCh.presenceState();
+        const active = {};
+        Object.keys(state).forEach(k => { if (k !== currentUser.id) active[k] = state[k][0]; });
+        setPresentUsers(active);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceRoom.track({ email: currentUser.email, is_typing: false });
-        }
+        if (status === 'SUBSCRIBED') await presenceCh.track({ email: currentUser.email, is_typing: false });
       });
 
     // ── WebRTC signaling ──
-    const sigChannel = supabase.channel(
-      `signaling-${activeRoom.id}`,
-      { config: { broadcast: { ack: false } } }
-    );
-    signalingChannelRef.current = sigChannel;
+    const sigCh = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
+    signalingChannelRef.current = sigCh;
 
-    sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
+    sigCh.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return;
       try {
-        // ECDH key exchange for call encryption
         if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
           try {
-            const theirPublicKey = await SecurityKit.importPublicKey(payload.publicKey);
-            const finalSecret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, theirPublicKey);
-            const secretArray = Array.from(new Uint8Array(finalSecret));
-            callSharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          } catch (cryptoErr) { console.warn("ECDH call handshake skipped"); }
+            const pub = await SecurityKit.importPublicKey(payload.publicKey);
+            const secret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, pub);
+            callSharedSecretRef.current = Array.from(new Uint8Array(secret)).map(b => b.toString(16).padStart(2, '0')).join('');
+          } catch (e) { console.warn("ECDH call handshake skipped"); }
         }
-
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          sigChannel.send({
-            type: 'broadcast', event: 'webrtc',
-            payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current }
-          });
+          sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
         }
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          // Flush queued ICE candidates
-          if (iceCandidateQueue.current[payload.sender]?.length) {
-            for (const c of iceCandidateQueue.current[payload.sender]) {
-              await pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log("ICE flush err", e));
-            }
-            iceCandidateQueue.current[payload.sender] = [];
-          }
+          for (const c of (iceCandidateQueue.current[payload.sender] || []))
+            await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
+          iceCandidateQueue.current[payload.sender] = [];
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          sigChannel.send({
-            type: 'broadcast', event: 'webrtc',
-            payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender }
-          });
+          sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
         }
         else if (payload.type === 'answer' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            if (iceCandidateQueue.current[payload.sender]?.length) {
-              for (const c of iceCandidateQueue.current[payload.sender]) {
-                await pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log("ICE flush err", e));
-              }
-              iceCandidateQueue.current[payload.sender] = [];
-            }
+            for (const c of (iceCandidateQueue.current[payload.sender] || []))
+              await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
+            iceCandidateQueue.current[payload.sender] = [];
           }
         }
         else if (payload.type === 'ice-candidate' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
           if (pc) {
             if (pc.remoteDescription?.type) {
-              pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e => console.log("ICE Error", e));
+              pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(console.warn);
             } else {
               if (!iceCandidateQueue.current[payload.sender]) iceCandidateQueue.current[payload.sender] = [];
               iceCandidateQueue.current[payload.sender].push(payload.candidate);
             }
           }
         }
-        else if (payload.type === 'user-left') {
-          removePeer(payload.sender);
-          cleanupCall();
-        }
-      } catch (err) { console.error("Signaling Error:", err); }
+        else if (payload.type === 'user-left') { removePeer(payload.sender); cleanupCall(); }
+      } catch (err) { console.error("Signaling error:", err); }
     }).subscribe((status) => {
-      if (status === 'SUBSCRIBED' && autoJoinRef.current) {
-        autoJoinRef.current = false;
-        joinCall();
-      }
+      if (status === 'SUBSCRIBED' && autoJoinRef.current) { autoJoinRef.current = false; joinCall(); }
     });
 
     return () => {
       isSubscribed = false;
-      supabase.removeChannel(chatChannel);
-      supabase.removeChannel(presenceRoom);
-      supabase.removeChannel(sigChannel);
-      // Clean up key watcher when leaving room
-      if (keyWatcherChannelRef.current) {
-        supabase.removeChannel(keyWatcherChannelRef.current);
-        keyWatcherChannelRef.current = null;
-      }
+      supabase.removeChannel(chatCh);
+      supabase.removeChannel(presenceCh);
+      supabase.removeChannel(sigCh);
+      if (keyWatcherChannelRef.current) { supabase.removeChannel(keyWatcherChannelRef.current); keyWatcherChannelRef.current = null; }
     };
   }, [activeRoom, currentUser, isVaultUnlocked]);
 
-  // ─── SEND MESSAGE ─────────────────────────────────────────────────────────
+  // ─── SEND ────────────────────────────────────────────────────────────────
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
-    const rawMessage = message;
-    setMessage("");
-    setIsTyping(false);
-    if (presenceChannelRef.current) {
-      presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
-    }
+    const raw = message;
+    setMessage(""); setIsTyping(false);
+    if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
 
-    let finalContentToSave = "";
+    let content = "";
     const aesKey = activeAESKeysRef.current[activeRoom.id];
-
     if (aesKey) {
-      try {
-        const encrypted = await SecurityKit.encryptText(rawMessage, aesKey);
-        finalContentToSave = `${encrypted.iv}:::${encrypted.cipherText}`;
-      } catch (err) {
-        console.error("Encryption failed, using XOR fallback", err);
-        aesKey = null; // fall through to XOR
-      }
+      try { const enc = await SecurityKit.encryptText(raw, aesKey); content = `${enc.iv}:::${enc.cipherText}`; }
+      catch (e) { console.error("Encrypt failed, XOR fallback", e); }
     }
-
-    if (!finalContentToSave) {
-      // XOR fallback for group chats or when AES key unavailable
-      const keyStr = String(activeRoom.id);
-      finalContentToSave = btoa(
-        encodeURIComponent(rawMessage).split('').map((char, i) =>
-          String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))
-        ).join('')
-      );
+    if (!content) {
+      const k = String(activeRoom.id);
+      content = btoa(encodeURIComponent(raw).split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ k.charCodeAt(i % k.length))).join(''));
     }
-
-    await supabase.from('messages').insert([{
-      content: finalContentToSave,
-      room_id: activeRoom.id,
-      user_id: currentUser.id,
-      user_email: currentUser.email
-    }]);
+    await supabase.from('messages').insert([{ content, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email }]);
   };
 
-  // ─── CALL STATUS WATCHER ──────────────────────────────────────────────────
+  // ─── CALL WATCHERS ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeCallId) return;
-    const boardWatcher = supabase.channel(`status-board-${activeCallId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'calls',
-        filter: `id=eq.${activeCallId}`
-      }, (payload) => {
-        if (payload.new.status === 'accepted' && ringTimeoutRef.current) {
-          clearTimeout(ringTimeoutRef.current);
-        }
-        if (['rejected', 'ended', 'missed'].includes(payload.new.status)) cleanupCall();
+    const w = supabase.channel(`status-board-${activeCallId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` }, (p) => {
+        if (p.new.status === 'accepted' && ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+        if (['rejected', 'ended', 'missed'].includes(p.new.status)) cleanupCall();
       }).subscribe();
-    return () => supabase.removeChannel(boardWatcher);
+    return () => supabase.removeChannel(w);
   }, [activeCallId]);
 
-  // ─── CALL HEARTBEAT ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeCallId) return;
-    const heartbeat = setInterval(async () => {
+    const hb = setInterval(async () => {
       if (activeCallIdRef.current) {
         const { data } = await supabase.from('calls').select('status').eq('id', activeCallIdRef.current).maybeSingle();
         if (data && ['rejected', 'ended', 'missed'].includes(data.status)) cleanupCall();
       }
     }, 3000);
-    return () => clearInterval(heartbeat);
+    return () => clearInterval(hb);
   }, [activeCallId]);
 
-  // ─── GLOBAL CALL RADAR (cancel signal) ────────────────────────────────────
   useEffect(() => {
     if (!currentUser) return;
-    const globalRadar = supabase.channel('global-call-radar-caller-listener')
+    const r = supabase.channel('global-call-radar-caller-listener')
       .on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
         if (payload.action === 'cancel' && payload.callerId === currentUser.id) {
-          if (activeCallIdRef.current) {
-            await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
-          }
+          if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
           cleanupCall();
         }
       }).subscribe();
-    return () => supabase.removeChannel(globalRadar);
+    return () => supabase.removeChannel(r);
   }, [currentUser]);
 
-  // ─── UNREAD COUNTS + ROOM/MESSAGE SCANNERS ────────────────────────────────
+  // ─── UNREAD + ROOM/MSG SCANNERS ──────────────────────────────────────────
   useEffect(() => {
     if (!currentUser) return;
-    const fetchInitialUnread = async () => {
+    (async () => {
       const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
       const counts = {};
-      if (data) { data.forEach(msg => { counts[msg.room_id] = (counts[msg.room_id] || 0) + 1; }); }
+      if (data) data.forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
       setUnreadCounts(counts);
-    };
-    fetchInitialUnread();
-
-    const roomChannel = supabase.channel('live-rooms-radar')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, (payload) => {
-        if (payload.new.participants?.includes(currentUser.id)) {
-          setRooms(prev => [...prev, payload.new]);
-        }
+    })();
+    const rc = supabase.channel('live-rooms-radar')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, (p) => {
+        if (p.new.participants?.includes(currentUser.id)) setRooms(prev => [...prev, p.new]);
       }).subscribe();
-
-    const globalMessageScanner = supabase.channel('global-message-scanner')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        if (payload.new.user_id !== currentUser.id && activeRoomRef.current?.id !== payload.new.room_id) {
-          setUnreadCounts(prev => ({ ...prev, [payload.new.room_id]: (prev[payload.new.room_id] || 0) + 1 }));
-        }
+    const mc = supabase.channel('global-message-scanner')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
+        if (p.new.user_id !== currentUser.id && activeRoomRef.current?.id !== p.new.room_id)
+          setUnreadCounts(prev => ({ ...prev, [p.new.room_id]: (prev[p.new.room_id] || 0) + 1 }));
       }).subscribe();
-
-    return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); };
+    return () => { supabase.removeChannel(rc); supabase.removeChannel(mc); };
   }, [currentUser?.id]);
 
-  // ─── AUTO SCROLL ──────────────────────────────────────────────────────────
+  // ─── AUTO SCROLL ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isAutoScrolling && chatBoxRef.current) {
+    if (!isAutoScrolling && chatBoxRef.current)
       chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
-    }
   }, [messages, activeRoom]);
 
-  // ─── TYPING INDICATOR ─────────────────────────────────────────────────────
   const handleTyping = (e) => {
     setMessage(e.target.value);
-    if (!isTyping && presenceChannelRef.current) {
-      setIsTyping(true);
-      presenceChannelRef.current.track({ email: currentUser.email, is_typing: true });
-    }
+    if (!isTyping && presenceChannelRef.current) { setIsTyping(true); presenceChannelRef.current.track({ email: currentUser.email, is_typing: true }); }
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      if (presenceChannelRef.current) {
-        presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
-      }
+      if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
     }, 2000);
   };
 
-  const formatTime = (dateString) =>
-    dateString ? new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+  const formatTime = (ds) => ds ? new Date(ds).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
 
-  // ─── TURN SERVER FETCH (with robust fallback) ─────────────────────────────
-  // FIX (Bug 2 - Old Android + iOS): Never fall back to STUN-only.
-  // Always guarantee at least one TURN server is in the config.
+  // ─── TURN SERVERS ────────────────────────────────────────────────────────
   const fetchSecureTrucks = async () => {
     try {
       const { data } = await supabase.functions.invoke('get-turn-credentials');
-      if (data?.iceServers) {
-        iceServersRef.current = data;
-        return;
-      }
-    } catch (err) {
-      console.warn("TURN fetch failed, using public fallback TURN servers");
-    }
-    // Public fallback TURN — replace with your own Metered/Twilio TURN in production
+      if (data?.iceServers) { iceServersRef.current = data; return; }
+    } catch (e) { console.warn("TURN fetch failed, using fallback"); }
     iceServersRef.current = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
       ]
     };
   };
 
-  // ─── CREATE PEER CONNECTION ───────────────────────────────────────────────
+  // ─── PEER CONNECTION ─────────────────────────────────────────────────────
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
-
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
-    }
-
-    // FIX (Bug 2 - Old Android + iOS): Store remote stream in ref
-    // Old Android drops srcObject reference; iOS needs the stream stored
-    // before the user taps the bridge button
+    if (localStream.current) localStream.current.getTracks().forEach(t => pc.addTrack(t, localStream.current));
     pc.ontrack = (event) => {
       const stream = event.streams[0];
-      remoteStreamRef.current = stream; // store it!
-
-      const remoteAudio = document.getElementById('sukoon-remote-audio');
-      if (remoteAudio) {
-        remoteAudio.srcObject = stream;
-        // FIX (iOS): must set playsInline via JS property, not just HTML attribute
-        remoteAudio.playsInline = true;
-      }
+      remoteStreamRef.current = stream;
+      const audio = document.getElementById('sukoon-remote-audio');
+      if (audio) { audio.srcObject = stream; audio.playsInline = true; }
       setShowAudioBridge(true);
     };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate && signalingChannelRef.current) {
-        signalingChannelRef.current.send({
-          type: 'broadcast', event: 'webrtc',
-          payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId }
-        });
-      }
+    pc.onicecandidate = (ev) => {
+      if (ev.candidate && signalingChannelRef.current)
+        signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: ev.candidate, sender: currentUser.id, target: peerId } });
     };
-
     pc.oniceconnectionstatechange = () => {
-      console.log(`ICE state [${peerId}]:`, pc.iceConnectionState);
-      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) {
-        cleanupCall();
-      }
+      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) cleanupCall();
     };
-
     return pc;
   };
 
-  const removePeer = (peerId) => {
-    if (peers.current[peerId]) {
-      peers.current[peerId].close();
-      delete peers.current[peerId];
-    }
-  };
+  const removePeer = (id) => { if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; } };
+  const sendGlobalSignal = (p) => supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
 
-  const sendGlobalSignal = (actionPayload) => {
-    supabase.channel('global-call-radar').send({
-      type: 'broadcast', event: 'global-ring', payload: actionPayload
-    });
-  };
-
-  // ─── START CALL ───────────────────────────────────────────────────────────
+  // ─── START CALL ──────────────────────────────────────────────────────────
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(r => setTimeout(r, 300));
       await fetchSecureTrucks();
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
-
-      try {
-        const keys = await SecurityKit.generateKeys();
-        callPrivateKeyRef.current = keys.privateKey;
-        callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
-      } catch (keyErr) { console.warn("Call key gen failed", keyErr); }
-
+      try { const kp = await SecurityKit.generateKeys(); callPrivateKeyRef.current = kp.privateKey; callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(kp.publicKey); } catch (e) { console.warn("Call key gen failed"); }
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
-      let currentCallId = null;
-
+      let callId = null;
       if (friendId) {
         await supabase.from('calls').delete().eq('caller_id', currentUser.id).eq('status', 'ringing');
-        const { data: newCall } = await supabase.from('calls').insert({
-          caller_id: currentUser.id,
-          receiver_id: friendId,
-          status: 'ringing',
-          caller_public_key: callPublicKeyStrRef.current
-        }).select().single();
-
-        if (newCall) {
-          setActiveCallId(newCall.id);
-          activeCallIdRef.current = newCall.id;
-          currentCallId = newCall.id;
-
+        const { data: nc } = await supabase.from('calls').insert({ caller_id: currentUser.id, receiver_id: friendId, status: 'ringing', caller_public_key: callPublicKeyStrRef.current }).select().single();
+        if (nc) {
+          setActiveCallId(nc.id); activeCallIdRef.current = nc.id; callId = nc.id;
           ringTimeoutRef.current = setTimeout(async () => {
-            if (activeCallIdRef.current) {
-              await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
-            }
-            if (activeRoomRef.current) {
-              sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
-            }
+            if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
+            if (activeRoomRef.current) sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
             cleanupCall();
           }, 30000);
         }
-
-        const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle();
-        if (friendProfile?.fcm_token) {
-          await supabase.functions.invoke('send-call-notification', {
-            body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id }
-          });
-        }
+        const { data: fp } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle();
+        if (fp?.fcm_token) await supabase.functions.invoke('send-call-notification', { body: { token: fp.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id } });
       }
-
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current }
-      });
-      sendGlobalSignal({
-        action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email,
-        participants: activeRoom.participants, roomDetails: activeRoom,
-        publicKey: callPublicKeyStrRef.current, callId: currentCallId
-      });
-
-    } catch (error) {
-      alert("Microphone Access Failed: " + error.message);
-    }
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current } });
+      sendGlobalSignal({ action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom, publicKey: callPublicKeyStrRef.current, callId });
+    } catch (e) { alert("Microphone Access Failed: " + e.message); }
   };
 
-  // ─── JOIN CALL ────────────────────────────────────────────────────────────
+  // ─── JOIN CALL ───────────────────────────────────────────────────────────
   const joinCall = async () => {
     try {
       await fetchSecureTrucks();
-      const { data: incomingCall } = await supabase.from('calls').select('id')
-        .eq('receiver_id', currentUser.id).eq('status', 'ringing')
-        .order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-      if (incomingCall) {
-        setActiveCallId(incomingCall.id);
-        activeCallIdRef.current = incomingCall.id;
-      }
-
+      const { data: ic } = await supabase.from('calls').select('id').eq('receiver_id', currentUser.id).eq('status', 'ringing').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
-
-      try {
-        const keys = await SecurityKit.generateKeys();
-        callPrivateKeyRef.current = keys.privateKey;
-        callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
-      } catch (keyErr) { console.warn("Join key gen failed", keyErr); }
-
-      if (activeCallIdRef.current) {
-        await supabase.from('calls').update({
-          status: 'accepted',
-          receiver_public_key: callPublicKeyStrRef.current || null
-        }).eq('id', activeCallIdRef.current);
-      }
-
-      signalingChannelRef.current.send({
-        type: 'broadcast', event: 'webrtc',
-        payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current }
-      });
-    } catch (error) {
-      alert("Failed to join call: " + error.message);
-    }
+      try { const kp = await SecurityKit.generateKeys(); callPrivateKeyRef.current = kp.privateKey; callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(kp.publicKey); } catch (e) { console.warn("Join key gen failed"); }
+      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted', receiver_public_key: callPublicKeyStrRef.current || null }).eq('id', activeCallIdRef.current);
+      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current } });
+    } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // ─── END CALL ─────────────────────────────────────────────────────────────
+  // ─── END + CLEANUP ───────────────────────────────────────────────────────
   const endCall = async () => {
     try {
-      if (signalingChannelRef.current) {
-        signalingChannelRef.current.send({
-          type: 'broadcast', event: 'webrtc',
-          payload: { type: 'user-left', sender: currentUser.id }
-        });
-      }
-      if (activeCallIdRef.current) {
-        await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
-      }
-      if (activeRoom) {
-        sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
-      }
-    } catch (error) {
-      console.error("End call DB error", error);
-    } finally {
-      cleanupCall();
-    }
+      if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } });
+      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
+      if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
+    } catch (e) { console.error(e); } finally { cleanupCall(); }
   };
 
-  // ─── CLEANUP CALL ─────────────────────────────────────────────────────────
   const cleanupCall = () => {
-    const remoteAudio = document.getElementById('sukoon-remote-audio');
-    if (remoteAudio) {
-      remoteAudio.pause();
-      remoteAudio.srcObject = null;
-      remoteAudio.load();
-    }
-    // FIX: clear the stored stream ref too
+    const audio = document.getElementById('sukoon-remote-audio');
+    if (audio) { audio.pause(); audio.srcObject = null; audio.load(); }
     remoteStreamRef.current = null;
-
-    Object.values(peers.current).forEach(pc => {
-      pc.onicecandidate = null;
-      pc.ontrack = null;
-      pc.oniceconnectionstatechange = null;
-      pc.close();
-    });
-    peers.current = {};
-    iceCandidateQueue.current = {};
-
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => track.stop());
-      localStream.current = null;
-    }
-
-    safeSetIsInCall(false);
-    setShowAudioBridge(false);
-    callPrivateKeyRef.current = null;
-    callPublicKeyStrRef.current = null;
-    callSharedSecretRef.current = null;
-
+    Object.values(peers.current).forEach(pc => { pc.onicecandidate = null; pc.ontrack = null; pc.oniceconnectionstatechange = null; pc.close(); });
+    peers.current = {}; iceCandidateQueue.current = {};
+    if (localStream.current) { localStream.current.getTracks().forEach(t => t.stop()); localStream.current = null; }
+    safeSetIsInCall(false); setShowAudioBridge(false);
+    callPrivateKeyRef.current = null; callPublicKeyStrRef.current = null; callSharedSecretRef.current = null;
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-    setActiveCallId(null);
-    activeCallIdRef.current = null;
+    setActiveCallId(null); activeCallIdRef.current = null;
   };
 
-  // ─── SEARCH / CHAT MANAGEMENT ─────────────────────────────────────────────
+  // ─── AUDIO BRIDGE (iOS + Old Android) ────────────────────────────────────
+  const handleStartAudio = () => {
+    const audio = document.getElementById('sukoon-remote-audio');
+    if (!audio) { setShowAudioBridge(false); return; }
+    if (remoteStreamRef.current && !audio.srcObject) audio.srcObject = remoteStreamRef.current;
+    audio.playsInline = true;
+    audio.muted = false;
+    audio.play().then(() => setShowAudioBridge(false)).catch(e => {
+      console.error("Audio play failed:", e);
+      setTimeout(() => { audio.play().catch(console.error); setShowAudioBridge(false); }, 500);
+    });
+  };
+
+  // ─── CHAT MANAGEMENT ─────────────────────────────────────────────────────
   const handleSearch = async () => {
     if (!currentUser || searchTerm.length < 3) return;
     const { data } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
     setSearchResults(data || []);
   };
-
   const startPrivateChat = async (friend) => {
-    const { data: existing } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
-    if (existing && existing.length > 0) {
-      setActiveRoom(existing[0]);
-    } else {
-      const { data: newRoom } = await supabase.from('rooms').insert([{
-        name: `${currentUser.email}:::${friend.email}`,
-        is_private: true,
-        participants: [currentUser.id, friend.id]
-      }]).select();
-      if (newRoom) { setRooms(prev => [...prev, newRoom[0]]); setActiveRoom(newRoom[0]); }
+    const { data: ex } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
+    if (ex?.length > 0) { setActiveRoom(ex[0]); }
+    else {
+      const { data: nr } = await supabase.from('rooms').insert([{ name: `${currentUser.email}:::${friend.email}`, is_private: true, participants: [currentUser.id, friend.id] }]).select();
+      if (nr) { setRooms(p => [...p, nr[0]]); setActiveRoom(nr[0]); }
     }
     setSearchTerm(""); setSearchResults([]);
   };
-
   const searchForGroup = async () => {
     if (!currentUser || groupSearchTerm.length < 3) return;
     const { data } = await supabase.from('profiles').select('*').ilike('email', `%${groupSearchTerm}%`).neq('id', currentUser.id);
     setGroupSearchResults(data || []);
   };
-
-  const addFriendToGroupList = (friend) => {
-    if (!selectedFriends.find(f => f.id === friend.id)) setSelectedFriends([...selectedFriends, friend]);
+  const addFriendToGroupList = (f) => {
+    if (!selectedFriends.find(x => x.id === f.id)) setSelectedFriends([...selectedFriends, f]);
     setGroupSearchTerm(""); setGroupSearchResults([]);
   };
-
   const createGroupChat = async () => {
-    if (!groupName.trim() || selectedFriends.length === 0) {
-      return alert(hi ? "एक नाम और मित्र की आवश्यकता है!" : "Need a group name and at least 1 friend!");
-    }
-    const participantIds = [currentUser.id, ...selectedFriends.map(f => f.id)];
-    const { data: newRoom } = await supabase.from('rooms').insert([{
-      name: groupName, is_private: false, participants: participantIds
-    }]).select();
-    if (newRoom) {
-      setRooms(prev => [...prev, newRoom[0]]);
-      setShowGroupModal(false); setGroupName(""); setSelectedFriends([]);
-      setActiveRoom(newRoom[0]);
-    }
+    if (!groupName.trim() || selectedFriends.length === 0) return alert(hi ? "एक नाम और मित्र की आवश्यकता है!" : "Need a group name and at least 1 friend!");
+    const { data: nr } = await supabase.from('rooms').insert([{ name: groupName, is_private: false, participants: [currentUser.id, ...selectedFriends.map(f => f.id)] }]).select();
+    if (nr) { setRooms(p => [...p, nr[0]]); setShowGroupModal(false); setGroupName(""); setSelectedFriends([]); setActiveRoom(nr[0]); }
   };
-
   const getRoomDisplayName = (room) => {
     if (room.is_private && room.name.includes(':::')) {
-      const parts = room.name.split(':::');
-      return currentUser?.email === parts[1] ? `✨ ${parts[0].split('@')[0]}` : `✨ ${parts[1].split('@')[0]}`;
+      const [a, b] = room.name.split(':::');
+      return `✨ ${currentUser?.email === b ? a.split('@')[0] : b.split('@')[0]}`;
     }
     return `👥 ${room.name}`;
   };
-
   const handleLogout = async () => {
     if (!window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?")) return;
-    await supabase.auth.signOut();
-    setTab('home');
-    window.location.reload();
+    await supabase.auth.signOut(); setTab('home'); window.location.reload();
   };
-
-  const handleDeleteMessage = async (messageId) => {
+  const handleDeleteMessage = async (id) => {
     if (!window.confirm(hi ? "हटाएं?" : "Delete?")) return;
-    setMessages(prev => prev.filter(m => m.id !== messageId));
-    await supabase.from('messages').delete().eq('id', messageId);
+    setMessages(p => p.filter(m => m.id !== id));
+    await supabase.from('messages').delete().eq('id', id);
   };
-
   const handleBackOrHome = () => {
     setIsAutoScrolling(false);
     if (isInCallRef.current) endCall();
-    if (activeRoom) setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
+    if (activeRoom) setUnreadCounts(p => ({ ...p, [activeRoom.id]: 0 }));
     activeRoom ? setActiveRoom(null) : setTab('home');
-  };
-
-  // ─── AUDIO BRIDGE HANDLER (iOS + Old Android safe) ────────────────────────
-  // FIX: Reattach stream from ref before playing.
-  // iOS Safari requires the .play() call to happen inside a user gesture handler
-  // (which it does here — button click). Old Android needs srcObject re-set
-  // because it may have been garbage collected between ontrack and the tap.
-  const handleStartAudio = () => {
-    const remoteAudio = document.getElementById('sukoon-remote-audio');
-    if (!remoteAudio) { setShowAudioBridge(false); return; }
-
-    // Reattach from ref if srcObject was lost (old Android) or never set (race condition)
-    if (remoteStreamRef.current && !remoteAudio.srcObject) {
-      remoteAudio.srcObject = remoteStreamRef.current;
-    }
-
-    // iOS MUST have playsInline set as a JS property
-    remoteAudio.playsInline = true;
-    remoteAudio.muted = false;
-
-    remoteAudio.play().then(() => {
-      setShowAudioBridge(false);
-    }).catch(e => {
-      console.error("Audio play failed:", e);
-      // Second attempt for stubborn old devices
-      setTimeout(() => {
-        remoteAudio.play().catch(e2 => {
-          console.error("Audio play retry failed:", e2);
-          alert("Could not start audio. Please check your volume and try again.");
-        });
-        setShowAudioBridge(false);
-      }, 500);
-    });
   };
 
   const typingUsers = Object.values(presentUsers).filter(u => u.is_typing);
 
-  // ─── RENDER ───────────────────────────────────────────────────────────────
+  // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
-      {/*
-        FIX (iOS): The <audio> element must have playsInline as both
-        an HTML attribute AND set via JS property in handleStartAudio.
-        It must also start muted so iOS allows it to exist in the DOM
-        before any user gesture has occurred.
-      */}
-      <audio
-        id="sukoon-remote-audio"
-        autoPlay
-        playsInline
-        muted
-        style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }}
-      />
+      {/* Muted on mount — iOS requires muted before first user gesture */}
+      <audio id="sukoon-remote-audio" autoPlay playsInline muted
+        style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
 
-      {/* ── Group Modal ── */}
+      {/* Group Modal */}
       {showGroupModal && (
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
-            <h3 style={{ margin: '0 0 15px 0', color: T.text }}>{hi ? "नया ग्रुप बनाएं" : "Create New Group"}</h3>
-            <input style={{ ...s.searchInput, width: '100%', marginBottom: '10px' }} placeholder={hi ? "ग्रुप का नाम..." : "Group Name..."} value={groupName} onChange={(e) => setGroupName(e.target.value)} />
-            <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-              <input style={{ ...s.searchInput, flex: 1 }} placeholder={hi ? "मित्र खोजें..." : "Find friends..."} value={groupSearchTerm} onChange={(e) => setGroupSearchTerm(e.target.value)} />
+            <h3 style={{ margin: '0 0 15px 0', color: T.text, fontFamily: "'DM Sans', sans-serif" }}>
+              {hi ? "नया ग्रुप बनाएं" : "Create New Group"}
+            </h3>
+            <input style={{ ...s.searchInput, width: '100%', boxSizing: 'border-box', marginBottom: '10px' }}
+              placeholder={hi ? "ग्रुप का नाम..." : "Group Name..."} value={groupName} onChange={e => setGroupName(e.target.value)} />
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <input style={{ ...s.searchInput, flex: 1 }} placeholder={hi ? "मित्र खोजें..." : "Find friends..."}
+                value={groupSearchTerm} onChange={e => setGroupSearchTerm(e.target.value)} />
               <button style={s.actionBtn} onClick={searchForGroup}>🔍</button>
             </div>
             {groupSearchResults.map(u => (
               <div key={u.id} onClick={() => addFriendToGroupList(u)} style={s.roomCardSearch}>+ Add {u.email.split('@')[0]}</div>
             ))}
             <div style={{ margin: '10px 0' }}>
-              {selectedFriends.map(f => (
-                <span key={f.id} style={s.selectedFriendPill}>{f.email.split('@')[0]} ✕</span>
-              ))}
+              {selectedFriends.map(f => <span key={f.id} style={s.selectedFriendPill}>{f.email.split('@')[0]} ✕</span>)}
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button style={{ ...s.actionBtn, flex: 1 }} onClick={createGroupChat}>{hi ? "बनाएं" : "Create"}</button>
@@ -1040,81 +908,87 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
-      {/* ── Header ── */}
+      {/*
+        FIXED HEADER — sticky, never scrolls away.
+        Contains: back/home btn | room name + online status | call btn or logout btn
+      */}
       <div style={s.header}>
-        <button style={s.backBtn} onClick={handleBackOrHome}>{activeRoom ? "◀ BACK" : "◀ HOME"}</button>
+        <button style={s.backBtn} onClick={handleBackOrHome}>
+          {activeRoom ? "◀ Back" : "◀ Home"}
+        </button>
         <div style={s.headerTitleBox}>
-          <div style={s.headerTitle}>{activeRoom ? getRoomDisplayName(activeRoom) : "SUKOON CHAT"}</div>
-          {activeRoom && Object.keys(presentUsers).length > 0 && (
-            <div style={s.onlineStatus}>
-              <span style={s.greenDot}></span>
-              {Object.keys(presentUsers).length} {hi ? "ऑनलाइन" : "Online"}
-            </div>
+          {activeRoom ? (
+            <>
+              <div style={s.headerTitle}>{getRoomDisplayName(activeRoom)}</div>
+              {Object.keys(presentUsers).length > 0 && (
+                <div style={s.onlineStatus}>
+                  <span style={s.greenDot} />
+                  {Object.keys(presentUsers).length} {hi ? "ऑनलाइन" : "online"}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={s.headerTitleHome}>SUKOON CHAT</div>
           )}
         </div>
-        {activeRoom && (
+        {activeRoom ? (
           <button
             style={isInCallRef.current ? s.callBtnDisabled : s.callBtn}
-            onClick={startCall}
-            disabled={isInCallRef.current}
+            onClick={startCall} disabled={isInCallRef.current}
+            title={hi ? "वॉयस कॉल" : "Voice call"}
           >📞</button>
-        )}
-        {!activeRoom && (
-          <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "LOGOUT"}</button>
+        ) : (
+          <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "लॉग आउट" : "Logout"}</button>
         )}
       </div>
 
-      {/* ── Active call banner ── */}
-      {isInCallRef.current && (
+      {/* Active call banner */}
+      {isInCall && (
         <div style={s.callBanner}>
-          <span style={{ color: '#4ade80' }}>🟢 {hi ? "कॉल कनेक्टेड" : "Secure Call Active"}</span>
+          <span style={{ color: '#4ade80' }}>🟢 {hi ? "कॉल जारी है" : "Secure Call Active"}</span>
           <button onClick={endCall} style={s.declineBtn}>{hi ? "कॉल समाप्त करें" : "End Call"}</button>
         </div>
       )}
 
-      {/* ── Audio Bridge Overlay ── */}
-      {/* This satisfies iOS + old Android autoplay policy: user must tap to start audio */}
+      {/* Audio bridge overlay — satisfies iOS + old Android autoplay policy */}
       {showAudioBridge && (
         <div style={s.bridgeOverlay}>
-          <h2 style={{ color: '#fff', marginBottom: '10px' }}>
-            {hi ? "कॉल कनेक्टेड" : "Secure Call Established"}
+          <div style={{ fontSize: '52px', marginBottom: '16px' }}>📞</div>
+          <h2 style={{ color: '#fff', marginBottom: '8px', fontFamily: "'DM Sans', sans-serif", fontWeight: '700' }}>
+            {hi ? "कॉल कनेक्टेड" : "Call Connected"}
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '30px', fontSize: '14px' }}>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '32px', fontSize: '14px', maxWidth: '260px' }}>
             {isIOS()
-              ? (hi ? "iOS पर ऑडियो शुरू करने के लिए टैप करें" : "Tap to start audio on iOS")
-              : (hi ? "ऑडियो शुरू करने के लिए टैप करें" : "Tap to activate audio")
-            }
+              ? (hi ? "iOS पर ऑडियो चालू करने के लिए नीचे टैप करें" : "Tap below to start audio on iOS")
+              : (hi ? "ऑडियो चालू करने के लिए नीचे टैप करें" : "Tap below to activate audio")}
           </p>
           <button style={s.bridgeBtn} onClick={handleStartAudio}>
-            {hi ? "आवाज शुरू करें 🔊" : "Start Audio 🔊"}
+            🔊 {hi ? "आवाज शुरू करें" : "Start Audio"}
           </button>
         </div>
       )}
 
-      {/* ── Chat / Room List ── */}
+      {/* Main scrollable chat area */}
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
             <button style={s.bigGroupBtn} onClick={() => setShowGroupModal(true)}>
-              <span>👥</span> {hi ? "+ नया ग्रुप बनाएं" : "+ CREATE NEW GROUP"}
+              👥 {hi ? "+ नया ग्रुप बनाएं" : "+ Create New Group"}
             </button>
             <div style={s.searchRow}>
-              <input
-                style={s.searchInput}
-                placeholder={hi ? "ईमेल से खोजें..." : "Find friend by email..."}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-              <button style={s.actionBtn} onClick={handleSearch}>{hi ? "खोजें" : "FIND"}</button>
+              <input style={s.searchInput}
+                placeholder={hi ? "ईमेल से दोस्त खोजें..." : "Find friend by email..."}
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+              <button style={s.actionBtn} onClick={handleSearch}>{hi ? "खोजें" : "Find"}</button>
             </div>
-            {searchResults.map(user => (
-              <div key={user.id} onClick={() => startPrivateChat(user)} style={s.roomCardSearch}>
-                ✨ Start Private Chat with {user.email}
+            {searchResults.map(u => (
+              <div key={u.id} onClick={() => startPrivateChat(u)} style={s.roomCardSearch}>
+                ✨ {hi ? "के साथ प्राइवेट चैट: " : "Start chat with "}{u.email}
               </div>
             ))}
-            <div style={{ marginTop: '20px', fontWeight: 'bold', letterSpacing: '1px', opacity: 0.7, fontSize: '12px' }}>
-              {hi ? "आपके चैट" : "YOUR CHATS"}
+            <div style={{ marginTop: '18px', fontWeight: '700', letterSpacing: '0.5px', opacity: 0.5, fontSize: '12px', textTransform: 'uppercase' }}>
+              {hi ? "आपके चैट" : "Your Chats"}
             </div>
             {rooms.map(r => (
               <div key={r.id} style={s.roomCard} onClick={() => setActiveRoom(r)}>
@@ -1126,14 +1000,18 @@ export default function SukoonChat({ T, lang, setTab }) {
         ) : (
           <div style={s.messageList}>
             {messages.length === 0 ? (
-              <div style={s.emptyRoom}>{hi ? "चैट शुरू करें" : "Start the conversation..."}</div>
+              <div style={s.emptyRoom}>{hi ? "बात शुरू करें..." : "Start the conversation..."}</div>
             ) : (
               messages.map(m => {
                 const isMe = m.user_id === currentUser?.id;
+                // Show spinner text for messages still awaiting key, real content otherwise
+                const content = m._needs_decrypt
+                  ? "🔄 Decrypting..."
+                  : (m.decrypted_content || "🔒 [Encrypted]");
                 return (
                   <div key={m.id} style={s.getBubbleWrapper(isMe)}>
                     {!isMe && <div style={s.senderName}>{m.user_email?.split('@')[0]}</div>}
-                    <div style={s.getBubble(isMe)}>{m.decrypted_content || "🔒 [Encrypted]"}</div>
+                    <div style={s.getBubble(isMe)}>{content}</div>
                     <div style={s.statusBar}>
                       <div style={s.timestamp}>{formatTime(m.created_at)}</div>
                       {isMe && (
@@ -1152,30 +1030,26 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
-      {/* ── Auto scroll toggle ── */}
+      {/* Auto scroll toggle */}
       {activeRoom && messages.length > 5 && (
         <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={s.autoScrollBtn(isAutoScrolling)}>
           {isAutoScrolling ? "⏸️" : "⏬"}
         </button>
       )}
 
-      {/* ── Typing indicator ── */}
+      {/* Typing indicator */}
       {activeRoom && typingUsers.length > 0 && (
-        <div style={{ fontSize: '11px', color: T.accent, padding: '0 20px 5px 20px', fontStyle: 'italic', fontWeight: 'bold' }}>
+        <div style={{ fontSize: '12px', color: T.accent, padding: '0 18px 6px', fontStyle: 'italic', fontWeight: '700', flexShrink: 0 }}>
           {typingUsers.map(u => u.email?.split('@')[0]).join(', ')} {hi ? "टाइप कर रहे हैं..." : "is typing..."}
         </div>
       )}
 
-      {/* ── Message input ── */}
+      {/* Message input */}
       {activeRoom && (
         <div style={s.inputArea}>
-          <input
-            style={s.inputField}
-            value={message}
-            onChange={handleTyping}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder={hi ? "संदेश लिखें..." : "Type a secure message..."}
-          />
+          <input style={s.inputField} value={message} onChange={handleTyping}
+            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+            placeholder={hi ? "संदेश लिखें..." : "Type a secure message..."} />
           <button style={s.sendBtn} onClick={handleSendMessage}>➤</button>
         </div>
       )}
