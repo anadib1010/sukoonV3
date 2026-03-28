@@ -2,6 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { SecurityKit } from '../utils/security';
 
+// 🌟 STEP 3: THE STUDIO ENGINEER ROBOT (SDP Munging)
+// This safely rewrites the invitation letter to force max quality Opus audio
+const enforceHighQualityOpus = (sdp) => {
+  let modifiedSdp = sdp;
+  const opusRegex = /a=rtpmap:(\d+) opus\/48000\/2/;
+  const match = modifiedSdp.match(opusRegex);
+  if (match) {
+    const opusId = match[1];
+    const fmtpRegex = new RegExp(`a=fmtp:${opusId} (.*)`);
+    if (fmtpRegex.test(modifiedSdp)) {
+      modifiedSdp = modifiedSdp.replace(
+        fmtpRegex, 
+        `a=fmtp:${opusId} $1; maxaveragebitrate=510000; usedtx=0`
+      );
+    }
+  }
+  return modifiedSdp;
+};
+
 export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false);
@@ -85,7 +104,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const removePeer = (id) => { if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; } };
   const sendGlobalSignal = (p) => supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
 
-  // 3. PEER CONNECTION (🔒 RESTORED TO SAFE STATE)
+  // 3. PEER CONNECTION (🔒 UNTOUCHED)
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
@@ -111,7 +130,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return pc;
   };
 
-  // 4. SIGNALING LISTENER (🔒 RESTORED TO SAFE STATE)
+  // 4. SIGNALING LISTENER (🌟 STEP 3 APPLIED: SDP MUNGING)
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -132,6 +151,10 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false }); 
+          
+          // 🌟 The Secret P.S. Note for the Offer
+          offer.sdp = enforceHighQualityOpus(offer.sdp);
+          
           await pc.setLocalDescription(offer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
         }
@@ -141,7 +164,12 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           for (const c of (iceCandidateQueue.current[payload.sender] || []))
             await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
           iceCandidateQueue.current[payload.sender] = [];
+          
           const answer = await pc.createAnswer();
+          
+          // 🌟 The Secret P.S. Note for the Answer
+          answer.sdp = enforceHighQualityOpus(answer.sdp);
+          
           await pc.setLocalDescription(answer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
         }
@@ -208,7 +236,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return () => supabase.removeChannel(r);
   }, [currentUser]);
 
-  // 6. START CALL (🌟 MAINTAINING HD AUDIO)
+  // 6. START CALL (🌟 STEP 1 & 2 APPLIED)
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
@@ -220,8 +248,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           echoCancellation: true, 
           noiseSuppression: true, 
           autoGainControl: true,
-          sampleRate: 48000, // HD Audio Capture
-          channelCount: 1    // Laser Focus Mono
+          sampleRate: 48000, 
+          channelCount: 1    
         }, 
         video: false 
       });
@@ -249,7 +277,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Microphone Access Failed: " + e.message); }
   };
 
-  // 7. JOIN CALL (🌟 MAINTAINING HD AUDIO)
+  // 7. JOIN CALL (🌟 STEP 1 & 2 APPLIED)
   const joinCall = async () => {
     try {
       await fetchSecureTrucks();
@@ -261,8 +289,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           echoCancellation: true, 
           noiseSuppression: true, 
           autoGainControl: true,
-          sampleRate: 48000, // HD Audio Capture
-          channelCount: 1    // Laser Focus Mono
+          sampleRate: 48000, 
+          channelCount: 1    
         }, 
         video: false 
       });
@@ -274,7 +302,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // 8. AUDIO BRIDGE (🔒 RESTORED TO SAFE STATE)
+  // 8. AUDIO BRIDGE (🔒 UNTOUCHED)
   const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
