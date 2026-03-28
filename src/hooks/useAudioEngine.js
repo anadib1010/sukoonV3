@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { SecurityKit } from '../utils/security';
 
-// 🌟 STEP 3: THE STUDIO ENGINEER ROBOT (SDP Munging)
+// ─── SDP MUNGING ─────────────────────────────────────────────────────────────
 const enforceHighQualityOpus = (sdp) => {
   let modifiedSdp = sdp;
   const opusRegex = /a=rtpmap:(\d+) opus\/48000\/2/;
@@ -12,7 +12,7 @@ const enforceHighQualityOpus = (sdp) => {
     const fmtpRegex = new RegExp(`a=fmtp:${opusId} (.*)`);
     if (fmtpRegex.test(modifiedSdp)) {
       modifiedSdp = modifiedSdp.replace(
-        fmtpRegex, 
+        fmtpRegex,
         `a=fmtp:${opusId} $1; maxaveragebitrate=510000; usedtx=0`
       );
     }
@@ -27,13 +27,16 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const [activeCallId, setActiveCallId] = useState(null);
 
   const activeCallIdRef = useRef(null);
+  const activeRoomRef = useRef(activeRoom);
   const remoteStreamRef = useRef(null);
   const localStream = useRef(null);
   const peers = useRef({});
   const signalingChannelRef = useRef(null);
-  const autoJoinRef = useRef(false); 
+  const autoJoinRef = useRef(false);
   const iceCandidateQueue = useRef({});
   const ringTimeoutRef = useRef(null);
+  const audioContextRef = useRef(null);
+
   const iceServersRef = useRef({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -45,9 +48,12 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const callPublicKeyStrRef = useRef(null);
   const callSharedSecretRef = useRef(null);
 
+  // Keep activeRoomRef in sync
+  useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
+
   const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
 
-  // 1. TURN SERVERS 
+  // ─── 1. TURN SERVERS ───────────────────────────────────────────────────────
   const fetchSecureTrucks = async () => {
     try {
       const { data } = await supabase.functions.invoke('get-turn-credentials');
@@ -57,120 +63,215 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:80',               username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp',username: 'openrelayproject', credential: 'openrelayproject' },
       ]
     };
   };
 
-  // 2. END & CLEANUP 
+  // ─── 2. AUDIO BOOST ENGINE ────────────────────────────────────────────────
+  // Compensates for old Samsung/Android browser gain reduction
+  const applyAudioBoost = (stream) => {
+    try {
+      // Reuse existing context if possible
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const source = ctx.createMediaStreamSource(stream);
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 2.0; // Double volume for old devices
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+    } catch (e) {
+      console.warn('AudioContext boost not available:', e);
+    }
+  };
+
+  // ─── 3. PLAY AUDIO ELEMENT ────────────────────────────────────────────────
+  const playRemoteAudio = (stream) => {
+    const audio = document.getElementById('sukoon-remote-audio');
+    if (!audio) { setShowAudioBridge(true); return; }
+
+    if (audio.srcObject !== stream) {
+      audio.srcObject = stream;
+    }
+    audio.muted = false;
+    audio.volume = 1.0;
+    audio.playsInline = true;
+
+    audio.play()
+      .then(() => {
+        setShowAudioBridge(false);
+        // Apply gain boost after play succeeds — helps old Samsung devices
+        applyAudioBoost(stream);
+      })
+      .catch((e) => {
+        console.warn('Autoplay blocked, showing bridge:', e);
+        setShowAudioBridge(true);
+      });
+  };
+
+  // ─── 4. CLEANUP ───────────────────────────────────────────────────────────
   const cleanupCall = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (audio) { audio.pause(); audio.srcObject = null; audio.load(); }
     remoteStreamRef.current = null;
-    
-    Object.values(peers.current).forEach(pc => { 
-      pc.onicecandidate = null; pc.ontrack = null; pc.oniceconnectionstatechange = null; pc.close(); 
-    });
-    peers.current = {}; 
-    iceCandidateQueue.current = {};
-    
-    if (localStream.current) { 
-      localStream.current.getTracks().forEach(t => t.stop()); 
-      localStream.current = null; 
+
+    // Close AudioContext to free resources
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
     }
-    
-    safeSetIsInCall(false); 
+
+    Object.values(peers.current).forEach(pc => {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.oniceconnectionstatechange = null;
+      pc.close();
+    });
+    peers.current = {};
+    iceCandidateQueue.current = {};
+
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(t => t.stop());
+      localStream.current = null;
+    }
+
+    safeSetIsInCall(false);
     setShowAudioBridge(false);
-    callPrivateKeyRef.current = null; 
-    callPublicKeyStrRef.current = null; 
+
+    // ─── CRITICAL: always null these refs so ECDH re-runs on next call ───
+    callPrivateKeyRef.current = null;
+    callPublicKeyStrRef.current = null;
     callSharedSecretRef.current = null;
-    
+
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-    setActiveCallId(null); 
+    setActiveCallId(null);
     activeCallIdRef.current = null;
   };
 
   const endCall = async () => {
     try {
-      if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } });
-      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
-      if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
+      if (signalingChannelRef.current) {
+        signalingChannelRef.current.send({
+          type: 'broadcast', event: 'webrtc',
+          payload: { type: 'user-left', sender: currentUser.id }
+        });
+      }
+      if (activeCallIdRef.current) {
+        await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
+      }
+      if (activeRoomRef.current) {
+        sendGlobalSignal({
+          action: 'cancel',
+          roomId: activeRoomRef.current.id,
+          callerId: currentUser.id,
+          participants: activeRoomRef.current.participants
+        });
+      }
     } catch (e) { console.error(e); } finally { cleanupCall(); }
   };
 
-  const removePeer = (id) => { if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; } };
-  const sendGlobalSignal = (p) => supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
+  const removePeer = (id) => {
+    if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; }
+  };
 
-  // 3. PEER CONNECTION 
+  const sendGlobalSignal = (p) =>
+    supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
+
+  // ─── 5. PEER CONNECTION ───────────────────────────────────────────────────
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
-    
-    if (localStream.current) localStream.current.getTracks().forEach(t => pc.addTrack(t, localStream.current));
+
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(t => pc.addTrack(t, localStream.current));
+    }
 
     pc.ontrack = (event) => {
       const stream = event.streams[0];
+      if (!stream) return;
       remoteStreamRef.current = stream;
-      const audio = document.getElementById('sukoon-remote-audio');
-      if (audio) { audio.srcObject = stream; audio.playsInline = true; }
-      setShowAudioBridge(true);
+      // ─── FIX: play immediately on track arrival, don't wait for bridge ───
+      playRemoteAudio(stream);
     };
 
     pc.onicecandidate = (ev) => {
-      if (ev.candidate && signalingChannelRef.current)
-        signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: ev.candidate, sender: currentUser.id, target: peerId } });
+      if (ev.candidate && signalingChannelRef.current) {
+        signalingChannelRef.current.send({
+          type: 'broadcast', event: 'webrtc',
+          payload: { type: 'ice-candidate', candidate: ev.candidate, sender: currentUser.id, target: peerId }
+        });
+      }
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) cleanupCall();
+      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) {
+        cleanupCall();
+      }
     };
+
     return pc;
   };
 
-  // 4. SIGNALING LISTENER 
+  // ─── 6. SIGNALING LISTENER ────────────────────────────────────────────────
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
-    const sigCh = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
+    const sigCh = supabase.channel(`signaling-${activeRoom.id}`, {
+      config: { broadcast: { ack: false } }
+    });
     signalingChannelRef.current = sigCh;
 
     sigCh.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id || blockedUsers.includes(payload.sender)) return;
       try {
+        // ECDH key exchange
         if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
           try {
             const pub = await SecurityKit.importPublicKey(payload.publicKey);
             const secret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, pub);
-            callSharedSecretRef.current = Array.from(new Uint8Array(secret)).map(b => b.toString(16).padStart(2, '0')).join('');
-          } catch (e) { console.warn("ECDH call handshake skipped"); }
+            callSharedSecretRef.current = Array.from(new Uint8Array(secret))
+              .map(b => b.toString(16).padStart(2, '0')).join('');
+          } catch (e) { console.warn("ECDH handshake skipped:", e); }
         }
-        
+
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
-          const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false }); 
+          const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
           offer.sdp = enforceHighQualityOpus(offer.sdp);
           await pc.setLocalDescription(offer);
-          sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
+          sigCh.send({
+            type: 'broadcast', event: 'webrtc',
+            payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current }
+          });
         }
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          for (const c of (iceCandidateQueue.current[payload.sender] || []))
+          for (const c of (iceCandidateQueue.current[payload.sender] || [])) {
             await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
+          }
           iceCandidateQueue.current[payload.sender] = [];
           const answer = await pc.createAnswer();
           answer.sdp = enforceHighQualityOpus(answer.sdp);
           await pc.setLocalDescription(answer);
-          sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
+          sigCh.send({
+            type: 'broadcast', event: 'webrtc',
+            payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender }
+          });
         }
         else if (payload.type === 'answer' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            for (const c of (iceCandidateQueue.current[payload.sender] || []))
+            for (const c of (iceCandidateQueue.current[payload.sender] || [])) {
               await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
+            }
             iceCandidateQueue.current[payload.sender] = [];
           }
         }
@@ -185,16 +286,22 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
             }
           }
         }
-        else if (payload.type === 'user-left') { removePeer(payload.sender); cleanupCall(); }
+        else if (payload.type === 'user-left') {
+          removePeer(payload.sender);
+          cleanupCall();
+        }
       } catch (err) { console.error("Signaling error:", err); }
     }).subscribe((status) => {
-      if (status === 'SUBSCRIBED' && autoJoinRef.current) { autoJoinRef.current = false; joinCall(); }
+      if (status === 'SUBSCRIBED' && autoJoinRef.current) {
+        autoJoinRef.current = false;
+        joinCall();
+      }
     });
 
     return () => supabase.removeChannel(sigCh);
   }, [activeRoom, currentUser, blockedUsers]);
 
-  // 5. CALL WATCHERS 
+  // ─── 7. CALL STATUS WATCHERS ──────────────────────────────────────────────
   useEffect(() => {
     if (!activeCallId) return;
     const w = supabase.channel(`status-board-${activeCallId}`)
@@ -221,80 +328,161 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     const r = supabase.channel('global-call-radar-caller-listener')
       .on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
         if (payload.action === 'cancel' && payload.callerId === currentUser.id) {
-          if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
+          if (activeCallIdRef.current) {
+            await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
+          }
           cleanupCall();
         }
       }).subscribe();
     return () => supabase.removeChannel(r);
   }, [currentUser]);
 
-  // 6. START CALL (🌟 UNIVERSAL TRANSLATOR ACTIVE)
+  // ─── 8. START CALL ────────────────────────────────────────────────────────
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
       await new Promise(r => setTimeout(r, 300));
       await fetchSecureTrucks();
-      
-      localStream.current = await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
-          echoCancellation: true, 
-          noiseSuppression: true, 
+
+      localStream.current = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: { ideal: 48000 }, 
+          sampleRate: { ideal: 48000 },
           channelCount: { ideal: 1 }
-        }, 
-        video: false 
+        },
+        video: false
       });
-      
+
       safeSetIsInCall(true);
-      try { const kp = await SecurityKit.generateKeys(); callPrivateKeyRef.current = kp.privateKey; callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(kp.publicKey); } catch (e) { console.warn("Call key gen failed"); }
+
+      try {
+        const kp = await SecurityKit.generateKeys();
+        callPrivateKeyRef.current = kp.privateKey;
+        callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(kp.publicKey);
+      } catch (e) { console.warn("Call key gen failed:", e); }
+
       const friendId = activeRoom.participants.find(id => id !== currentUser.id);
       let callId = null;
+
       if (friendId) {
         await supabase.from('calls').delete().eq('caller_id', currentUser.id).eq('status', 'ringing');
-        const { data: nc } = await supabase.from('calls').insert({ caller_id: currentUser.id, receiver_id: friendId, status: 'ringing', caller_public_key: callPublicKeyStrRef.current }).select().single();
+        const { data: nc } = await supabase.from('calls').insert({
+          caller_id: currentUser.id,
+          receiver_id: friendId,
+          status: 'ringing',
+          caller_public_key: callPublicKeyStrRef.current
+        }).select().single();
+
         if (nc) {
-          setActiveCallId(nc.id); activeCallIdRef.current = nc.id; callId = nc.id;
+          setActiveCallId(nc.id);
+          activeCallIdRef.current = nc.id;
+          callId = nc.id;
+
           ringTimeoutRef.current = setTimeout(async () => {
-            if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
-            if (activeRoomRef.current) sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
+            if (activeCallIdRef.current) {
+              await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
+            }
+            if (activeRoomRef.current) {
+              sendGlobalSignal({
+                action: 'cancel',
+                roomId: activeRoomRef.current.id,
+                callerId: currentUser.id,
+                participants: activeRoomRef.current.participants
+              });
+            }
             cleanupCall();
           }, 30000);
         }
+
         const { data: fp } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle();
-        if (fp?.fcm_token) await supabase.functions.invoke('send-call-notification', { body: { token: fp.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id } });
+        if (fp?.fcm_token) {
+          await supabase.functions.invoke('send-call-notification', {
+            body: {
+              token: fp.fcm_token,
+              callerName: currentUser.email.split('@')[0],
+              roomId: activeRoom.id
+            }
+          });
+        }
       }
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current } });
-      sendGlobalSignal({ action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom, publicKey: callPublicKeyStrRef.current, callId });
-    } catch (e) { alert("Microphone Access Failed: " + e.message); }
+
+      signalingChannelRef.current.send({
+        type: 'broadcast', event: 'webrtc',
+        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current }
+      });
+
+      sendGlobalSignal({
+        action: 'start',
+        roomId: activeRoom.id,
+        callerId: currentUser.id,
+        callerEmail: currentUser.email,
+        participants: activeRoom.participants,
+        roomDetails: activeRoom,
+        publicKey: callPublicKeyStrRef.current,
+        callId
+      });
+
+    } catch (e) {
+      safeSetIsInCall(false);
+      alert("Microphone Access Failed: " + e.message);
+    }
   };
 
-  // 7. JOIN CALL (🌟 UNIVERSAL TRANSLATOR ACTIVE)
+  // ─── 9. JOIN CALL ─────────────────────────────────────────────────────────
   const joinCall = async () => {
     try {
       await fetchSecureTrucks();
-      const { data: ic } = await supabase.from('calls').select('id').eq('receiver_id', currentUser.id).eq('status', 'ringing').order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+      const { data: ic } = await supabase.from('calls')
+        .select('id')
+        .eq('receiver_id', currentUser.id)
+        .eq('status', 'ringing')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
-      
-      localStream.current = await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
-          echoCancellation: true, 
-          noiseSuppression: true, 
+
+      localStream.current = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: { ideal: 48000 }, 
+          sampleRate: { ideal: 48000 },
           channelCount: { ideal: 1 }
-        }, 
-        video: false 
+        },
+        video: false
       });
-      
+
       safeSetIsInCall(true);
-      try { const kp = await SecurityKit.generateKeys(); callPrivateKeyRef.current = kp.privateKey; callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(kp.publicKey); } catch (e) { console.warn("Join key gen failed"); }
-      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted', receiver_public_key: callPublicKeyStrRef.current || null }).eq('id', activeCallIdRef.current);
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current } });
-    } catch (e) { alert("Failed to join call: " + e.message); }
+
+      try {
+        const kp = await SecurityKit.generateKeys();
+        callPrivateKeyRef.current = kp.privateKey;
+        callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(kp.publicKey);
+      } catch (e) { console.warn("Join key gen failed:", e); }
+
+      if (activeCallIdRef.current) {
+        await supabase.from('calls').update({
+          status: 'accepted',
+          receiver_public_key: callPublicKeyStrRef.current || null
+        }).eq('id', activeCallIdRef.current);
+      }
+
+      signalingChannelRef.current.send({
+        type: 'broadcast', event: 'webrtc',
+        payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current }
+      });
+
+    } catch (e) {
+      safeSetIsInCall(false);
+      alert("Failed to join call: " + e.message);
+    }
   };
 
-  // 8. AUDIO BRIDGE 
+  // ─── 10. AUDIO BRIDGE (manual fallback for strict autoplay browsers) ──────
   const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
@@ -304,18 +492,21 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     }
 
     audio.muted = false;
-    audio.volume = 1.0; 
-    
-    audio.play().then(() => {
-      console.log("Audio playing successfully");
-      setShowAudioBridge(false);
-    }).catch(e => {
-      console.error("Audio play failed:", e);
-      setTimeout(() => { 
-        audio.play().catch(console.error); 
-        setShowAudioBridge(false); 
-      }, 500);
-    });
+    audio.volume = 1.0;
+
+    audio.play()
+      .then(() => {
+        applyAudioBoost(remoteStreamRef.current);
+        setShowAudioBridge(false);
+      })
+      .catch(e => {
+        console.error("Manual audio play failed:", e);
+        setTimeout(() => {
+          audio.play()
+            .then(() => { applyAudioBoost(remoteStreamRef.current); setShowAudioBridge(false); })
+            .catch(console.error);
+        }, 500);
+      });
   };
 
   return {
