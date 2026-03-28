@@ -5,6 +5,7 @@ import { requestFirebaseToken } from '../firebaseSetup';
 import { SecurityKit } from '../utils/security';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useAudioEngine } from '../hooks/useAudioEngine';
+import QRCode from 'react-qr-code';
 
 // ─── iOS DETECTION ─────────────────────────────────────────────────────────
 const isIOS = () =>
@@ -82,6 +83,11 @@ export default function SukoonChat({ T, lang, setTab }) {
   const offlineQueueRef = useRef([]);
   // Incoming call ringing UI
   const [incomingCall, setIncomingCall] = useState(null);
+
+  // ─── NEW: SECURITY VAULT STATE ───
+  const [showVault, setShowVault] = useState(false);
+  const [vaultMode, setVaultMode] = useState(null); // 'qr-show', 'qr-scan', 'pin-backup', 'pin-restore'
+  const [pinInput, setPinInput] = useState("");
 
   // ─── HOOKS (unchanged signatures from your working file) ──────────────────
   // 🌟 THE MAILROOM (Text Chat Engine)
@@ -407,6 +413,38 @@ export default function SukoonChat({ T, lang, setTab }) {
     setShowOnboarding(false); setOnboardingStep(0);
   };
 
+  // ─── SECURITY VAULT ACTIONS ───
+  const handleCloudBackup = async () => {
+    if (pinInput.length !== 6) return alert(hi ? "6 अंकों का पिन दर्ज करें" : "Enter a 6-digit PIN");
+    try {
+      const myKey = localStorage.getItem('sukoon_master_key');
+      const lockedKey = await SecurityKit.lockKeyWithPin(myKey, pinInput, currentUser.email);
+      await supabase.from('profiles').update({ encrypted_backup: lockedKey }).eq('id', currentUser.id);
+      alert(hi ? "क्लाउड में सुरक्षित हो गया!" : "Securely backed up to cloud!");
+      setShowVault(false); setPinInput("");
+    } catch (e) { alert("Backup failed: " + e.message); }
+  };
+
+  const handleCloudRestore = async () => {
+    if (pinInput.length !== 6) return alert(hi ? "6 अंकों का पिन दर्ज करें" : "Enter a 6-digit PIN");
+    try {
+      const { data } = await supabase.from('profiles').select('encrypted_backup').eq('id', currentUser.id).single();
+      if (!data?.encrypted_backup) return alert(hi ? "कोई बैकअप नहीं मिला!" : "No backup found in cloud!");
+      const unlockedKey = await SecurityKit.unlockKeyWithPin(data.encrypted_backup, pinInput, currentUser.email);
+      localStorage.setItem('sukoon_master_key', unlockedKey);
+      alert(hi ? "कुंजी बहाल हो गई! कृपया रिफ्रेश करें।" : "Key restored! Please refresh the app.");
+      window.location.reload();
+    } catch (e) { alert(hi ? "गलत पिन!" : "Incorrect PIN!"); }
+  };
+
+  const handleManualQRPaste = () => {
+    const code = prompt(hi ? "पुराने फोन से कोड पेस्ट करें:" : "Paste code from old phone:");
+    if (code && code.length > 50) {
+      localStorage.setItem('sukoon_master_key', code);
+      alert("Success! Refreshing..."); window.location.reload();
+    }
+  };
+
   // ─── DERIVED ─────────────────────────────────────────────────────────────
   const typingUsers = Object.values(presentUsers).filter(u => u.is_typing && !blockedUsers.includes(u.id));
   const onlineUsers = Object.values(presentUsers).filter(u => !blockedUsers.includes(u.id));
@@ -611,6 +649,64 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
+      {/* NEW: SECURITY VAULT MODAL */}
+      {showVault && (
+        <div style={s.modalOverlay} onClick={() => { setShowVault(false); setVaultMode(null); setPinInput(""); }}>
+          <div style={{ ...s.modalBox, textAlign: 'center', padding: '24px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '40px', marginBottom: '10px' }}>🗝️</div>
+            <h3 style={{ margin: '0 0 15px 0', color: T.text, fontFamily: "'DM Sans', sans-serif" }}>{hi ? "सुरक्षा वॉल्ट" : "Security Vault"}</h3>
+
+            {!vaultMode ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button style={s.actionBtn} onClick={() => setVaultMode('pin-backup')}>{hi ? "क्लाउड पिन बैकअप बनाएं" : "Create Cloud PIN Backup"}</button>
+                <button style={{ ...s.actionBtn, backgroundColor: `${T.accent}20`, color: T.accent }} onClick={() => setVaultMode('pin-restore')}>{hi ? "पिन से कुंजी बहाल करें" : "Restore Key from PIN"}</button>
+                <button style={{ ...s.actionBtn, backgroundColor: `${T.accent}10`, color: T.accent, border: `1px dashed ${T.accent}50` }} onClick={() => setVaultMode('qr-show')}>{hi ? "QR कोड दिखाएं (पुराना फोन)" : "Show QR Code (Old Phone)"}</button>
+                <button style={{ ...s.actionBtn, backgroundColor: `${T.accent}10`, color: T.accent, border: `1px dashed ${T.accent}50` }} onClick={handleManualQRPaste}>{hi ? "मैनुअल पेस्ट (नया फोन)" : "Manual Paste (New Phone)"}</button>
+                <button style={{ ...s.logoutBtn, marginTop: '10px' }} onClick={() => setShowVault(false)}>{hi ? "रद्द करें" : "Cancel"}</button>
+              </div>
+            ) : vaultMode === 'pin-backup' || vaultMode === 'pin-restore' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <p style={{ fontSize: '14px', color: T.text, opacity: 0.8, marginBottom: '10px', lineHeight: '1.5' }}>
+                  {vaultMode === 'pin-backup'
+                    ? (hi ? "अपनी चैट सुरक्षित करने के लिए 6 अंकों का पिन बनाएं। इसे न भूलें!" : "Create a 6-digit PIN to secure your chats. Do not forget it!")
+                    : (hi ? "अपनी चैट वापस लाने के लिए अपना 6 अंकों का पिन डालें।" : "Enter your 6-digit PIN to restore your chats.")}
+                </p>
+                <input
+                  type="password"
+                  maxLength="6"
+                  style={{ ...s.searchInput, textAlign: 'center', fontSize: '24px', letterSpacing: '8px' }}
+                  placeholder="••••••"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/[^0-9]/g, ''))}
+                />
+                <button
+                  style={{ ...s.actionBtn, opacity: pinInput.length === 6 ? 1 : 0.5 }}
+                  onClick={vaultMode === 'pin-backup' ? handleCloudBackup : handleCloudRestore}
+                  disabled={pinInput.length !== 6}
+                >
+                  {vaultMode === 'pin-backup' ? (hi ? "बैकअप बनाएं" : "Backup to Cloud") : (hi ? "बहाल करें" : "Restore Chats")}
+                </button>
+                <button style={{ ...s.logoutBtn, marginTop: '5px' }} onClick={() => { setVaultMode(null); setPinInput(""); }}>{hi ? "पीछे" : "Back"}</button>
+              </div>
+            ) : vaultMode === 'qr-show' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                <p style={{ fontSize: '14px', color: T.text, opacity: 0.8 }}>{hi ? "अपने नए फोन पर स्कैनर खोलें या कोड कॉपी करें:" : "Open scanner on new phone or copy code:"}</p>
+                <div style={{ padding: '16px', backgroundColor: '#fff', borderRadius: '12px' }}>
+                  <QRCode value={localStorage.getItem('sukoon_master_key') || ''} size={150} />
+                </div>
+                <button style={{ ...s.actionBtn, width: '100%' }} onClick={() => {
+                  navigator.clipboard.writeText(localStorage.getItem('sukoon_master_key'));
+                  alert("Copied!");
+                }}>
+                  {hi ? "कोड कॉपी करें" : "Copy Code"}
+                </button>
+                <button style={{ ...s.logoutBtn, width: '100%' }} onClick={() => setVaultMode(null)}>{hi ? "पीछे" : "Back"}</button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {/* Manage blocks — your exact modal */}
       {showManageBlocks && (
         <div style={s.modalOverlay} onClick={() => setShowManageBlocks(false)}>
@@ -729,6 +825,7 @@ export default function SukoonChat({ T, lang, setTab }) {
               <button onClick={() => setShowReferral(true)} style={{ flex: 1, padding: '13px', borderRadius: '16px', border: `1px dashed ${T.accent}50`, backgroundColor: `${T.accent}06`, color: T.accent, fontWeight: '700', fontSize: '14px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                 💌 {hi ? 'दोस्त बुलाएं' : 'Invite Friend'}
               </button>
+              <button onClick={() => setShowVault(true)} style={{ padding: '13px 16px', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: 'transparent', cursor: 'pointer', fontSize: '18px', opacity: 0.55 }} title="Security Vault">🗝️</button>
               <button onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }} style={{ padding: '13px 16px', borderRadius: '16px', border: `1px solid ${T.accent}20`, backgroundColor: 'transparent', cursor: 'pointer', fontSize: '18px', opacity: 0.55 }} title="Security info">🔐</button>
             </div>
           </>
