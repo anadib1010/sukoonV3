@@ -3,7 +3,6 @@ import { supabase } from '../supabase';
 import { SecurityKit } from '../utils/security';
 
 // 🌟 STEP 3: THE STUDIO ENGINEER ROBOT (SDP Munging)
-// This safely rewrites the invitation letter to force max quality Opus audio
 const enforceHighQualityOpus = (sdp) => {
   let modifiedSdp = sdp;
   const opusRegex = /a=rtpmap:(\d+) opus\/48000\/2/;
@@ -104,7 +103,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const removePeer = (id) => { if (peers.current[id]) { peers.current[id].close(); delete peers.current[id]; } };
   const sendGlobalSignal = (p) => supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: p });
 
-  // 3. PEER CONNECTION (🔒 UNTOUCHED)
+  // 3. PEER CONNECTION 
   const createPeerConnection = (peerId) => {
     const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
@@ -130,7 +129,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return pc;
   };
 
-  // 4. SIGNALING LISTENER (🌟 STEP 3 APPLIED: SDP MUNGING)
+  // 4. SIGNALING LISTENER 
   useEffect(() => {
     if (!activeRoom || !currentUser) return;
 
@@ -151,10 +150,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false }); 
-          
-          // 🌟 The Secret P.S. Note for the Offer
           offer.sdp = enforceHighQualityOpus(offer.sdp);
-          
           await pc.setLocalDescription(offer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
         }
@@ -164,12 +160,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           for (const c of (iceCandidateQueue.current[payload.sender] || []))
             await pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn);
           iceCandidateQueue.current[payload.sender] = [];
-          
           const answer = await pc.createAnswer();
-          
-          // 🌟 The Secret P.S. Note for the Answer
           answer.sdp = enforceHighQualityOpus(answer.sdp);
-          
           await pc.setLocalDescription(answer);
           sigCh.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
         }
@@ -236,7 +228,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     return () => supabase.removeChannel(r);
   }, [currentUser]);
 
-  // 6. START CALL (🌟 STEP 1 & 2 APPLIED)
+  // 6. START CALL (🌟 UNIVERSAL TRANSLATOR ACTIVE)
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
@@ -248,8 +240,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           echoCancellation: true, 
           noiseSuppression: true, 
           autoGainControl: true,
-          sampleRate: 48000, 
-          channelCount: 1    
+          sampleRate: { ideal: 48000 }, 
+          channelCount: { ideal: 1 }
         }, 
         video: false 
       });
@@ -277,7 +269,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Microphone Access Failed: " + e.message); }
   };
 
-  // 7. JOIN CALL (🌟 STEP 1 & 2 APPLIED)
+  // 7. JOIN CALL (🌟 UNIVERSAL TRANSLATOR ACTIVE)
   const joinCall = async () => {
     try {
       await fetchSecureTrucks();
@@ -289,8 +281,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
           echoCancellation: true, 
           noiseSuppression: true, 
           autoGainControl: true,
-          sampleRate: 48000, 
-          channelCount: 1    
+          sampleRate: { ideal: 48000 }, 
+          channelCount: { ideal: 1 }
         }, 
         video: false 
       });
@@ -302,25 +294,23 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // 8. AUDIO BRIDGE (UNIVERSAL STABILITY)
+  // 8. AUDIO BRIDGE 
   const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
 
-    // Direct stream connection: This is the safest way for Realme/Old phones
     if (remoteStreamRef.current && audio.srcObject !== remoteStreamRef.current) {
       audio.srcObject = remoteStreamRef.current;
     }
 
     audio.muted = false;
-    audio.volume = 1.0; // Max system volume
+    audio.volume = 1.0; 
     
     audio.play().then(() => {
       console.log("Audio playing successfully");
       setShowAudioBridge(false);
     }).catch(e => {
       console.error("Audio play failed:", e);
-      // If it fails, we try one more time after a tiny delay
       setTimeout(() => { 
         audio.play().catch(console.error); 
         setShowAudioBridge(false); 
