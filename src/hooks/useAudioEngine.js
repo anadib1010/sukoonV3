@@ -302,23 +302,44 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
     } catch (e) { alert("Failed to join call: " + e.message); }
   };
 
-  // 8. AUDIO BRIDGE (🔒 UNTOUCHED)
-  const handleStartAudio = () => {
+  // 8. AUDIO BRIDGE (AMPLIFIED FOR SAMSUNG)
+  const handleStartAudio = async () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
-    if (remoteStreamRef.current && !audio.srcObject) audio.srcObject = remoteStreamRef.current;
-    
-    audio.playsInline = true;
-    audio.muted = false;
+
+    try {
+      if (remoteStreamRef.current && (window.AudioContext || window.webkitAudioContext)) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        const source = ctx.createMediaStreamSource(remoteStreamRef.current);
+        
+        // 🌟 THE AMPLIFIER: We are boosting the volume by 2.5x (250%)
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = 2.5; 
+
+        const dest = ctx.createMediaStreamDestination();
+        
+        // Connect: Raw Sound -> Volume Booster -> Output
+        source.connect(gainNode);
+        gainNode.connect(dest);
+
+        audio.srcObject = dest.stream;
+        if (ctx.state === 'suspended') await ctx.resume();
+      } else {
+        audio.srcObject = remoteStreamRef.current;
+      }
+    } catch (e) {
+      console.warn("Amplifier failed, using raw audio", e);
+      audio.srcObject = remoteStreamRef.current;
+    }
+
+    audio.muted = false; // Force unmuted
+    audio.volume = 1.0;  // Force max hardware volume
     
     audio.play().then(() => {
       setShowAudioBridge(false);
     }).catch(e => {
-      console.error("Audio play failed:", e);
-      setTimeout(() => { 
-        audio.play().catch(console.error); 
-        setShowAudioBridge(false); 
-      }, 500);
+      setTimeout(() => { audio.play(); setShowAudioBridge(false); }, 500);
     });
   };
 
