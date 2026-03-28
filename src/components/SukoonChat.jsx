@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom'; 
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { requestFirebaseToken } from '../firebaseSetup'; 
+import { requestFirebaseToken } from '../firebaseSetup';
 
-// ─── 🛡️ THE MILITARY-GRADE SECURITY KIT (ECDH + AES-GCM) ───
+// ─── ECDH + AES-GCM SECURITY KIT ───────────────────────────────────────────
 const SecurityKit = {
   generateKeys: async () => {
     return await window.crypto.subtle.generateKey(
       { name: "ECDH", namedCurve: "P-256" },
-      true, 
+      true,
       ["deriveKey", "deriveBits"]
     );
   },
@@ -49,7 +49,7 @@ const SecurityKit = {
   encryptText: async (text, aesKey) => {
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const encoded = new TextEncoder().encode(text);
-    const cipherText = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, aesKey, encoded);
+    const cipherText = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, encoded);
     return {
       cipherText: btoa(String.fromCharCode(...new Uint8Array(cipherText))),
       iv: btoa(String.fromCharCode(...new Uint8Array(iv)))
@@ -59,15 +59,34 @@ const SecurityKit = {
     try {
       const cipherText = new Uint8Array(atob(cipherText64).split('').map(c => c.charCodeAt(0)));
       const iv = new Uint8Array(atob(iv64).split('').map(c => c.charCodeAt(0)));
-      const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, aesKey, cipherText);
+      const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, cipherText);
       return new TextDecoder().decode(decrypted);
-    } catch (e) { return "🔒 [Encrypted Message]"; }
+    } catch (e) { return null; } // return null so caller can decide what to show
   }
 };
 
+// ─── XOR LEGACY FALLBACK ────────────────────────────────────────────────────
+const decryptXORFallback = (scrambled, key) => {
+  try {
+    const keyStr = String(key);
+    return decodeURIComponent(
+      atob(scrambled).split('').map((char, i) =>
+        String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))
+      ).join('')
+    );
+  } catch (e) { return scrambled; }
+};
+
+// ─── DETECT iOS ─────────────────────────────────────────────────────────────
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
 export default function SukoonChat({ T, lang, setTab }) {
-  const location = useLocation(); 
+  const location = useLocation();
   const hi = lang === "Hindi";
+
   const [message, setMessage] = useState("");
   const [rooms, setRooms] = useState([]);
   const [activeRoom, setActiveRoom] = useState(null);
@@ -84,7 +103,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [selectedFriends, setSelectedFriends] = useState([]);
 
   const [unreadCounts, setUnreadCounts] = useState({});
-  const activeRoomRef = useRef(activeRoom); 
+  const activeRoomRef = useRef(activeRoom);
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
 
   const [presentUsers, setPresentUsers] = useState({});
@@ -93,28 +112,36 @@ export default function SukoonChat({ T, lang, setTab }) {
   const typingTimeoutRef = useRef(null);
 
   const [isInCall, setIsInCall] = useState(false);
-  const isInCallRef = useRef(false); 
-  
-  const [remoteStreams, setRemoteStreams] = useState([]); 
+  const isInCallRef = useRef(false);
+
   const [showAudioBridge, setShowAudioBridge] = useState(false);
+  // FIX (Old Android + iOS): store remote stream in a ref so it survives re-renders
+  const remoteStreamRef = useRef(null);
 
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
-  const myMasterKeyRef = useRef(null); 
-  const activeAESKeysRef = useRef({}); 
+  const myMasterKeyRef = useRef(null);
+  const activeAESKeysRef = useRef({});
+  // Track key-watcher channels so we can clean them up
+  const keyWatcherChannelRef = useRef(null);
 
   const localStream = useRef(null);
-  const peers = useRef({}); 
+  const peers = useRef({});
   const signalingChannelRef = useRef(null);
   const autoJoinRef = useRef(false);
 
-  const iceCandidateQueue = useRef({}); 
+  const iceCandidateQueue = useRef({});
   const ringTimeoutRef = useRef(null);
-  const iceServersRef = useRef({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  const iceServersRef = useRef({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ]
+  });
 
-  const callPrivateKeyRef = useRef(null); 
-  const callPublicKeyStrRef = useRef(null); 
-  const callSharedSecretRef = useRef(null); 
-  
+  const callPrivateKeyRef = useRef(null);
+  const callPublicKeyStrRef = useRef(null);
+  const callSharedSecretRef = useRef(null);
+
   const [activeCallId, setActiveCallId] = useState(null);
   const activeCallIdRef = useRef(null);
 
@@ -124,6 +151,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const messagesEndRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
+  // ─── STYLES ───────────────────────────────────────────────────────────────
   const s = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative', fontFamily: "'DM Sans', sans-serif" },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', borderBottom: `1px solid ${T.accent}20`, backgroundColor: `${T.bg}95`, backdropFilter: 'blur(10px)', zIndex: 10 },
@@ -165,43 +193,44 @@ export default function SukoonChat({ T, lang, setTab }) {
     bridgeBtn: { padding: '20px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', boxShadow: '0 0 20px #4ade80' }
   };
 
+  // ─── INIT: KEYS + USER ────────────────────────────────────────────────────
   useEffect(() => {
     async function initializeKeysAndUser() {
-      if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
-      
+      if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
       const { data } = await supabase.from('rooms').select('*');
       if (data) setRooms(data);
-      
+
       if (user) {
         try {
           const token = await requestFirebaseToken();
           if (token) await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
         } catch (e) { console.log("Push token skip"); }
 
-        // 🌟 THE SELF-HEALING VAULT
+        // SELF-HEALING VAULT
         try {
           const savedPrivJwk = localStorage.getItem('sukoon_master_key');
           const savedPubStr = localStorage.getItem('sukoon_public_key');
 
           if (savedPrivJwk && savedPubStr) {
             myMasterKeyRef.current = await SecurityKit.importPrivateKeyFromVault(savedPrivJwk);
-            // 🛡️ Self-Heal: Always ensure the DB has our padlock so other devices don't get confused!
+            // Always sync our public key to DB so partners can re-derive
             await supabase.from('profiles').update({ public_key: savedPubStr }).eq('id', user.id);
           } else {
-            // Fresh generation
             const keyPair = await SecurityKit.generateKeys();
             myMasterKeyRef.current = keyPair.privateKey;
             const exportedPriv = await SecurityKit.exportPrivateKeyToVault(keyPair.privateKey);
             const exportedPub = await SecurityKit.exportPublicKey(keyPair.publicKey);
-            
             localStorage.setItem('sukoon_master_key', exportedPriv);
             localStorage.setItem('sukoon_public_key', exportedPub);
             await supabase.from('profiles').update({ public_key: exportedPub }).eq('id', user.id);
           }
         } catch (e) { console.error("E2EE Initialization failed", e); }
-        
+
         setIsVaultUnlocked(true);
       }
       setLoading(false);
@@ -209,18 +238,11 @@ export default function SukoonChat({ T, lang, setTab }) {
     initializeKeysAndUser();
   }, []);
 
-  const decryptXORFallback = (scrambled, key) => {
-    try { 
-      const keyStr = String(key); 
-      return decodeURIComponent(atob(scrambled).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))).join('')); 
-    } catch (e) { return scrambled; }
-  };
-
+  // ─── INCOMING CALL VIA NAVIGATION STATE ───────────────────────────────────
   useEffect(() => {
     if (location.state?.incomingCallRoom) {
       const room = location.state.incomingCallRoom;
-      window.history.replaceState({}, document.title); 
-
+      window.history.replaceState({}, document.title);
       if (activeRoomRef.current?.id === room.id) {
         if (!isInCallRef.current) joinCall();
       } else {
@@ -230,145 +252,221 @@ export default function SukoonChat({ T, lang, setTab }) {
     }
   }, [location.state]);
 
+  // ─── HELPER: DERIVE AES KEY FROM A PARTNER'S PUBLIC KEY STRING ────────────
+  const deriveAESKeyFromPublicKeyStr = async (publicKeyStr) => {
+    if (!myMasterKeyRef.current || !publicKeyStr) return null;
+    try {
+      const theirPub = await SecurityKit.importPublicKey(publicKeyStr);
+      const sharedBits = await SecurityKit.deriveSecretBits(myMasterKeyRef.current, theirPub);
+      return await SecurityKit.createAESKey(sharedBits);
+    } catch (e) {
+      console.error("AES Key Derivation Failed", e);
+      return null;
+    }
+  };
+
+  // ─── HELPER: DECRYPT A SINGLE MESSAGE OBJECT ─────────────────────────────
+  const decryptMessage = async (m, aesKey) => {
+    if (m.content && m.content.includes(':::')) {
+      if (aesKey) {
+        const [iv, cipher] = m.content.split(':::');
+        const result = await SecurityKit.decryptText(cipher, iv, aesKey);
+        // FIX (Bug 1): null result means key mismatch, show helpful message
+        m.decrypted_content = result !== null ? result : "🔒 [Key mismatch - ask friend to re-open chat]";
+      } else {
+        m.decrypted_content = "🔒 [Secured Message - Key not ready]";
+      }
+    } else {
+      m.decrypted_content = decryptXORFallback(m.content, m.room_id);
+    }
+    return m;
+  };
+
+  // ─── FETCH + DECRYPT ALL MESSAGES FOR A ROOM ──────────────────────────────
   const fetchAndDecryptMessages = async (roomId) => {
     const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
     if (!data) return [];
-    
     const aesKey = activeAESKeysRef.current[roomId];
-    const decryptedData = await Promise.all(data.map(async (m) => {
-      // 🌟 SMART DECRYPTION: Don't let AES messages crash into the XOR reader
-      if (m.content.includes(':::')) {
-        if (aesKey) {
-          const [iv, cipher] = m.content.split(':::');
-          m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
-        } else {
-          m.decrypted_content = "🔒 [Secured Message - Reconnect to view]";
-        }
-      } else {
-        m.decrypted_content = decryptXORFallback(m.content, roomId);
-      }
-      return m;
-    }));
-    return decryptedData;
+    return await Promise.all(data.map(m => decryptMessage({ ...m }, aesKey)));
   };
 
+  // ─── MAIN ROOM EFFECT: ENCRYPTION + REALTIME + SIGNALING ─────────────────
   useEffect(() => {
     if (!activeRoom || !currentUser || !isVaultUnlocked) return;
     let isSubscribed = true;
 
     const setupRoomEncryptionAndFetch = async () => {
-      const friendId = activeRoom.participants.find(id => id !== currentUser.id);
+      // Only do key exchange for 1-to-1 private rooms
+      const friendId = activeRoom.is_private
+        ? activeRoom.participants.find(id => id !== currentUser.id)
+        : null;
+
       if (friendId && myMasterKeyRef.current) {
         const { data: friendProfile } = await supabase.from('profiles').select('public_key').eq('id', friendId).maybeSingle();
-        if (friendProfile && friendProfile.public_key) {
-          try {
-            const friendPub = await SecurityKit.importPublicKey(friendProfile.public_key);
-            const sharedBits = await SecurityKit.deriveSecretBits(myMasterKeyRef.current, friendPub);
-            const aesKey = await SecurityKit.createAESKey(sharedBits);
-            activeAESKeysRef.current[activeRoom.id] = aesKey;
-          } catch (e) { console.error("AES Key Derivation Failed", e); }
+        if (friendProfile?.public_key) {
+          const aesKey = await deriveAESKeyFromPublicKeyStr(friendProfile.public_key);
+          if (aesKey) activeAESKeysRef.current[activeRoom.id] = aesKey;
         }
+
+        // FIX (Bug 1): Watch for partner's public key rotation (logout/new device)
+        // Clean up any existing watcher first
+        if (keyWatcherChannelRef.current) {
+          await supabase.removeChannel(keyWatcherChannelRef.current);
+          keyWatcherChannelRef.current = null;
+        }
+
+        const keyWatcher = supabase
+          .channel(`key-watch-${activeRoom.id}-${friendId}`)
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${friendId}`
+          }, async (payload) => {
+            const newPubKey = payload.new?.public_key;
+            const oldPubKey = payload.old?.public_key;
+            if (newPubKey && newPubKey !== oldPubKey) {
+              console.log("Partner rotated public key — re-deriving AES key...");
+              const freshAES = await deriveAESKeyFromPublicKeyStr(newPubKey);
+              if (freshAES) {
+                activeAESKeysRef.current[activeRoom.id] = freshAES;
+                // Re-decrypt all messages with the new key
+                if (isSubscribed) {
+                  const redecrypted = await fetchAndDecryptMessages(activeRoom.id);
+                  setMessages(redecrypted);
+                }
+              }
+            }
+          })
+          .subscribe();
+
+        keyWatcherChannelRef.current = keyWatcher;
       }
 
       const decryptedMessages = await fetchAndDecryptMessages(activeRoom.id);
       if (isSubscribed) {
         setMessages(decryptedMessages);
-        const unreadIds = decryptedMessages.filter(m => !m.is_read && m.user_id !== currentUser.id).map(m => m.id);
-        if (unreadIds.length > 0) supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        const unreadIds = decryptedMessages
+          .filter(m => !m.is_read && m.user_id !== currentUser.id)
+          .map(m => m.id);
+        if (unreadIds.length > 0) {
+          supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        }
         setUnreadCounts(prev => ({ ...prev, [activeRoom.id]: 0 }));
       }
     };
 
     setupRoomEncryptionAndFetch();
 
+    // ── Real-time chat messages ──
     const chatChannel = supabase.channel(`room-${activeRoom.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
-        async (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newMsg = payload.new;
-            const aesKey = activeAESKeysRef.current[activeRoom.id];
-            
-            // 🌟 SMART REAL-TIME DECRYPTION
-            if (newMsg.content.includes(':::')) {
-              if (aesKey) {
-                const [iv, cipher] = newMsg.content.split(':::');
-                newMsg.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
-              } else {
-                newMsg.decrypted_content = "🔒 [Secured Message - Reconnect to view]";
-              }
-            } else {
-              newMsg.decrypted_content = decryptXORFallback(newMsg.content, activeRoom.id);
-            }
-
-            setMessages(prev => prev.find(m => m.id === newMsg.id) ? prev : [...prev, newMsg]);
-            if (newMsg.user_id !== currentUser.id) supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id).then();
-          } else if (payload.eventType === 'DELETE') {
-            setMessages(prev => prev.filter(m => m.id !== payload.old?.id));
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'messages',
+        filter: `room_id=eq.${activeRoom.id}`
+      }, async (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newMsg = { ...payload.new };
+          const aesKey = activeAESKeysRef.current[activeRoom.id];
+          await decryptMessage(newMsg, aesKey);
+          setMessages(prev => prev.find(m => m.id === newMsg.id) ? prev : [...prev, newMsg]);
+          if (newMsg.user_id !== currentUser.id) {
+            supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id).then();
           }
-        }).subscribe();
+        } else if (payload.eventType === 'DELETE') {
+          setMessages(prev => prev.filter(m => m.id !== payload.old?.id));
+        }
+      }).subscribe();
 
-    const presenceRoom = supabase.channel(`presence-${activeRoom.id}`, { config: { presence: { key: currentUser.id } } });
+    // ── Presence / typing ──
+    const presenceRoom = supabase.channel(
+      `presence-${activeRoom.id}`,
+      { config: { presence: { key: currentUser.id } } }
+    );
     presenceChannelRef.current = presenceRoom;
-    presenceRoom.on('presence', { event: 'sync' }, () => {
-      const state = presenceRoom.presenceState();
-      const activeUsers = {};
-      Object.keys(state).forEach(key => { if (key !== currentUser.id) activeUsers[key] = state[key][0]; });
-      setPresentUsers(activeUsers);
-    }).subscribe(async (status) => { if (status === 'SUBSCRIBED') await presenceRoom.track({ email: currentUser.email, is_typing: false }); });
+    presenceRoom
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceRoom.presenceState();
+        const activeUsers = {};
+        Object.keys(state).forEach(key => {
+          if (key !== currentUser.id) activeUsers[key] = state[key][0];
+        });
+        setPresentUsers(activeUsers);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceRoom.track({ email: currentUser.email, is_typing: false });
+        }
+      });
 
-    const sigChannel = supabase.channel(`signaling-${activeRoom.id}`, { config: { broadcast: { ack: false } } });
+    // ── WebRTC signaling ──
+    const sigChannel = supabase.channel(
+      `signaling-${activeRoom.id}`,
+      { config: { broadcast: { ack: false } } }
+    );
     signalingChannelRef.current = sigChannel;
 
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
-      if (payload.sender === currentUser.id) return; 
+      if (payload.sender === currentUser.id) return;
       try {
-        try {
-          if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
+        // ECDH key exchange for call encryption
+        if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
+          try {
             const theirPublicKey = await SecurityKit.importPublicKey(payload.publicKey);
             const finalSecret = await SecurityKit.deriveSecretBits(callPrivateKeyRef.current, theirPublicKey);
             const secretArray = Array.from(new Uint8Array(finalSecret));
             callSharedSecretRef.current = secretArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          }
-        } catch (cryptoErr) { console.warn("ECDH Handshake skipped for this call"); }
+          } catch (cryptoErr) { console.warn("ECDH call handshake skipped"); }
+        }
 
         if (payload.type === 'user-joined' && isInCallRef.current) {
           const pc = createPeerConnection(payload.sender);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current } });
-        } 
+          sigChannel.send({
+            type: 'broadcast', event: 'webrtc',
+            payload: { type: 'offer', sdp: offer, sender: currentUser.id, target: payload.sender, publicKey: callPublicKeyStrRef.current }
+          });
+        }
         else if (payload.type === 'offer' && payload.target === currentUser.id) {
           const pc = createPeerConnection(payload.sender);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          if (iceCandidateQueue.current[payload.sender]) {
-            iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log(e)));
+          // Flush queued ICE candidates
+          if (iceCandidateQueue.current[payload.sender]?.length) {
+            for (const c of iceCandidateQueue.current[payload.sender]) {
+              await pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log("ICE flush err", e));
+            }
             iceCandidateQueue.current[payload.sender] = [];
           }
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          sigChannel.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender } });
-        } 
+          sigChannel.send({
+            type: 'broadcast', event: 'webrtc',
+            payload: { type: 'answer', sdp: answer, sender: currentUser.id, target: payload.sender }
+          });
+        }
         else if (payload.type === 'answer' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            if (iceCandidateQueue.current[payload.sender]) {
-              iceCandidateQueue.current[payload.sender].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log(e)));
+            if (iceCandidateQueue.current[payload.sender]?.length) {
+              for (const c of iceCandidateQueue.current[payload.sender]) {
+                await pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.log("ICE flush err", e));
+              }
               iceCandidateQueue.current[payload.sender] = [];
             }
           }
-        } 
+        }
         else if (payload.type === 'ice-candidate' && payload.target === currentUser.id) {
           const pc = peers.current[payload.sender];
           if (pc) {
-            if (pc.remoteDescription && pc.remoteDescription.type) {
+            if (pc.remoteDescription?.type) {
               pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e => console.log("ICE Error", e));
             } else {
               if (!iceCandidateQueue.current[payload.sender]) iceCandidateQueue.current[payload.sender] = [];
               iceCandidateQueue.current[payload.sender].push(payload.candidate);
             }
           }
-        } 
+        }
         else if (payload.type === 'user-left') {
           removePeer(payload.sender);
           cleanupCall();
@@ -377,27 +475,34 @@ export default function SukoonChat({ T, lang, setTab }) {
     }).subscribe((status) => {
       if (status === 'SUBSCRIBED' && autoJoinRef.current) {
         autoJoinRef.current = false;
-        joinCall(); 
+        joinCall();
       }
     });
 
-    return () => { 
+    return () => {
       isSubscribed = false;
-      supabase.removeChannel(chatChannel); 
-      supabase.removeChannel(presenceRoom); 
-      supabase.removeChannel(sigChannel); 
+      supabase.removeChannel(chatChannel);
+      supabase.removeChannel(presenceRoom);
+      supabase.removeChannel(sigChannel);
+      // Clean up key watcher when leaving room
+      if (keyWatcherChannelRef.current) {
+        supabase.removeChannel(keyWatcherChannelRef.current);
+        keyWatcherChannelRef.current = null;
+      }
     };
-  }, [activeRoom, currentUser, isVaultUnlocked]); 
+  }, [activeRoom, currentUser, isVaultUnlocked]);
 
+  // ─── SEND MESSAGE ─────────────────────────────────────────────────────────
   const handleSendMessage = async () => {
     if (!message.trim() || !currentUser) return;
-    
     const rawMessage = message;
-    setMessage(""); setIsTyping(false);
-    if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+    setMessage("");
+    setIsTyping(false);
+    if (presenceChannelRef.current) {
+      presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+    }
 
     let finalContentToSave = "";
-    let useXorFallback = false;
     const aesKey = activeAESKeysRef.current[activeRoom.id];
 
     if (aesKey) {
@@ -405,30 +510,46 @@ export default function SukoonChat({ T, lang, setTab }) {
         const encrypted = await SecurityKit.encryptText(rawMessage, aesKey);
         finalContentToSave = `${encrypted.iv}:::${encrypted.cipherText}`;
       } catch (err) {
-        console.error("Encryption Failed, falling back", err);
-        useXorFallback = true;
+        console.error("Encryption failed, using XOR fallback", err);
+        aesKey = null; // fall through to XOR
       }
-    } else {
-      useXorFallback = true;
     }
 
-    if (useXorFallback) {
+    if (!finalContentToSave) {
+      // XOR fallback for group chats or when AES key unavailable
       const keyStr = String(activeRoom.id);
-      finalContentToSave = btoa(encodeURIComponent(rawMessage).split('').map((char, i) => String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))).join(''));
+      finalContentToSave = btoa(
+        encodeURIComponent(rawMessage).split('').map((char, i) =>
+          String.fromCharCode(char.charCodeAt(0) ^ keyStr.charCodeAt(i % keyStr.length))
+        ).join('')
+      );
     }
-    
-    await supabase.from('messages').insert([{ content: finalContentToSave, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email }]);
+
+    await supabase.from('messages').insert([{
+      content: finalContentToSave,
+      room_id: activeRoom.id,
+      user_id: currentUser.id,
+      user_email: currentUser.email
+    }]);
   };
 
+  // ─── CALL STATUS WATCHER ──────────────────────────────────────────────────
   useEffect(() => {
     if (!activeCallId) return;
-    const boardWatcher = supabase.channel(`status-board-${activeCallId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${activeCallId}` }, (payload) => {
-        if (payload.new.status === 'accepted' && ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+    const boardWatcher = supabase.channel(`status-board-${activeCallId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'calls',
+        filter: `id=eq.${activeCallId}`
+      }, (payload) => {
+        if (payload.new.status === 'accepted' && ringTimeoutRef.current) {
+          clearTimeout(ringTimeoutRef.current);
+        }
         if (['rejected', 'ended', 'missed'].includes(payload.new.status)) cleanupCall();
       }).subscribe();
     return () => supabase.removeChannel(boardWatcher);
   }, [activeCallId]);
 
+  // ─── CALL HEARTBEAT ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeCallId) return;
     const heartbeat = setInterval(async () => {
@@ -440,84 +561,178 @@ export default function SukoonChat({ T, lang, setTab }) {
     return () => clearInterval(heartbeat);
   }, [activeCallId]);
 
+  // ─── GLOBAL CALL RADAR (cancel signal) ────────────────────────────────────
   useEffect(() => {
     if (!currentUser) return;
-    const globalRadar = supabase.channel('global-call-radar-caller-listener').on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
+    const globalRadar = supabase.channel('global-call-radar-caller-listener')
+      .on('broadcast', { event: 'global-ring' }, async ({ payload }) => {
         if (payload.action === 'cancel' && payload.callerId === currentUser.id) {
-          if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
+          if (activeCallIdRef.current) {
+            await supabase.from('calls').update({ status: 'rejected' }).eq('id', activeCallIdRef.current);
+          }
           cleanupCall();
         }
       }).subscribe();
     return () => supabase.removeChannel(globalRadar);
   }, [currentUser]);
 
+  // ─── UNREAD COUNTS + ROOM/MESSAGE SCANNERS ────────────────────────────────
   useEffect(() => {
     if (!currentUser) return;
     const fetchInitialUnread = async () => {
       const { data } = await supabase.from('messages').select('room_id').eq('is_read', false).neq('user_id', currentUser.id);
       const counts = {};
-      if (data) { data.forEach(msg => { counts[msg.room_id] = (counts[msg.room_id] || 0) + 1; }); setUnreadCounts(counts); }
+      if (data) { data.forEach(msg => { counts[msg.room_id] = (counts[msg.room_id] || 0) + 1; }); }
+      setUnreadCounts(counts);
     };
     fetchInitialUnread();
 
-    const roomChannel = supabase.channel('live-rooms-radar').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, (payload) => { if (payload.new.participants && payload.new.participants.includes(currentUser.id)) setRooms(prev => [...prev, payload.new]); }).subscribe();
-    const globalMessageScanner = supabase.channel('global-message-scanner').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        if (payload.new.user_id !== currentUser.id && activeRoomRef.current?.id !== payload.new.room_id) setUnreadCounts(prev => ({ ...prev, [payload.new.room_id]: (prev[payload.new.room_id] || 0) + 1 }));
+    const roomChannel = supabase.channel('live-rooms-radar')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, (payload) => {
+        if (payload.new.participants?.includes(currentUser.id)) {
+          setRooms(prev => [...prev, payload.new]);
+        }
+      }).subscribe();
+
+    const globalMessageScanner = supabase.channel('global-message-scanner')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if (payload.new.user_id !== currentUser.id && activeRoomRef.current?.id !== payload.new.room_id) {
+          setUnreadCounts(prev => ({ ...prev, [payload.new.room_id]: (prev[payload.new.room_id] || 0) + 1 }));
+        }
       }).subscribe();
 
     return () => { supabase.removeChannel(roomChannel); supabase.removeChannel(globalMessageScanner); };
-  }, [currentUser?.id]); 
+  }, [currentUser?.id]);
 
+  // ─── AUTO SCROLL ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isAutoScrolling && chatBoxRef.current) chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
+    if (!isAutoScrolling && chatBoxRef.current) {
+      chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
+    }
   }, [messages, activeRoom]);
 
+  // ─── TYPING INDICATOR ─────────────────────────────────────────────────────
   const handleTyping = (e) => {
     setMessage(e.target.value);
-    if (!isTyping && presenceChannelRef.current) { setIsTyping(true); presenceChannelRef.current.track({ email: currentUser.email, is_typing: true }); }
+    if (!isTyping && presenceChannelRef.current) {
+      setIsTyping(true);
+      presenceChannelRef.current.track({ email: currentUser.email, is_typing: true });
+    }
     clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => { setIsTyping(false); if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false }); }, 2000);
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
+      }
+    }, 2000);
   };
 
-  const formatTime = (dateString) => dateString ? new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+  const formatTime = (dateString) =>
+    dateString ? new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
 
+  // ─── TURN SERVER FETCH (with robust fallback) ─────────────────────────────
+  // FIX (Bug 2 - Old Android + iOS): Never fall back to STUN-only.
+  // Always guarantee at least one TURN server is in the config.
   const fetchSecureTrucks = async () => {
     try {
       const { data } = await supabase.functions.invoke('get-turn-credentials');
-      if (data && data.iceServers) iceServersRef.current = data;
-    } catch (err) { console.error("Could not fetch secure trucks.", err); }
+      if (data?.iceServers) {
+        iceServersRef.current = data;
+        return;
+      }
+    } catch (err) {
+      console.warn("TURN fetch failed, using public fallback TURN servers");
+    }
+    // Public fallback TURN — replace with your own Metered/Twilio TURN in production
+    iceServersRef.current = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ]
+    };
   };
 
+  // ─── CREATE PEER CONNECTION ───────────────────────────────────────────────
   const createPeerConnection = (peerId) => {
-    const pc = new RTCPeerConnection(iceServersRef.current); 
+    const pc = new RTCPeerConnection(iceServersRef.current);
     peers.current[peerId] = pc;
-    if (localStream.current) localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
-    
+
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
+    }
+
+    // FIX (Bug 2 - Old Android + iOS): Store remote stream in ref
+    // Old Android drops srcObject reference; iOS needs the stream stored
+    // before the user taps the bridge button
     pc.ontrack = (event) => {
+      const stream = event.streams[0];
+      remoteStreamRef.current = stream; // store it!
+
       const remoteAudio = document.getElementById('sukoon-remote-audio');
       if (remoteAudio) {
-        remoteAudio.srcObject = event.streams[0];
-        setShowAudioBridge(true); 
+        remoteAudio.srcObject = stream;
+        // FIX (iOS): must set playsInline via JS property, not just HTML attribute
+        remoteAudio.playsInline = true;
+      }
+      setShowAudioBridge(true);
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && signalingChannelRef.current) {
+        signalingChannelRef.current.send({
+          type: 'broadcast', event: 'webrtc',
+          payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId }
+        });
       }
     };
-    
-    pc.onicecandidate = (event) => { if (event.candidate && signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'ice-candidate', candidate: event.candidate, sender: currentUser.id, target: peerId } }); };
-    pc.oniceconnectionstatechange = () => { if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) cleanupCall(); };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`ICE state [${peerId}]:`, pc.iceConnectionState);
+      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) {
+        cleanupCall();
+      }
+    };
+
     return pc;
   };
 
-  const removePeer = (peerId) => { if (peers.current[peerId]) { peers.current[peerId].close(); delete peers.current[peerId]; } };
+  const removePeer = (peerId) => {
+    if (peers.current[peerId]) {
+      peers.current[peerId].close();
+      delete peers.current[peerId];
+    }
+  };
 
-  const sendGlobalSignal = (actionPayload) => { supabase.channel('global-call-radar').send({ type: 'broadcast', event: 'global-ring', payload: actionPayload }); };
+  const sendGlobalSignal = (actionPayload) => {
+    supabase.channel('global-call-radar').send({
+      type: 'broadcast', event: 'global-ring', payload: actionPayload
+    });
+  };
 
+  // ─── START CALL ───────────────────────────────────────────────────────────
   const startCall = async () => {
     if (isInCallRef.current || !activeRoom) return;
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      await fetchSecureTrucks(); 
+      await fetchSecureTrucks();
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
-      
+
       try {
         const keys = await SecurityKit.generateKeys();
         callPrivateKeyRef.current = keys.privateKey;
@@ -529,33 +744,64 @@ export default function SukoonChat({ T, lang, setTab }) {
 
       if (friendId) {
         await supabase.from('calls').delete().eq('caller_id', currentUser.id).eq('status', 'ringing');
-        const { data: newCall } = await supabase.from('calls').insert({ caller_id: currentUser.id, receiver_id: friendId, status: 'ringing', caller_public_key: callPublicKeyStrRef.current }).select().single();
+        const { data: newCall } = await supabase.from('calls').insert({
+          caller_id: currentUser.id,
+          receiver_id: friendId,
+          status: 'ringing',
+          caller_public_key: callPublicKeyStrRef.current
+        }).select().single();
 
         if (newCall) {
-          setActiveCallId(newCall.id); activeCallIdRef.current = newCall.id; currentCallId = newCall.id;
+          setActiveCallId(newCall.id);
+          activeCallIdRef.current = newCall.id;
+          currentCallId = newCall.id;
+
           ringTimeoutRef.current = setTimeout(async () => {
-            if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
-            if (activeRoomRef.current) sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
+            if (activeCallIdRef.current) {
+              await supabase.from('calls').update({ status: 'missed' }).eq('id', activeCallIdRef.current);
+            }
+            if (activeRoomRef.current) {
+              sendGlobalSignal({ action: 'cancel', roomId: activeRoomRef.current.id, callerId: currentUser.id, participants: activeRoomRef.current.participants });
+            }
             cleanupCall();
-          }, 30000); 
+          }, 30000);
         }
 
-        const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle(); 
-        if (friendProfile?.fcm_token) await supabase.functions.invoke('send-call-notification', { body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id } });
+        const { data: friendProfile } = await supabase.from('profiles').select('fcm_token').eq('id', friendId).maybeSingle();
+        if (friendProfile?.fcm_token) {
+          await supabase.functions.invoke('send-call-notification', {
+            body: { token: friendProfile.fcm_token, callerName: currentUser.email.split('@')[0], roomId: activeRoom.id }
+          });
+        }
       }
 
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current } });
-      sendGlobalSignal({ action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email, participants: activeRoom.participants, roomDetails: activeRoom, publicKey: callPublicKeyStrRef.current, callId: currentCallId });
+      signalingChannelRef.current.send({
+        type: 'broadcast', event: 'webrtc',
+        payload: { type: 'call-started', sender: currentUser.id, callerEmail: currentUser.email, publicKey: callPublicKeyStrRef.current }
+      });
+      sendGlobalSignal({
+        action: 'start', roomId: activeRoom.id, callerId: currentUser.id, callerEmail: currentUser.email,
+        participants: activeRoom.participants, roomDetails: activeRoom,
+        publicKey: callPublicKeyStrRef.current, callId: currentCallId
+      });
 
-    } catch (error) { alert("Microphone Access Failed: " + error.message); }
+    } catch (error) {
+      alert("Microphone Access Failed: " + error.message);
+    }
   };
 
+  // ─── JOIN CALL ────────────────────────────────────────────────────────────
   const joinCall = async () => {
     try {
-      await fetchSecureTrucks(); 
-      const { data: incomingCall } = await supabase.from('calls').select('id').eq('receiver_id', currentUser.id).eq('status', 'ringing').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      await fetchSecureTrucks();
+      const { data: incomingCall } = await supabase.from('calls').select('id')
+        .eq('receiver_id', currentUser.id).eq('status', 'ringing')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-      if (incomingCall) { setActiveCallId(incomingCall.id); activeCallIdRef.current = incomingCall.id; }
+      if (incomingCall) {
+        setActiveCallId(incomingCall.id);
+        activeCallIdRef.current = incomingCall.id;
+      }
 
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       safeSetIsInCall(true);
@@ -566,31 +812,81 @@ export default function SukoonChat({ T, lang, setTab }) {
         callPublicKeyStrRef.current = await SecurityKit.exportPublicKey(keys.publicKey);
       } catch (keyErr) { console.warn("Join key gen failed", keyErr); }
 
-      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'accepted', receiver_public_key: callPublicKeyStrRef.current || null }).eq('id', activeCallIdRef.current);
-      signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current } });
-    } catch (error) { alert("Failed to join call: " + error.message); }
+      if (activeCallIdRef.current) {
+        await supabase.from('calls').update({
+          status: 'accepted',
+          receiver_public_key: callPublicKeyStrRef.current || null
+        }).eq('id', activeCallIdRef.current);
+      }
+
+      signalingChannelRef.current.send({
+        type: 'broadcast', event: 'webrtc',
+        payload: { type: 'user-joined', sender: currentUser.id, publicKey: callPublicKeyStrRef.current }
+      });
+    } catch (error) {
+      alert("Failed to join call: " + error.message);
+    }
   };
 
-  const endCall = async () => { 
+  // ─── END CALL ─────────────────────────────────────────────────────────────
+  const endCall = async () => {
     try {
-      if (signalingChannelRef.current) signalingChannelRef.current.send({ type: 'broadcast', event: 'webrtc', payload: { type: 'user-left', sender: currentUser.id } });
-      if (activeCallIdRef.current) await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
-      if (activeRoom) sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
-    } catch (error) { console.error("Database failure"); } finally { cleanupCall(); }
+      if (signalingChannelRef.current) {
+        signalingChannelRef.current.send({
+          type: 'broadcast', event: 'webrtc',
+          payload: { type: 'user-left', sender: currentUser.id }
+        });
+      }
+      if (activeCallIdRef.current) {
+        await supabase.from('calls').update({ status: 'ended' }).eq('id', activeCallIdRef.current);
+      }
+      if (activeRoom) {
+        sendGlobalSignal({ action: 'cancel', roomId: activeRoom.id, callerId: currentUser.id, participants: activeRoom.participants });
+      }
+    } catch (error) {
+      console.error("End call DB error", error);
+    } finally {
+      cleanupCall();
+    }
   };
 
-  const cleanupCall = () => { 
+  // ─── CLEANUP CALL ─────────────────────────────────────────────────────────
+  const cleanupCall = () => {
     const remoteAudio = document.getElementById('sukoon-remote-audio');
-    if (remoteAudio) { remoteAudio.pause(); remoteAudio.srcObject = null; remoteAudio.load(); }
-    Object.values(peers.current).forEach(pc => { pc.onicecandidate = null; pc.ontrack = null; pc.oniceconnectionstatechange = null; pc.close(); }); 
-    peers.current = {}; iceCandidateQueue.current = {}; 
-    if (localStream.current) { localStream.current.getTracks().forEach(track => track.stop()); localStream.current = null; } 
-    safeSetIsInCall(false); setShowAudioBridge(false); 
-    callPrivateKeyRef.current = null; callPublicKeyStrRef.current = null; callSharedSecretRef.current = null;
+    if (remoteAudio) {
+      remoteAudio.pause();
+      remoteAudio.srcObject = null;
+      remoteAudio.load();
+    }
+    // FIX: clear the stored stream ref too
+    remoteStreamRef.current = null;
+
+    Object.values(peers.current).forEach(pc => {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.oniceconnectionstatechange = null;
+      pc.close();
+    });
+    peers.current = {};
+    iceCandidateQueue.current = {};
+
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
+    }
+
+    safeSetIsInCall(false);
+    setShowAudioBridge(false);
+    callPrivateKeyRef.current = null;
+    callPublicKeyStrRef.current = null;
+    callSharedSecretRef.current = null;
+
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-    setActiveCallId(null); activeCallIdRef.current = null;
+    setActiveCallId(null);
+    activeCallIdRef.current = null;
   };
 
+  // ─── SEARCH / CHAT MANAGEMENT ─────────────────────────────────────────────
   const handleSearch = async () => {
     if (!currentUser || searchTerm.length < 3) return;
     const { data } = await supabase.from('profiles').select('*').ilike('email', `%${searchTerm}%`).neq('id', currentUser.id);
@@ -599,9 +895,14 @@ export default function SukoonChat({ T, lang, setTab }) {
 
   const startPrivateChat = async (friend) => {
     const { data: existing } = await supabase.from('rooms').select('*').eq('is_private', true).contains('participants', [currentUser.id, friend.id]);
-    if (existing && existing.length > 0) setActiveRoom(existing[0]);
-    else {
-      const { data: newRoom } = await supabase.from('rooms').insert([{ name: `${currentUser.email}:::${friend.email}`, is_private: true, participants: [currentUser.id, friend.id] }]).select();
+    if (existing && existing.length > 0) {
+      setActiveRoom(existing[0]);
+    } else {
+      const { data: newRoom } = await supabase.from('rooms').insert([{
+        name: `${currentUser.email}:::${friend.email}`,
+        is_private: true,
+        participants: [currentUser.id, friend.id]
+      }]).select();
       if (newRoom) { setRooms(prev => [...prev, newRoom[0]]); setActiveRoom(newRoom[0]); }
     }
     setSearchTerm(""); setSearchResults([]);
@@ -619,10 +920,18 @@ export default function SukoonChat({ T, lang, setTab }) {
   };
 
   const createGroupChat = async () => {
-    if (!groupName.trim() || selectedFriends.length === 0) return alert(hi ? "एक नाम और मित्र की आवश्यकता है!" : "Need a group name and at least 1 friend!");
+    if (!groupName.trim() || selectedFriends.length === 0) {
+      return alert(hi ? "एक नाम और मित्र की आवश्यकता है!" : "Need a group name and at least 1 friend!");
+    }
     const participantIds = [currentUser.id, ...selectedFriends.map(f => f.id)];
-    const { data: newRoom } = await supabase.from('rooms').insert([{ name: groupName, is_private: false, participants: participantIds }]).select();
-    if (newRoom) { setRooms(prev => [...prev, newRoom[0]]); setShowGroupModal(false); setGroupName(""); setSelectedFriends([]); setActiveRoom(newRoom[0]); }
+    const { data: newRoom } = await supabase.from('rooms').insert([{
+      name: groupName, is_private: false, participants: participantIds
+    }]).select();
+    if (newRoom) {
+      setRooms(prev => [...prev, newRoom[0]]);
+      setShowGroupModal(false); setGroupName(""); setSelectedFriends([]);
+      setActiveRoom(newRoom[0]);
+    }
   };
 
   const getRoomDisplayName = (room) => {
@@ -636,7 +945,7 @@ export default function SukoonChat({ T, lang, setTab }) {
   const handleLogout = async () => {
     if (!window.confirm(hi ? "क्या आप लॉग आउट करना चाहते हैं?" : "Are you sure you want to logout?")) return;
     await supabase.auth.signOut();
-    setTab('home'); 
+    setTab('home');
     window.location.reload();
   };
 
@@ -653,19 +962,66 @@ export default function SukoonChat({ T, lang, setTab }) {
     activeRoom ? setActiveRoom(null) : setTab('home');
   };
 
-  const typingUsers = Object.values(presentUsers).filter(user => user.is_typing);
+  // ─── AUDIO BRIDGE HANDLER (iOS + Old Android safe) ────────────────────────
+  // FIX: Reattach stream from ref before playing.
+  // iOS Safari requires the .play() call to happen inside a user gesture handler
+  // (which it does here — button click). Old Android needs srcObject re-set
+  // because it may have been garbage collected between ontrack and the tap.
+  const handleStartAudio = () => {
+    const remoteAudio = document.getElementById('sukoon-remote-audio');
+    if (!remoteAudio) { setShowAudioBridge(false); return; }
 
+    // Reattach from ref if srcObject was lost (old Android) or never set (race condition)
+    if (remoteStreamRef.current && !remoteAudio.srcObject) {
+      remoteAudio.srcObject = remoteStreamRef.current;
+    }
+
+    // iOS MUST have playsInline set as a JS property
+    remoteAudio.playsInline = true;
+    remoteAudio.muted = false;
+
+    remoteAudio.play().then(() => {
+      setShowAudioBridge(false);
+    }).catch(e => {
+      console.error("Audio play failed:", e);
+      // Second attempt for stubborn old devices
+      setTimeout(() => {
+        remoteAudio.play().catch(e2 => {
+          console.error("Audio play retry failed:", e2);
+          alert("Could not start audio. Please check your volume and try again.");
+        });
+        setShowAudioBridge(false);
+      }, 500);
+    });
+  };
+
+  const typingUsers = Object.values(presentUsers).filter(u => u.is_typing);
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
-      <audio id="sukoon-remote-audio" autoPlay playsInline style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} />
+      {/*
+        FIX (iOS): The <audio> element must have playsInline as both
+        an HTML attribute AND set via JS property in handleStartAudio.
+        It must also start muted so iOS allows it to exist in the DOM
+        before any user gesture has occurred.
+      */}
+      <audio
+        id="sukoon-remote-audio"
+        autoPlay
+        playsInline
+        muted
+        style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }}
+      />
 
+      {/* ── Group Modal ── */}
       {showGroupModal && (
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
             <h3 style={{ margin: '0 0 15px 0', color: T.text }}>{hi ? "नया ग्रुप बनाएं" : "Create New Group"}</h3>
-            <input style={{...s.searchInput, width: '100%', marginBottom: '10px'}} placeholder={hi ? "ग्रुप का नाम..." : "Group Name..."} value={groupName} onChange={(e) => setGroupName(e.target.value)} />
+            <input style={{ ...s.searchInput, width: '100%', marginBottom: '10px' }} placeholder={hi ? "ग्रुप का नाम..." : "Group Name..."} value={groupName} onChange={(e) => setGroupName(e.target.value)} />
             <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-              <input style={{...s.searchInput, flex: 1}} placeholder={hi ? "मित्र खोजें..." : "Find friends..."} value={groupSearchTerm} onChange={(e) => setGroupSearchTerm(e.target.value)} />
+              <input style={{ ...s.searchInput, flex: 1 }} placeholder={hi ? "मित्र खोजें..." : "Find friends..."} value={groupSearchTerm} onChange={(e) => setGroupSearchTerm(e.target.value)} />
               <button style={s.actionBtn} onClick={searchForGroup}>🔍</button>
             </div>
             {groupSearchResults.map(u => (
@@ -677,13 +1033,14 @@ export default function SukoonChat({ T, lang, setTab }) {
               ))}
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button style={{...s.actionBtn, flex: 1}} onClick={createGroupChat}>{hi ? "बनाएं" : "Create"}</button>
-              <button style={{...s.backBtn, flex: 1}} onClick={() => setShowGroupModal(false)}>{hi ? "रद्द करें" : "Cancel"}</button>
+              <button style={{ ...s.actionBtn, flex: 1 }} onClick={createGroupChat}>{hi ? "बनाएं" : "Create"}</button>
+              <button style={{ ...s.backBtn, flex: 1 }} onClick={() => setShowGroupModal(false)}>{hi ? "रद्द करें" : "Cancel"}</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Header ── */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={handleBackOrHome}>{activeRoom ? "◀ BACK" : "◀ HOME"}</button>
         <div style={s.headerTitleBox}>
@@ -707,6 +1064,7 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
+      {/* ── Active call banner ── */}
       {isInCallRef.current && (
         <div style={s.callBanner}>
           <span style={{ color: '#4ade80' }}>🟢 {hi ? "कॉल कनेक्टेड" : "Secure Call Active"}</span>
@@ -714,22 +1072,26 @@ export default function SukoonChat({ T, lang, setTab }) {
         </div>
       )}
 
+      {/* ── Audio Bridge Overlay ── */}
+      {/* This satisfies iOS + old Android autoplay policy: user must tap to start audio */}
       {showAudioBridge && (
         <div style={s.bridgeOverlay}>
-          <h2 style={{ color: '#fff', marginBottom: '20px' }}>{hi ? "कॉल कनेक्टेड" : "Secure Call Established"}</h2>
-          <button style={s.bridgeBtn} onClick={() => {
-            const remoteAudio = document.getElementById('sukoon-remote-audio');
-            if (remoteAudio) {
-              remoteAudio.muted = false;
-              remoteAudio.play().catch(e => console.log("Audio Play Blocked:", e));
+          <h2 style={{ color: '#fff', marginBottom: '10px' }}>
+            {hi ? "कॉल कनेक्टेड" : "Secure Call Established"}
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '30px', fontSize: '14px' }}>
+            {isIOS()
+              ? (hi ? "iOS पर ऑडियो शुरू करने के लिए टैप करें" : "Tap to start audio on iOS")
+              : (hi ? "ऑडियो शुरू करने के लिए टैप करें" : "Tap to activate audio")
             }
-            setShowAudioBridge(false);
-          }}>
+          </p>
+          <button style={s.bridgeBtn} onClick={handleStartAudio}>
             {hi ? "आवाज शुरू करें 🔊" : "Start Audio 🔊"}
           </button>
         </div>
       )}
 
+      {/* ── Chat / Room List ── */}
       <div style={s.chatBox} ref={chatBoxRef}>
         {!activeRoom ? (
           <>
@@ -754,11 +1116,11 @@ export default function SukoonChat({ T, lang, setTab }) {
             <div style={{ marginTop: '20px', fontWeight: 'bold', letterSpacing: '1px', opacity: 0.7, fontSize: '12px' }}>
               {hi ? "आपके चैट" : "YOUR CHATS"}
             </div>
-            {rooms.map(r => ( 
+            {rooms.map(r => (
               <div key={r.id} style={s.roomCard} onClick={() => setActiveRoom(r)}>
                 <span>{getRoomDisplayName(r)}</span>
                 {unreadCounts[r.id] > 0 && <span style={s.unreadBadge}>{unreadCounts[r.id]}</span>}
-              </div> 
+              </div>
             ))}
           </>
         ) : (
@@ -790,18 +1152,21 @@ export default function SukoonChat({ T, lang, setTab }) {
         )}
       </div>
 
+      {/* ── Auto scroll toggle ── */}
       {activeRoom && messages.length > 5 && (
         <button onClick={() => setIsAutoScrolling(!isAutoScrolling)} style={s.autoScrollBtn(isAutoScrolling)}>
           {isAutoScrolling ? "⏸️" : "⏬"}
         </button>
       )}
 
+      {/* ── Typing indicator ── */}
       {activeRoom && typingUsers.length > 0 && (
         <div style={{ fontSize: '11px', color: T.accent, padding: '0 20px 5px 20px', fontStyle: 'italic', fontWeight: 'bold' }}>
           {typingUsers.map(u => u.email?.split('@')[0]).join(', ')} {hi ? "टाइप कर रहे हैं..." : "is typing..."}
         </div>
       )}
 
+      {/* ── Message input ── */}
       {activeRoom && (
         <div style={s.inputArea}>
           <input
