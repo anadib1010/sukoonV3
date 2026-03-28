@@ -161,7 +161,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', zIndex: 50 },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' },
     autoScrollBtn: (active) => ({ position: 'absolute', bottom: '100px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, color: active ? T.bg : T.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 100, transition: '0.3s' }),
-    bridgeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(15px)', textAlign: 'center', padding: '20px' },
+    bridgeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(15px)', textAlign: 'center', padding: '20px' },
     bridgeBtn: { padding: '20px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', boxShadow: '0 0 20px #4ade80' }
   };
 
@@ -180,18 +180,25 @@ export default function SukoonChat({ T, lang, setTab }) {
           if (token) await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token });
         } catch (e) { console.log("Push token skip"); }
 
+        // 🌟 THE SELF-HEALING VAULT
         try {
           const savedPrivJwk = localStorage.getItem('sukoon_master_key');
-          if (savedPrivJwk) {
+          const savedPubStr = localStorage.getItem('sukoon_public_key');
+
+          if (savedPrivJwk && savedPubStr) {
             myMasterKeyRef.current = await SecurityKit.importPrivateKeyFromVault(savedPrivJwk);
+            // 🛡️ Self-Heal: Always ensure the DB has our padlock so other devices don't get confused!
+            await supabase.from('profiles').update({ public_key: savedPubStr }).eq('id', user.id);
           } else {
+            // Fresh generation
             const keyPair = await SecurityKit.generateKeys();
             myMasterKeyRef.current = keyPair.privateKey;
             const exportedPriv = await SecurityKit.exportPrivateKeyToVault(keyPair.privateKey);
             const exportedPub = await SecurityKit.exportPublicKey(keyPair.publicKey);
             
             localStorage.setItem('sukoon_master_key', exportedPriv);
-            await supabase.from('profiles').upsert({ id: user.id, email: user.email, public_key: exportedPub });
+            localStorage.setItem('sukoon_public_key', exportedPub);
+            await supabase.from('profiles').update({ public_key: exportedPub }).eq('id', user.id);
           }
         } catch (e) { console.error("E2EE Initialization failed", e); }
         
@@ -209,17 +216,14 @@ export default function SukoonChat({ T, lang, setTab }) {
     } catch (e) { return scrambled; }
   };
 
-  // 🌟 BUG FIX 1: Allow joining the call even if you are ALREADY inside the chat room!
   useEffect(() => {
     if (location.state?.incomingCallRoom) {
       const room = location.state.incomingCallRoom;
-      window.history.replaceState({}, document.title); // Clear the trigger
+      window.history.replaceState({}, document.title); 
 
       if (activeRoomRef.current?.id === room.id) {
-        // You are already in the room chatting! Bypass the channel setup and join immediately.
         if (!isInCallRef.current) joinCall();
       } else {
-        // You are outside the room. Set the room, and let the channel setup trigger the join.
         autoJoinRef.current = true;
         setActiveRoom(room);
       }
@@ -232,9 +236,14 @@ export default function SukoonChat({ T, lang, setTab }) {
     
     const aesKey = activeAESKeysRef.current[roomId];
     const decryptedData = await Promise.all(data.map(async (m) => {
-      if (m.content.includes(':::') && aesKey) {
-        const [iv, cipher] = m.content.split(':::');
-        m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
+      // 🌟 SMART DECRYPTION: Don't let AES messages crash into the XOR reader
+      if (m.content.includes(':::')) {
+        if (aesKey) {
+          const [iv, cipher] = m.content.split(':::');
+          m.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
+        } else {
+          m.decrypted_content = "🔒 [Secured Message - Reconnect to view]";
+        }
       } else {
         m.decrypted_content = decryptXORFallback(m.content, roomId);
       }
@@ -279,9 +288,14 @@ export default function SukoonChat({ T, lang, setTab }) {
             const newMsg = payload.new;
             const aesKey = activeAESKeysRef.current[activeRoom.id];
             
-            if (newMsg.content.includes(':::') && aesKey) {
-              const [iv, cipher] = newMsg.content.split(':::');
-              newMsg.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
+            // 🌟 SMART REAL-TIME DECRYPTION
+            if (newMsg.content.includes(':::')) {
+              if (aesKey) {
+                const [iv, cipher] = newMsg.content.split(':::');
+                newMsg.decrypted_content = await SecurityKit.decryptText(cipher, iv, aesKey);
+              } else {
+                newMsg.decrypted_content = "🔒 [Secured Message - Reconnect to view]";
+              }
             } else {
               newMsg.decrypted_content = decryptXORFallback(newMsg.content, activeRoom.id);
             }
@@ -308,7 +322,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     sigChannel.on('broadcast', { event: 'webrtc' }, async ({ payload }) => {
       if (payload.sender === currentUser.id) return; 
       try {
-        // 🌟 BUG FIX 2: Prevent missing keys from silently killing the call
         try {
           if (payload.publicKey && callPrivateKeyRef.current && !callSharedSecretRef.current) {
             const theirPublicKey = await SecurityKit.importPublicKey(payload.publicKey);
