@@ -134,6 +134,11 @@ export function useChatEngine(currentUser, activeRoom, blockedUsers, isVaultUnlo
             if (decrypted.user_id !== currentUser.id) {
               supabase.from('messages').update({ is_read: true }).eq('id', decrypted.id).then();
             }
+          } else if (payload.eventType === 'UPDATE') {
+            // ─── READ RECEIPT FIX: update is_read in sender's message list ───
+            setMessages(prev => prev.map(m =>
+              m.id === payload.new.id ? { ...m, is_read: payload.new.is_read } : m
+            ));
           } else if (payload.eventType === 'DELETE') {
             setMessages(prev => prev.filter(m => m.id !== payload.old?.id));
           }

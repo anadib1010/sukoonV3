@@ -104,6 +104,8 @@ export default function SukoonChat({ T, lang, setTab }) {
   const {
     isInCall,
     showAudioBridge,
+    isSpeakerOn,
+    toggleSpeaker,
     startCall,
     joinCall,
     endCall,
@@ -123,7 +125,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     greenDot: { width: '7px', height: '7px', backgroundColor: '#4ade80', borderRadius: '50%' },
     backBtn: { padding: '8px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', backgroundColor: `${T.accent}20`, color: T.accent, whiteSpace: 'nowrap', flexShrink: 0 },
     logoutBtn: { padding: '8px 14px', borderRadius: '20px', border: `1px solid ${T.accent}30`, cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: 'transparent', color: T.text, opacity: 0.8, whiteSpace: 'nowrap', flexShrink: 0 },
-    callBtn: { width: '40px', height: '40px', background: `${T.accent}15`, border: `1px solid ${T.accent}40`, borderRadius: '50%', cursor: 'pointer', fontSize: '18px', color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    callBtn: { width: '40px', height: '40px', background: '#16a34a', border: '1px solid #4ade80', borderRadius: '50%', cursor: 'pointer', fontSize: '18px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 10px rgba(74,222,128,0.3)' },
     callBtnDisabled: { width: '40px', height: '40px', background: 'transparent', border: 'none', cursor: 'not-allowed', fontSize: '18px', opacity: 0.3, flexShrink: 0 },
     shieldBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '10px', color: T.accent, opacity: 0.7, flexShrink: 0 },
     chatBox: { flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', WebkitOverflowScrolling: 'touch' },
@@ -167,6 +169,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '13px', margin: '3px', fontWeight: '700' },
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', flexShrink: 0 },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: '700' },
+    speakerBtn: { padding: '6px 14px', background: 'transparent', border: `1px solid ${T.accent}40`, borderRadius: '15px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', color: T.text, display: 'flex', alignItems: 'center', gap: '4px' },
     autoScrollBtn: (active) => ({ position: 'absolute', bottom: '88px', right: '16px', width: '38px', height: '38px', borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, color: active ? T.bg : T.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', zIndex: 40, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }),
     bridgeOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(12px)', textAlign: 'center', padding: '24px' },
     bridgeBtn: { padding: '18px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: '700', fontSize: '18px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
@@ -753,7 +756,11 @@ export default function SukoonChat({ T, lang, setTab }) {
           )}
         </div>
         {activeRoom ? (
-          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall}>📞</button>
+          <button style={isInCall ? s.callBtnDisabled : s.callBtn} onClick={startCall} disabled={isInCall}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+            </svg>
+          </button>
         ) : (
           <button style={s.logoutBtn} onClick={handleLogout}>{hi ? "Logout" : "Logout"}</button>
         )}
@@ -768,7 +775,12 @@ export default function SukoonChat({ T, lang, setTab }) {
       {isInCall && (
         <div style={s.callBanner}>
           <span>🟢 {hi ? 'कॉल जारी है' : 'Secure Call Active'}</span>
-          <button onClick={handleEndCallWithFeedback} style={s.declineBtn}>{hi ? 'समाप्त' : 'End'}</button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={toggleSpeaker} style={s.speakerBtn} title={isSpeakerOn ? (hi ? 'इयरपीस पर स्विच करें' : 'Switch to earpiece') : (hi ? 'स्पीकर पर स्विच करें' : 'Switch to speaker')}>
+              {isSpeakerOn ? '🔊' : '🫦'}
+            </button>
+            <button onClick={handleEndCallWithFeedback} style={s.declineBtn}>{hi ? 'समाप्त' : 'End'}</button>
+          </div>
         </div>
       )}
 

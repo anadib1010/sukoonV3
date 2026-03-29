@@ -42,6 +42,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   const isInCallRef = useRef(false);
   const [showAudioBridge, setShowAudioBridge] = useState(false);
   const [activeCallId, setActiveCallId] = useState(null);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true); // default: speaker (browser default)
 
   const activeCallIdRef = useRef(null);
   const activeRoomRef = useRef(activeRoom);
@@ -102,6 +103,52 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
       gainNode.connect(ctx.destination);
     } catch (e) {
       console.warn('AudioContext boost not available:', e);
+    }
+  };
+
+  // ─── 2b. SPEAKER TOGGLE ──────────────────────────────────────────────────
+  // Tries to switch between loudspeaker and earpiece.
+  // On Android browsers, enumerateDevices may expose earpiece as an output.
+  // Falls back gracefully if earpiece is not available.
+  const toggleSpeaker = async () => {
+    const audio = document.getElementById('sukoon-remote-audio');
+    if (!audio) return;
+
+    const nextSpeaker = !isSpeakerOn;
+
+    if (typeof audio.setSinkId === 'function') {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const outputs = devices.filter(d => d.kind === 'audiooutput');
+
+        if (nextSpeaker) {
+          // Switch to loudspeaker — use default sink
+          await audio.setSinkId('');
+          setIsSpeakerOn(true);
+        } else {
+          // Try to find earpiece
+          const earpiece = outputs.find(d =>
+            d.label.toLowerCase().includes('earpiece') ||
+            d.label.toLowerCase().includes('ear') ||
+            d.label.toLowerCase().includes('receiver') ||
+            d.label.toLowerCase().includes('handset')
+          );
+          if (earpiece) {
+            await audio.setSinkId(earpiece.deviceId);
+            setIsSpeakerOn(false);
+          } else {
+            // Earpiece not available on this browser — stay on speaker
+            console.warn('Earpiece not found, staying on speaker');
+            setIsSpeakerOn(true);
+          }
+        }
+      } catch (e) {
+        console.warn('Speaker toggle failed:', e);
+        setIsSpeakerOn(true);
+      }
+    } else {
+      // setSinkId not supported — inform user
+      alert('Speaker switching is not supported on this browser. Use your phone volume buttons.');
     }
   };
 
@@ -516,6 +563,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
   return {
     isInCall,
     showAudioBridge,
+    isSpeakerOn,
+    toggleSpeaker,
     startCall,
     joinCall,
     endCall,
