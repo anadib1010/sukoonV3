@@ -37,7 +37,7 @@ const AUDIO_CONSTRAINTS = {
   googAudioMirroring: false,
 };
 
-export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
+export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showToast) {
   const [isInCall, setIsInCall] = useState(false);
   const isInCallRef = useRef(false);
   const [showAudioBridge, setShowAudioBridge] = useState(false);
@@ -140,6 +140,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
             // Earpiece not available on this browser — stay on speaker
             console.warn('Earpiece not found, staying on speaker');
             setIsSpeakerOn(true);
+            if (showToast) showToast('Earpiece not available — use volume buttons 🔊');
           }
         }
       } catch (e) {
@@ -147,8 +148,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi) {
         setIsSpeakerOn(true);
       }
     } else {
-      // setSinkId not supported — inform user
-      alert('Speaker switching is not supported on this browser. Use your phone volume buttons.');
+      // setSinkId not supported — show gentle toast instead of alert
+      if (showToast) showToast('Use volume buttons to adjust speaker 🔊');
     }
   };
 

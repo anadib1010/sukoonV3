@@ -64,6 +64,9 @@ export default function SukoonChat({ T, lang, setTab }) {
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
   // ─── NEW STATE ────────────────────────────────────────────────────────────
+  // Toast
+  const [toast, setToast] = useState(null);
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -111,7 +114,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     endCall,
     handleStartAudio,
     autoJoinRef
-  } = useAudioEngine(currentUser, activeRoom, blockedUsers, hi);
+  } = useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showToast);
 
   // ─── STYLES (your exact styles, + new ones appended at the bottom) ─────────
   const s = {
@@ -170,6 +173,7 @@ export default function SukoonChat({ T, lang, setTab }) {
     callBanner: { backgroundColor: `${T.accent}15`, color: T.text, padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.accent}40`, fontWeight: '500', fontSize: '14px', flexShrink: 0 },
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: '700' },
     speakerBtn: { padding: '6px 14px', background: 'transparent', border: `1px solid ${T.accent}40`, borderRadius: '15px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', color: T.text, display: 'flex', alignItems: 'center', gap: '4px' },
+    toast: { position: 'fixed', bottom: '100px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(0,0,0,0.8)', color: '#fff', padding: '10px 20px', borderRadius: '20px', fontSize: '13px', zIndex: 9999, whiteSpace: 'nowrap', pointerEvents: 'none' },
     autoScrollBtn: (active) => ({ position: 'absolute', bottom: '88px', right: '16px', width: '38px', height: '38px', borderRadius: '50%', border: 'none', backgroundColor: active ? T.accent : `${T.accent}30`, color: active ? T.bg : T.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', zIndex: 40, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }),
     bridgeOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(12px)', textAlign: 'center', padding: '24px' },
     bridgeBtn: { padding: '18px 40px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: '700', fontSize: '18px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
@@ -928,6 +932,8 @@ export default function SukoonChat({ T, lang, setTab }) {
           </div>
         </div>
       )}
+      {/* Toast notification */}
+      {toast && <div style={s.toast}>{toast}</div>}
     </div>
   );
 }
