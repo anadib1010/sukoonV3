@@ -21,9 +21,6 @@ const enforceHighQualityOpus = (sdp) => {
 };
 
 // ─── SAMSUNG-SAFE AUDIO CONSTRAINTS ──────────────────────────────────────────
-// goog-prefixed constraints force Chrome/Samsung browser into the voice call
-// audio pipeline (same as WhatsApp) instead of the media/music pipeline
-// which Samsung browser quietly throttles at lower volume.
 const AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -42,7 +39,14 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
   const isInCallRef = useRef(false);
   const [showAudioBridge, setShowAudioBridge] = useState(false);
   const [activeCallId, setActiveCallId] = useState(null);
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true); // default: speaker (browser default)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+
+  // ── NEW: call duration ──
+  // callStartTime is set when the call is accepted (both sides connected).
+  // callDuration ticks every second while the call is live.
+  const [callDuration, setCallDuration] = useState(0);    // seconds elapsed
+  const callStartTimeRef = useRef(null);                   // Date.now() at connection
+  const durationTimerRef = useRef(null);                   // setInterval handle
 
   const activeCallIdRef = useRef(null);
   const activeRoomRef = useRef(activeRoom);
@@ -69,6 +73,27 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
 
   const safeSetIsInCall = (v) => { setIsInCall(v); isInCallRef.current = v; };
+
+  // ── NEW: start the duration clock ──────────────────────────────────────────
+  // Called once when first audio track arrives (real connection established).
+  const startDurationClock = () => {
+    if (callStartTimeRef.current) return; // already running
+    callStartTimeRef.current = Date.now();
+    setCallDuration(0);
+    durationTimerRef.current = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTimeRef.current) / 1000));
+    }, 1000);
+  };
+
+  // ── NEW: stop the duration clock ───────────────────────────────────────────
+  const stopDurationClock = () => {
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+    callStartTimeRef.current = null;
+    setCallDuration(0);
+  };
 
   // ─── 1. TURN SERVERS ───────────────────────────────────────────────────────
   const fetchSecureTrucks = async () => {
@@ -107,9 +132,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
   };
 
   // ─── 2b. SPEAKER TOGGLE ──────────────────────────────────────────────────
-  // Tries to switch between loudspeaker and earpiece.
-  // On Android browsers, enumerateDevices may expose earpiece as an output.
-  // Falls back gracefully if earpiece is not available.
   const toggleSpeaker = async () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) return;
@@ -122,11 +144,9 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
         const outputs = devices.filter(d => d.kind === 'audiooutput');
 
         if (nextSpeaker) {
-          // Switch to loudspeaker — use default sink
           await audio.setSinkId('');
           setIsSpeakerOn(true);
         } else {
-          // Try to find earpiece
           const earpiece = outputs.find(d =>
             d.label.toLowerCase().includes('earpiece') ||
             d.label.toLowerCase().includes('ear') ||
@@ -137,7 +157,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
             await audio.setSinkId(earpiece.deviceId);
             setIsSpeakerOn(false);
           } else {
-            // Earpiece not available on this browser — stay on speaker
             console.warn('Earpiece not found, staying on speaker');
             setIsSpeakerOn(true);
             if (showToast) showToast('Earpiece not available — use volume buttons 🔊');
@@ -148,7 +167,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
         setIsSpeakerOn(true);
       }
     } else {
-      // setSinkId not supported — show gentle toast instead of alert
       if (showToast) showToast('Use volume buttons to adjust speaker 🔊');
     }
   };
@@ -163,8 +181,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
     audio.volume = 1.0;
     audio.playsInline = true;
 
-    // SAMSUNG FIX: setSinkId('') routes audio through the voice call
-    // pipeline instead of the media stream — this is why WhatsApp is loud
     if (typeof audio.setSinkId === 'function') {
       audio.setSinkId('').catch(e => console.warn('setSinkId failed:', e));
     }
@@ -173,6 +189,8 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
       .then(() => {
         setShowAudioBridge(false);
         applyAudioBoost(stream);
+        // ── NEW: start duration clock when audio actually plays ──
+        startDurationClock();
       })
       .catch((e) => {
         console.warn('Autoplay blocked, showing bridge:', e);
@@ -208,7 +226,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
     safeSetIsInCall(false);
     setShowAudioBridge(false);
 
-    // CRITICAL: always null these so ECDH re-runs fresh on next call
     callPrivateKeyRef.current = null;
     callPublicKeyStrRef.current = null;
     callSharedSecretRef.current = null;
@@ -216,6 +233,9 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
     setActiveCallId(null);
     activeCallIdRef.current = null;
+
+    // ── NEW: stop and reset duration clock ──
+    stopDurationClock();
   };
 
   const endCall = async () => {
@@ -261,6 +281,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
       if (!stream) return;
       remoteStreamRef.current = stream;
       playRemoteAudio(stream);
+      // playRemoteAudio calls startDurationClock() on successful play
     };
 
     pc.onicecandidate = (ev) => {
@@ -402,7 +423,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
       await new Promise(r => setTimeout(r, 300));
       await fetchSecureTrucks();
 
-      // SAMSUNG FIX: use AUDIO_CONSTRAINTS with goog prefix
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: AUDIO_CONSTRAINTS,
         video: false
@@ -498,7 +518,6 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
 
       if (ic) { setActiveCallId(ic.id); activeCallIdRef.current = ic.id; }
 
-      // SAMSUNG FIX: use AUDIO_CONSTRAINTS with goog prefix on join side too
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: AUDIO_CONSTRAINTS,
         video: false
@@ -530,7 +549,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
     }
   };
 
-  // ─── 10. AUDIO BRIDGE (manual fallback for strict autoplay browsers) ──────
+  // ─── 10. AUDIO BRIDGE ─────────────────────────────────────────────────────
   const handleStartAudio = () => {
     const audio = document.getElementById('sukoon-remote-audio');
     if (!audio) { setShowAudioBridge(false); return; }
@@ -550,12 +569,18 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
       .then(() => {
         applyAudioBoost(remoteStreamRef.current);
         setShowAudioBridge(false);
+        // ── NEW: start duration clock on manual bridge tap too ──
+        startDurationClock();
       })
       .catch(e => {
         console.error("Manual audio play failed:", e);
         setTimeout(() => {
           audio.play()
-            .then(() => { applyAudioBoost(remoteStreamRef.current); setShowAudioBridge(false); })
+            .then(() => {
+              applyAudioBoost(remoteStreamRef.current);
+              setShowAudioBridge(false);
+              startDurationClock();
+            })
             .catch(console.error);
         }, 500);
       });
@@ -566,6 +591,7 @@ export function useAudioEngine(currentUser, activeRoom, blockedUsers, hi, showTo
     showAudioBridge,
     isSpeakerOn,
     toggleSpeaker,
+    callDuration,       // ← NEW: seconds elapsed since connection
     startCall,
     joinCall,
     endCall,

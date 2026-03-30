@@ -88,7 +88,7 @@ export function useChatEngine(currentUser, activeRoom, blockedUsers, isVaultUnlo
         if (isSubscribed) await retryPendingDecrypts(activeRoom.id);
 
         if (keyWatcherChannelRef.current) await supabase.removeChannel(keyWatcherChannelRef.current);
-        
+
         keyWatcherChannelRef.current = supabase
           .channel(`key-watch-${activeRoom.id}-${friendId}`)
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${friendId}` },
@@ -130,7 +130,7 @@ export function useChatEngine(currentUser, activeRoom, blockedUsers, isVaultUnlo
 
             const decrypted = await decryptOneMessage(raw, activeAESKeysRef.current[activeRoom.id]);
             setMessages(prev => prev.find(m => m.id === decrypted.id) ? prev : [...prev, decrypted]);
-            
+
             if (decrypted.user_id !== currentUser.id) {
               supabase.from('messages').update({ is_read: true }).eq('id', decrypted.id).then();
             }
@@ -189,26 +189,26 @@ export function useChatEngine(currentUser, activeRoom, blockedUsers, isVaultUnlo
     lastMessageTimeRef.current = now;
 
     const raw = messageText;
-    setMessageText(""); 
+    setMessageText("");
     setIsTyping(false);
     if (presenceChannelRef.current) presenceChannelRef.current.track({ email: currentUser.email, is_typing: false });
 
     let content = "";
     const aesKey = activeAESKeysRef.current[activeRoom.id];
     if (aesKey) {
-      try { 
-        const enc = await SecurityKit.encryptText(raw, aesKey); 
-        content = `${enc.iv}:::${enc.cipherText}`; 
+      try {
+        const enc = await SecurityKit.encryptText(raw, aesKey);
+        content = `${enc.iv}:::${enc.cipherText}`;
       }
       catch (e) { console.error("Encrypt failed, XOR fallback", e); }
     }
-    
+
     // Fallback if AES is missing
     if (!content) {
       const k = String(activeRoom.id);
       content = btoa(encodeURIComponent(raw).split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ k.charCodeAt(i % k.length))).join(''));
     }
-    
+
     await supabase.from('messages').insert([{ content, room_id: activeRoom.id, user_id: currentUser.id, user_email: currentUser.email }]);
   };
 
