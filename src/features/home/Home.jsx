@@ -18,12 +18,12 @@ export function Home({ setTab, T, lang }) {
     ? (hours < 12 ? "सुप्रभात" : hours < 17 ? "शुभ दोपहर" : "शुभ संध्या")
     : (hours < 12 ? "Good morning" : hours < 17 ? "Good afternoon" : "Good evening");
 
+  // ─── THE RULE OF T: EVERY LINE RESTORED ───
   const s = {
     page: {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
-      alignItems: "center",
-      background: T.bg, color: T.text, overflowX: "hidden", boxSizing: "border-box",
-      padding: "1vh 24px 4vh",
+      alignItems: "center", background: T.bg, color: T.text, overflowX: "hidden", 
+      boxSizing: "border-box", padding: "1vh 24px 4vh",
     },
     topSection: {
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -60,13 +60,24 @@ export function Home({ setTab, T, lang }) {
       letterSpacing: "1.5px", textTransform: "uppercase", opacity: 0.7,
       margin: "0 0 16px", textAlign: "center",
     },
+
+    // 💖 K-HUB BUTTON (RESTORED & IMPROVED)
+    kUniverseBtn: {
+      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "24px",
+      background: `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`,
+      border: `1px solid #FF69B460`, borderRadius: "12px",
+      color: "#FF69B4", // Hot Pink
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+      fontSize: "14px", letterSpacing: "2px", cursor: "pointer",
+      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`,
+      transition: "all 0.3s ease",
+    },
+
     buttonBase: {
       background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}30 50%, ${T.bg} 100%)`,
       border: `1px solid ${T.accent}40`,
-      borderRadius: "12px",
-      color: T.text,
-      fontFamily: "'DM Sans', sans-serif",
-      fontWeight: 600, cursor: "pointer",
+      borderRadius: "12px", color: T.text,
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 600, cursor: "pointer",
       boxShadow: `0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px ${T.accent}30`,
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
     },
@@ -85,22 +96,14 @@ export function Home({ setTab, T, lang }) {
     },
     row: { display: "flex", gap: "12px", width: "100%" },
     glassBtn: {
-      flex: 1, padding: "18px 0",
-      fontSize: "14px", letterSpacing: "1.5px",
+      flex: 1, padding: "18px 0", fontSize: "14px", letterSpacing: "1.5px",
       textTransform: "uppercase",
     },
     chatBtn: {
-      width: "calc(50% - 6px)",
-      padding: "18px 0",
-      backgroundColor: "transparent",
-      color: T.text,
-      border: `1px solid ${T.accent}50`,
-      borderRadius: "12px",
-      cursor: "pointer",
-      fontFamily: "'DM Sans', sans-serif",
-      fontSize: "14px",
-      fontWeight: 600,
-      letterSpacing: "1.5px",
+      width: "calc(50% - 6px)", padding: "18px 0", backgroundColor: "transparent",
+      color: T.text, border: `1px solid ${T.accent}50`, borderRadius: "12px",
+      cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
+      fontWeight: 600, letterSpacing: "1.5px",
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
       transform: "translateY(0px)",
       boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`,
@@ -110,9 +113,7 @@ export function Home({ setTab, T, lang }) {
       gap: "8px", opacity: visible ? 0.6 : 0,
       transition: "opacity 1s ease 0.6s", marginTop: "24px",
     },
-    footerLinks: {
-      display: "flex", gap: "24px",
-    },
+    footerLinks: { display: "flex", gap: "24px" },
     footerLink: {
       background: "none", border: "none", color: T.textSoft,
       fontFamily: "'DM Sans', sans-serif", fontSize: "10px",
@@ -151,16 +152,36 @@ export function Home({ setTab, T, lang }) {
 
       {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
+        
+        {/* 💖 THE K-HUB PORTAL (Fixed & Placed Above Reset) */}
+        <button
+          {...pressable}
+          onClick={() => setTab('khub')}
+          style={s.kUniverseBtn}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, #FF69B415 0%, #FF69B450 50%, #FF69B415 100%)`;
+            e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #FF69B440`;
+            e.currentTarget.style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`;
+            e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`;
+            e.currentTarget.style.transform = "translateY(0px)";
+          }}
+        >
+          {hi ? "के-पॉप और के-ड्रामा हब" : "K-POP & K-DRAMA HUB"}
+        </button>
+
         <p style={s.instruction}>
           {hi ? "एक मिनट। साफ़ दिमाग।" : "ONE MINUTE. CLEAR HEAD."}
         </p>
 
         <button
+          {...pressable}
           onClick={() => setTab('reset')}
           style={{ ...s.buttonBase, ...s.resetBtn }}
           onMouseEnter={(e) => handleHover(e, true)}
           onMouseLeave={(e) => handleHover(e, false)}
-          {...pressable}
         >
           {hi
             ? <><span style={{fontFamily:"'DM Sans',sans-serif"}}>1</span>-मिनट का रीसेट लें</>
@@ -173,26 +194,27 @@ export function Home({ setTab, T, lang }) {
         <div style={s.bottomSection}>
           <div style={s.row}>
             <button
+              {...pressable}
               onClick={() => setTab('sleep')}
               style={{ ...s.buttonBase, ...s.glassBtn, opacity: 0.7 }}
               onMouseEnter={(e) => handleHover(e, true)}
               onMouseLeave={(e) => handleHover(e, false)}
-              {...pressable}
             >
               {hi ? "नींद" : "SLEEP"}
             </button>
             <button
+              {...pressable}
               onClick={() => setTab('more')}
               style={{ ...s.buttonBase, ...s.glassBtn }}
               onMouseEnter={(e) => handleHover(e, true)}
               onMouseLeave={(e) => handleHover(e, false)}
-              {...pressable}
             >
               {hi ? "खोजें" : "EXPLORE"}
             </button>
           </div>
           
           <button
+            {...pressable}
             onClick={() => setTab('chat')}
             style={s.chatBtn}
             onMouseEnter={(e) => {
@@ -205,13 +227,12 @@ export function Home({ setTab, T, lang }) {
               e.currentTarget.style.transform = "translateY(0px)";
               e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`;
             }}
-            {...pressable}
           >
             {hi ? "टीम चैट" : "TEAM CHAT"}
           </button>
-          
         </div>
 
+        {/* 4. FOOTER (Every line restored) */}
         <div style={s.footerWrap}>
           <div style={s.footerLinks}>
             <button onClick={() => setTab('terms')} style={s.footerLink}>
@@ -231,7 +252,6 @@ export function Home({ setTab, T, lang }) {
           </p>
         </div>
       </div>
-
     </div>
   );
 }

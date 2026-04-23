@@ -48,6 +48,10 @@ import { PostReset }      from './components/PostReset';
 import { Reset }          from './components/Reset';
 import { DeepDoor }       from './components/DeepDoor';
 import SukoonChat         from './components/SukoonChat';
+import { KHub } from './features/khub/KHub';
+import { KLavenderLoungeChat } from './features/khub/KLavenderLoungeChat';
+import { KPopGeneralRoom } from './features/khub/KPopGeneralRoom';
+import { KDramaRoom } from './features/khub/KDramaRoom';
 
 // ─── AUTH SHEET ──────────────────────────────────────────────────────────────
 function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
@@ -205,6 +209,7 @@ function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecli
 function AppContent() {
   const navigate  = useNavigate();
   const location  = useLocation();
+  const [chatRoom, setChatRoom] = useState('General');
 
   const [session,        setSession]        = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -315,8 +320,8 @@ function AppContent() {
   }, [hasOnboarded, nextRoute, navigate]);
 
   // 🌟 ADDED `terms` to PAGE_TITLES
-  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", terms: "JSukoon — Terms", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud", chat: "JSukoon — Secure Chat" };
-  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", terms: "JSukoon — शर्तें", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज", chat: "JSukoon — सुरक्षित चैट" };
+  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", terms: "JSukoon — Terms", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud", chat: "JSukoon — Secure Chat", khub: "JSukoon — K-Universe" };
+  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", terms: "JSukoon — शर्तें", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज", chat: "JSukoon — सुरक्षित चैट", khub: "JSukoon — के-यूनिवर्स" };
 
   const setPageTitle = (page) => {
     const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
@@ -387,44 +392,52 @@ function AppContent() {
         <audio id="global-ringtone" src="/ringtone.mp3" loop style={{ display: 'none' }} />
 
         <Routes>
-          <Route path="/"               element={<Home           setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/reset"          element={<Reset          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/postreset"      element={<PostReset      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep"          element={<Sleep          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_scrambler"element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_ember"    element={<DimmingEmber   setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_scan"     element={<HeavyScan      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_fire"     element={<MidnightFire   setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_beat"     element={<DeepRhythm     setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/focus"          element={<Focus          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/journal"        element={<Journal        setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/warmth"         element={<WarmthPage     setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/bench"          element={<Bench          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/more"           element={<MorePage       setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
-          <Route path="/vaultdoor"      element={<DeepDoor       setTab={setTab} T={T} lang={lang} destination="vault" />} />
-          <Route path="/exploremore"    element={<ExploreMore    setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
-          <Route path="/practice"       element={<Practice       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/community"      element={<CommunityRoom  setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/legal"          element={<LegalDisclaimer setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/reflection"     element={<Reflection     setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/progress"       element={<Progress       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/descent"        element={<TheDescent     setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />} />
-          <Route path="/vault"          element={<Vault          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/stillness"      element={<Stillness      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/resonance"      element={<Resonance      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/quietcorner"    element={<QuietCorner    setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/soundbath"      element={<SoundBath      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/mandala"        element={<MandalaFlow    setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/seedinmud"      element={<SeedInMud      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/settings"       element={<Settings       setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />} />
-          <Route path="/audio"          element={<AudioPage      setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/crisis"         element={<Crisis         setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/about"          element={<About          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/privacy"        element={<Privacy        setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/terms"          element={<Terms          setTab={setTab} T={T} lang={lang} />} /> {/* 🌟 ADDED TERMS ROUTE */}
-          <Route path="/wishes"         element={<WishesGallery  setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/moodaction"     element={<MoodAction     selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
-          <Route path="/chat"           element={<SukoonChat     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/"                element={<Home           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/reset"           element={<Reset           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/postreset"       element={<PostReset       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep"           element={<Sleep           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_scrambler" element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_ember"     element={<DimmingEmber   setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_scan"      element={<HeavyScan       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_fire"      element={<MidnightFire   setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_beat"      element={<DeepRhythm     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/focus"           element={<Focus           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/journal"         element={<Journal         setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/warmth"          element={<WarmthPage     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/bench"           element={<Bench           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/more"            element={<MorePage       setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+          <Route path="/vaultdoor"       element={<DeepDoor       setTab={setTab} T={T} lang={lang} destination="vault" />} />
+          <Route path="/exploremore"     element={<ExploreMore     setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+          <Route path="/practice"        element={<Practice       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/community"       element={<CommunityRoom  setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/legal"           element={<LegalDisclaimer setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/reflection"      element={<Reflection     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/progress"        element={<Progress       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/descent"         element={<TheDescent     setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />} />
+          <Route path="/vault"           element={<Vault           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/stillness"       element={<Stillness       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/resonance"       element={<Resonance       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/quietcorner"     element={<QuietCorner     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/soundbath"       element={<SoundBath       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/mandala"         element={<MandalaFlow     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/seedinmud"       element={<SeedInMud       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/settings"        element={<Settings       setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />} />
+          <Route path="/audio"           element={<AudioPage       setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/crisis"          element={<Crisis           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/about"           element={<About           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/privacy"         element={<Privacy         setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/terms"           element={<Terms           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/wishes"          element={<WishesGallery   setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/moodaction"      element={<MoodAction     selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
+          
+          {/* 💖 K-UNIVERSE ROUTES: ALL INSIDE THE SAME CLUBHOUSE NOW! */}
+          <Route path="/khub"            element={<KHub           setTab={setTab} T={T} lang={lang} setChatRoom={setChatRoom} />} />
+          <Route path="/chat_lavender"   element={<KLavenderLoungeChat setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/chat_kpop"       element={<KPopGeneralRoom setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/chat_kdrama"     element={<KDramaRoom     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/chat"            element={<SukoonChat     room={chatRoom} setTab={setTab} T={T} lang={lang} />} />
+          
+          {/* 🛡️ CATCH-ALL ROUTE (Must be at the very bottom!) */}
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
 
