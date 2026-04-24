@@ -55,8 +55,7 @@ export function PurpleLounge({ setTab, T, lang }) {
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
-    if (!currentUser) { showToast(hi ? "🔐 भेजने के लिए Google से login करें" : "🔐 Please login with Google to send messages", "warn"); return; }
+    if (!input.trim() || !currentUser) return;
     if (muted) { showToast(hi ? `🚫 आप म्यूट हैं।` : `🚫 You are muted.`, 'error'); return; }
     const level = getTrustLevel(userProfile?.rep_score ?? 0);
     if (level === 0) { showToast(hi ? '⚠️ Account restricted।' : '⚠️ Account restricted.', 'error'); return; }
@@ -66,7 +65,12 @@ export function PurpleLounge({ setTab, T, lang }) {
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
     const textToSend = input.trim(); setInput('');
-    await supabase.from('khub_messages').insert({ room_name: ROOM_NAME, user_id: currentUser.id, user_email: currentUser.email, text: textToSend, status: 'visible', msg_type: 'text' });
+    const { error: insertError } = await supabase.from('khub_messages').insert({ room_name: ROOM_NAME, user_id: currentUser.id, user_email: currentUser.email, text: textToSend, status: 'visible', msg_type: 'text' });
+    if (insertError) {
+      console.error('[chat insert failed]', insertError);
+      showToast(hi ? `❌ भेजने में error: ${insertError.message}` : `❌ Send failed: ${insertError.message}`, 'error');
+      return;
+    }
     await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
   };
 
@@ -163,19 +167,8 @@ export function PurpleLounge({ setTab, T, lang }) {
       </div>
 
       <div style={s.inputArea}>
-{!currentUser && (
-          <div style={{ width: '100%', textAlign: 'center', padding: '10px 0 4px' }}>
-            <button onClick={() => setTab('home')} style={{ background: '#9B59B622', border: '1px solid #9B59B644', borderRadius: '20px', padding: '10px 20px', color: '#9B59B6', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-              🔐 {hi ? 'Google से Login करें — messages भेजें' : 'Login with Google to send messages'}
-            </button>
-          </div>
-        )}
-        {currentUser && (
-          <>
-            <input style={s.inputField} placeholder={hi ? 'Purple Lounge में share करें... 💜' : 'Share your purple energy... 💜'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
-            <button style={s.sendBtn} onClick={sendMessage}>💜</button>
-          </>
-        )}
+        <input style={s.inputField} placeholder={hi ? 'Purple Lounge में share करें... 💜' : 'Share your purple energy... 💜'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
+        <button style={s.sendBtn} onClick={sendMessage}>💜</button>
       </div>
 
       {toast && <div style={s.toast(toast.type)}>{toast.text}</div>}

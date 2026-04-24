@@ -42,8 +42,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
-    if (!currentUser) { showToast(hi ? "🔐 भेजने के लिए Google से login करें" : "🔐 Please login with Google to send messages", "warn"); return; }
+    if (!input.trim() || !currentUser) return;
     if (muted) { showToast(hi ? '🚫 आप म्यूट हैं।' : '🚫 You are muted.', 'error'); return; }
     if (getTrustLevel(userProfile?.rep_score ?? 0) === 0) { showToast('⚠️ Account restricted.', 'error'); return; }
     const spam = spamLimiter2.check(hi);
@@ -52,7 +51,12 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
     const t = input.trim(); setInput('');
-    await supabase.from('khub_messages').insert({ room_name: ROOM_NAME, user_id: currentUser.id, user_email: currentUser.email, text: t, status: 'visible', msg_type: 'text' });
+    const { error: insertError } = await supabase.from('khub_messages').insert({ room_name: ROOM_NAME, user_id: currentUser.id, user_email: currentUser.email, text: t, status: 'visible', msg_type: 'text' });
+    if (insertError) {
+      console.error('[chat insert failed]', insertError);
+      showToast(hi ? `❌ भेजने में error: ${insertError.message}` : `❌ Send failed: ${insertError.message}`, 'error');
+      return;
+    }
     await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
   };
 
@@ -136,19 +140,8 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
         <div ref={scrollRef} />
       </div>
       <div style={s.inputArea}>
-{!currentUser && (
-          <div style={{ width: '100%', textAlign: 'center', padding: '10px 0 4px' }}>
-            <button onClick={() => setTab('home')} style={{ background: '#FF69B422', border: '1px solid #FF69B444', borderRadius: '20px', padding: '10px 20px', color: '#FF69B4', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-              🔐 {hi ? 'Google से Login करें — messages भेजें' : 'Login with Google to send messages'}
-            </button>
-          </div>
-        )}
-        {currentUser && (
-          <>
-            <input style={s.inputField} placeholder={hi ? 'Share the hype... 🔥' : 'Share the hype... 🔥'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
-            <button style={s.sendBtn} onClick={sendMessage}>🔥</button>
-          </>
-        )}
+        <input style={s.inputField} placeholder={hi ? 'Share the hype... 🔥' : 'Share the hype... 🔥'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
+        <button style={s.sendBtn} onClick={sendMessage}>🔥</button>
       </div>
       {toast && <div style={s.toast(toast.type)}>{toast.text}</div>}
       {showRules && (<div style={s.overlay} onClick={() => setShowRules(false)}><div style={s.modal} onClick={e => e.stopPropagation()}><h3 style={s.modalTitle}>📋 {hi ? 'नियम' : 'Community Rules'}</h3><p style={{ fontSize: '10px', opacity: 0.45, margin: '0 0 14px' }}>{hi ? '⚠️ अनधिकृत K-Pop फैन स्पेस। किसी label से संबंध नहीं।' : '⚠️ Unofficial K-Pop fan space. Not affiliated with any label.'}</p>{rules.map((r, i) => (<div key={i} style={s.ruleItem}><span style={{ fontSize: '15px', flexShrink: 0 }}>{r.icon}</span><span>{r.hard && <strong style={{ color: c }}>{hi ? '[सख्त] ' : '[HARD] '}</strong>}{r.text}</span></div>))}<button style={s.closeBtn} onClick={() => setShowRules(false)}>{hi ? 'समझ गया! 🎤' : 'Got it! 🎤'}</button></div></div>)}

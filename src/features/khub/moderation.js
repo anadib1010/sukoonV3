@@ -150,8 +150,8 @@ export const REP_POINTS = {
 
 // Trust levels based on rep score
 export function getTrustLevel(score) {
-  if (score < -20) return 0;  // restricted — genuinely bad actors only
-  if (score < 50)  return 1;  // new user (0 = normal access) — default
+  if (score < -20) return 0;  // restricted — only genuinely bad actors
+  if (score < 50)  return 1;  // new/normal user — default for everyone
   if (score < 200) return 2;  // trusted — full access
   return 3;                   // elite — can help moderate
 }
