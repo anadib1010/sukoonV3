@@ -377,13 +377,18 @@ function AppContent() {
   };
 
   const PROTECTED_REASONS = {
-    journal:   "Save your thoughts — create a free account.",
-    progress:  "Track your journey — create a free account.",
-    wishes:    "Share and see wishes — create a free account.",
-    community: "Join the community — create a free account.",
-    warmth:    "Save your warmth — create a free account.",
-    chat:      "Join the secure conversation — create a free account.",
-  };
+  journal:        "Save your thoughts — create a free account.",
+  progress:       "Track your journey — create a free account.",
+  wishes:         "Share and see wishes — create a free account.",
+  community:      "Join the community — create a free account.",
+  warmth:         "Save your warmth — create a free account.",
+  chat:           "Join the secure conversation — create a free account.",
+  chat_lavender:  "Join the Lavender Lounge — login with Google to chat.",
+  chat_kpop:      "Join the K-Pop Room — login with Google to chat.",
+  chat_kdrama:    "Join the K-Drama Lounge — login with Google to chat.",
+  chat_purple:    "Join the Purple Lounge — login with Google to chat. 💜",
+  chat_blink:     "Join the Blink Lounge — login with Google to chat. 🌸",
+};
 
   const setTab = (newTab) => {
     if (!session && PROTECTED_REASONS[newTab]) {

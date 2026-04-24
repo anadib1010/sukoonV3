@@ -55,7 +55,8 @@ export function PurpleLounge({ setTab, T, lang }) {
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
   const sendMessage = async () => {
-    if (!input.trim() || !currentUser) return;
+    if (!input.trim()) return;
+    if (!currentUser) { showToast(hi ? "🔐 भेजने के लिए Google से login करें" : "🔐 Please login with Google to send messages", "warn"); return; }
     if (muted) { showToast(hi ? `🚫 आप म्यूट हैं।` : `🚫 You are muted.`, 'error'); return; }
     const level = getTrustLevel(userProfile?.rep_score ?? 0);
     if (level === 0) { showToast(hi ? '⚠️ Account restricted।' : '⚠️ Account restricted.', 'error'); return; }
@@ -162,8 +163,19 @@ export function PurpleLounge({ setTab, T, lang }) {
       </div>
 
       <div style={s.inputArea}>
-        <input style={s.inputField} placeholder={hi ? 'Purple Lounge में share करें... 💜' : 'Share your purple energy... 💜'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
-        <button style={s.sendBtn} onClick={sendMessage}>💜</button>
+{!currentUser && (
+          <div style={{ width: '100%', textAlign: 'center', padding: '10px 0 4px' }}>
+            <button onClick={() => setTab('home')} style={{ background: '#9B59B622', border: '1px solid #9B59B644', borderRadius: '20px', padding: '10px 20px', color: '#9B59B6', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+              🔐 {hi ? 'Google से Login करें — messages भेजें' : 'Login with Google to send messages'}
+            </button>
+          </div>
+        )}
+        {currentUser && (
+          <>
+            <input style={s.inputField} placeholder={hi ? 'Purple Lounge में share करें... 💜' : 'Share your purple energy... 💜'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
+            <button style={s.sendBtn} onClick={sendMessage}>💜</button>
+          </>
+        )}
       </div>
 
       {toast && <div style={s.toast(toast.type)}>{toast.text}</div>}
