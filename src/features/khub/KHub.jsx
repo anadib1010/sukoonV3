@@ -27,6 +27,9 @@ export function KHub({ setTab, T, lang, setChatRoom }) {
       setTab('chat_purple');
     } else if (roomName === 'Blink Lounge') {
       setTab('chat_blink');
+    } else if (roomName === 'Purple Sanctuary') {
+      // 🌟 NEW: The secret door to our sanctuary!
+      setTab('purple_sanctuary');
     } else {
       if (setChatRoom) setChatRoom(roomName);
       setTab('chat');
@@ -171,6 +174,29 @@ export function KHub({ setTab, T, lang, setChatRoom }) {
     transition: 'opacity 0.8s ease 0.3s, transform 0.3s ease',
   };
 
+  // 🌟 NEW: The styling for our Purple Sanctuary button
+  const sanctuaryBtn = {
+    width: '100%',
+    maxWidth: '360px',
+    marginTop: '12px',
+    padding: '18px 20px',
+    borderRadius: '18px',
+    background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B622 50%, ${T.bg} 100%)`,
+    border: '1px solid #9B59B640',
+    color: T.text,
+    fontFamily: "'DM Sans', sans-serif",
+    fontWeight: 600,
+    fontSize: '15px',
+    cursor: 'pointer',
+    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+    opacity: visible ? 1 : 0,
+    transition: 'opacity 0.8s ease 0.4s, transform 0.3s ease',
+  };
+
   return (
     <div style={s.page}>
       <div style={s.header}>
@@ -211,6 +237,20 @@ export function KHub({ setTab, T, lang, setChatRoom }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <span>{hi ? 'के-ड्रामा लाउंज' : 'K-DRAMA LOUNGE'}</span>
           <span style={{ fontSize: '10px', opacity: 0.4, fontWeight: 400 }}>{hi ? 'Latest dramas discuss करें' : 'Discuss the latest dramas'}</span>
+        </div>
+      </button>
+
+      {/* 🌟 NEW: The Purple Sanctuary Button */}
+      <button
+        style={sanctuaryBtn}
+        onClick={() => enterRoom('Purple Sanctuary')}
+        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#9B59B620', border: '1px solid #9B59B640', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🌌</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span>{hi ? 'पर्पल सैंक्चुअरी' : 'PURPLE SANCTUARY'}</span>
+          <span style={{ fontSize: '10px', opacity: 0.4, fontWeight: 400 }}>{hi ? 'आराम करें और सांस लें' : 'A quiet place to rest and breathe'}</span>
         </div>
       </button>
 

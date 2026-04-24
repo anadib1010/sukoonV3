@@ -57,6 +57,7 @@ import { KDramaRoom }          from './features/khub/KDramaRoom';
 import { PurpleLounge }        from './features/khub/PurpleLounge';   // 💜 NEW
 import { BlinkLounge }         from './features/khub/BlinkLounge';    // 🌸 NEW
 import { Horoscope } from './features/horoscope/Horoscope';
+import { PurpleSanctuary } from './features/khub/PurpleSanctuary';
 
 // ─── AUTH SHEET ──────────────────────────────────────────────────────────────
 function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
@@ -493,6 +494,7 @@ function AppContent() {
           <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />  {/* 💜 NEW */}
           <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />  {/* 🌸 NEW */}
           <Route path="/horoscope" element={<Horoscope setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/purple_sanctuary" element={<PurpleSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} />} />
           {/* ─── CATCH-ALL (must be last) ─── */}
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
