@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { requestFirebaseToken } from '../firebaseSetup';
-import { SecurityKit } from '../utils/security';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import QRCode from 'react-qr-code';
+import { SecurityKit } from '../../utils/security';
 
 // ─── iOS DETECTION ─────────────────────────────────────────────────────────
 const isIOS = () =>
@@ -148,7 +148,6 @@ export default function SukoonChat({ T, lang, setTab }) {
   const s = {
     container: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: T.bg, color: T.text, position: 'relative', fontFamily: "'DM Sans', sans-serif", overflow: 'hidden' },
 
-    // Header — avatar + name + subtitle like WhatsApp
     header: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: `1px solid ${T.accent}15`, backgroundColor: T.bg, position: 'sticky', top: 0, zIndex: 50, flexShrink: 0 },
     headerBack: { background: 'none', border: 'none', cursor: 'pointer', color: T.accent, fontSize: '26px', padding: '2px 8px 2px 0', flexShrink: 0, lineHeight: 1, fontWeight: '300' },
     headerInfo: { flex: 1, minWidth: 0 },
@@ -161,14 +160,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     shieldBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '8px', color: T.accent, opacity: 0.6, flexShrink: 0 },
     logoutBtn: { padding: '7px 14px', borderRadius: '20px', border: `1px solid ${T.accent}30`, cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: 'transparent', color: T.text, opacity: 0.75, whiteSpace: 'nowrap', flexShrink: 0 },
 
-    // Room list
     chatBox: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', WebkitOverflowScrolling: 'touch' },
     sectionLabel: { fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: T.text, opacity: 0.32, padding: '12px 16px 4px' },
     newChatBtn: { display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', backgroundColor: 'transparent', cursor: 'pointer', color: T.accent, fontWeight: '600', fontSize: '15px', border: 'none', width: '100%', textAlign: 'left', borderBottom: `1px solid ${T.accent}08` },
     searchRow: { display: 'flex', gap: '10px', padding: '10px 16px', borderBottom: `1px solid ${T.accent}08` },
     searchInput: { flex: 1, padding: '10px 16px', borderRadius: '22px', border: `1px solid ${T.accent}20`, fontSize: '15px', backgroundColor: `${T.accent}06`, color: T.text, outline: 'none', fontFamily: "'DM Sans', sans-serif" },
     actionBtn: { padding: '10px 16px', borderRadius: '22px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '14px', backgroundColor: T.accent, color: T.bg, flexShrink: 0 },
-    // WhatsApp-style conversation row
+    
     roomRow: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', cursor: 'pointer', borderBottom: `1px solid ${T.accent}06` },
     roomRowInfo: { flex: 1, minWidth: 0 },
     roomRowTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' },
@@ -178,12 +176,11 @@ export default function SukoonChat({ T, lang, setTab }) {
     roomRowPreview: { fontSize: '13px', color: T.text, opacity: 0.48, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' },
     unreadBadge: { backgroundColor: T.accent, color: T.bg, borderRadius: '50%', width: '20px', height: '20px', fontSize: '11px', fontWeight: '700', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
-    // Chat wallpaper + messages
     chatWallpaper: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '8px 10px', WebkitOverflowScrolling: 'touch', backgroundImage: `radial-gradient(circle, ${T.accent}08 1px, transparent 1px)`, backgroundSize: '20px 20px' },
     messageList: { display: 'flex', flexDirection: 'column', gap: '2px', paddingBottom: '8px' },
     dateSep: { alignSelf: 'center', backgroundColor: `${T.accent}14`, borderRadius: '8px', padding: '3px 10px', fontSize: '11px', color: T.text, opacity: 0.6, margin: '8px 0', fontWeight: '500' },
     getBubbleWrapper: (isMe) => ({ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: '6px', paddingLeft: isMe ? '48px' : '0', paddingRight: isMe ? '0' : '48px' }),
-    // Bubble with embedded timestamp (WhatsApp-style)
+    
     getBubble: (isMe) => ({
       position: 'relative',
       padding: '7px 10px 20px 10px',
@@ -200,7 +197,6 @@ export default function SukoonChat({ T, lang, setTab }) {
     deleteBtn: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px', opacity: 0.3, padding: '0 0 0 4px', flexShrink: 0 },
     emptyRoom: { textAlign: 'center', padding: '40px 20px', opacity: 0.45 },
 
-    // Input — flat WA-style, not pill
     inputArea: { display: 'flex', flexDirection: 'column', backgroundColor: T.bg, borderTop: `1px solid ${T.accent}12`, flexShrink: 0 },
     inputToolbar: { display: 'flex', alignItems: 'center', padding: '8px 14px 0', gap: '8px' },
     inputRow: { display: 'flex', padding: '8px 10px 10px', alignItems: 'center', gap: '8px' },
@@ -208,16 +204,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     sendBtn: { width: '42px', height: '42px', borderRadius: '50%', border: 'none', cursor: 'pointer', backgroundColor: T.accent, color: T.bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' },
     toolbarChip: (active) => ({ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', border: `1px solid ${active ? T.accent : T.accent + '28'}`, backgroundColor: active ? `${T.accent}16` : 'transparent', color: active ? T.accent : T.text, fontWeight: active ? '700' : '400', fontFamily: "'DM Sans', sans-serif" }),
 
-    // Call banner — green like an active call
     callBanner: { backgroundColor: '#14532d', color: '#fff', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 },
     callBannerLeft: { display: 'flex', alignItems: 'center', gap: '10px' },
-    // Duration display inside call banner
     callDurationText: { fontSize: '15px', fontWeight: '700', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.5px', color: '#4ade80' },
     callBannerSub: { fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '1px' },
     speakerBtn: { padding: '6px 12px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '14px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', color: '#fff', display: 'flex', alignItems: 'center', gap: '4px' },
     endCallBtn: { padding: '8px 18px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' },
 
-    // Modals
     modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(6px)' },
     modalBox: { backgroundColor: T.bg, padding: '24px', borderRadius: '20px', width: '90%', maxWidth: '400px', border: `1px solid ${T.accent}30`, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', maxHeight: '85vh', overflowY: 'auto' },
     selectedFriendPill: { display: 'inline-block', padding: '5px 12px', borderRadius: '15px', backgroundColor: `${T.accent}20`, color: T.accent, fontSize: '13px', margin: '3px', fontWeight: '700' },
@@ -225,16 +218,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     declineBtn: { padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: '700' },
     acceptBtn: { padding: '6px 16px', background: '#4ade80', color: '#000', border: 'none', borderRadius: '15px', cursor: 'pointer', fontWeight: '700' },
 
-    // Ringing overlay
     ringingOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 3000, background: 'linear-gradient(160deg,#0f2027,#203a43,#2c5364)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '32px' },
     avatarRing: { width: '96px', height: '96px', borderRadius: '50%', background: `${T.accent}25`, border: `3px solid ${T.accent}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '38px', marginBottom: '24px' },
     ringActionBtn: (color) => ({ width: '68px', height: '68px', borderRadius: '50%', backgroundColor: color, border: 'none', cursor: 'pointer', fontSize: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 20px ${color}80` }),
 
-    // Bridge
     bridgeOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(12px)', textAlign: 'center', padding: '24px' },
     bridgeBtn: { padding: '16px 36px', borderRadius: '50px', backgroundColor: '#4ade80', color: '#000', border: 'none', fontWeight: '700', fontSize: '17px', cursor: 'pointer' },
 
-    // Misc
     missedCallCard: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', borderBottom: `1px solid ${T.accent}06`, fontSize: '14px' },
     offlineBanner: { backgroundColor: '#f59e0b', color: '#000', padding: '6px 16px', fontSize: '13px', fontWeight: '700', textAlign: 'center', flexShrink: 0 },
     autoScrollBtn: (active) => ({ position: 'absolute', bottom: '80px', right: '14px', width: '36px', height: '36px', borderRadius: '50%', border: 'none', backgroundColor: T.bg, color: T.accent, boxShadow: '0 2px 8px rgba(0,0,0,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', zIndex: 40 }),
@@ -256,12 +246,13 @@ export default function SukoonChat({ T, lang, setTab }) {
     return <span style={{ fontSize: '10px', color: '#f59e0b', opacity: 0.8 }}>⏱{label}</span>;
   };
 
-  // ── Initialization ────────────────────────────────────────────────────────
+  // ── Initialization (UPDATED WITH YOUR SNIPPET) ────────────────────────────
   useEffect(() => {
     async function init() {
       if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+      
       if (user) {
         const { data: blocks } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', user.id);
         const blockedIds = blocks ? blocks.map(b => b.blocked_id) : [];
@@ -274,22 +265,48 @@ export default function SukoonChat({ T, lang, setTab }) {
           }));
         }
         try { const token = await requestFirebaseToken(); if (token) await supabase.from('profiles').upsert({ id: user.id, email: user.email, fcm_token: token }); } catch (e) {}
+        
+        // ── HERE IS YOUR SNIPPET CAREFULLY INTEGRATED ──
         try {
-          const savedPriv = localStorage.getItem('sukoon_master_key');
-          const savedPub = localStorage.getItem('sukoon_public_key');
-          if (savedPriv && savedPub) {
-            myMasterKeyRef.current = await SecurityKit.importPrivateKeyFromVault(savedPriv);
-            await supabase.from('profiles').update({ public_key: savedPub }).eq('id', user.id);
+          // Step 1: Open the drawer and check for old keys
+          // (Note: Your vault uses 'sukoon_master_key' for the private key name)
+          const savedPrivKey = localStorage.getItem('sukoon_master_key');
+          const savedPubKey = localStorage.getItem('sukoon_public_key');
+
+          if (savedPrivKey && savedPubKey) {
+            // Step 2 (YES): We found the old keys! Let's load them up so we can read old messages.
+            const privateKey = await SecurityKit.importPrivateKeyFromVault(savedPrivKey);
+            
+            // Save them to your React ref so the Chat Engine can use it
+            myMasterKeyRef.current = privateKey;
+            
+            // Tell the database we are online with our public key
+            await supabase.from('profiles').update({ public_key: savedPubKey }).eq('id', user.id);
+            console.log("Loaded existing keys from the drawer!");
+
           } else {
-            const kp = await SecurityKit.generateKeys();
-            myMasterKeyRef.current = kp.privateKey;
-            const priv = await SecurityKit.exportPrivateKeyToVault(kp.privateKey);
-            const pub = await SecurityKit.exportPublicKey(kp.publicKey);
-            localStorage.setItem('sukoon_master_key', priv);
-            localStorage.setItem('sukoon_public_key', pub);
-            await supabase.from('profiles').update({ public_key: pub }).eq('id', user.id);
+            // Step 3 (NO): No keys found. We must be a brand new user. 
+            // Let's generate a new pair and save them to the drawer permanently.
+            const keyPair = await SecurityKit.generateKeys();
+            
+            const privString = await SecurityKit.exportPrivateKeyToVault(keyPair.privateKey);
+            const pubString = await SecurityKit.exportPublicKey(keyPair.publicKey);
+
+            localStorage.setItem('sukoon_master_key', privString);
+            localStorage.setItem('sukoon_public_key', pubString);
+            
+            // Save them to your React ref
+            myMasterKeyRef.current = keyPair.privateKey;
+            
+            // Tell the database our brand new public key
+            await supabase.from('profiles').update({ public_key: pubString }).eq('id', user.id);
+            console.log("Generated brand new keys and saved them!");
           }
-        } catch (e) { console.error("E2EE init failed", e); }
+        } catch (error) {
+          console.error("Error setting up security keys:", error);
+        }
+        // ────────────────────────────────────────────────
+
         setIsVaultUnlocked(true);
         if (!localStorage.getItem('sukoon_onboarded')) setShowOnboarding(true);
       }
@@ -482,14 +499,10 @@ export default function SukoonChat({ T, lang, setTab }) {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div style={s.container}>
-      {/* Audio element — your exact video tag */}
       <video id="sukoon-remote-audio" autoPlay playsInline
         style={{ position: 'absolute', top: '-10px', left: '-10px', width: '1px', height: '1px', opacity: 0.01, pointerEvents: 'none' }} />
 
-      {/* Typing animation */}
       <style>{`@keyframes sukoonTyping{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}} @keyframes sukoonPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.1)}50%{box-shadow:0 0 0 20px rgba(255,255,255,0)}}`}</style>
-
-      {/* ── OVERLAY STACK ── */}
 
       {/* Ringing screen */}
       {incomingCall && (
