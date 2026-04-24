@@ -5,7 +5,7 @@ import { requestFirebaseToken } from '../firebaseSetup';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import QRCode from 'react-qr-code';
-import { SecurityKit } from '../../utils/security';
+import { SecurityKit } from '../utils/security';
 
 // ─── iOS DETECTION ─────────────────────────────────────────────────────────
 const isIOS = () =>

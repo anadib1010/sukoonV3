@@ -136,7 +136,6 @@ export function HeartButton({ spawnHeart, onPress, color, emoji, count }) {
         fontSize: '16px',
         color,
         fontFamily: "'DM Sans', sans-serif",
-        fontSize: '12px',
         fontWeight: 600,
         transform: pressed ? 'scale(1.25)' : 'scale(1)',
         transition: 'transform 0.15s ease',
