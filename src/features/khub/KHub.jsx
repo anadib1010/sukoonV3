@@ -1,122 +1,195 @@
 import React, { useState, useEffect } from 'react';
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🏠 K-HUB — Room Selection
+// 5 rooms: Lavender Lounge, General K-Pop, K-Drama,
+//          Purple Lounge (BTS fans), Blink Lounge (BP fans)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 export function KHub({ setTab, T, lang, setChatRoom }) {
-  const hi = lang === "Hindi";
+  const hi = lang === 'Hindi';
   const [visible, setVisible] = useState(false);
 
-  // 🛡️ The "Entrance Animation": Makes the page fade in smoothly
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 60);
     return () => clearTimeout(t);
   }, []);
 
-  // 🛡️ THE SMART DOOR LOGIC: One function to rule them all!
+  // ─── THE SMART DOOR LOGIC ───
   const enterRoom = (roomName) => {
-  if (roomName === 'Lavender Lounge') {
-    setTab('chat_lavender');
-  } else if (roomName === 'General K-Pop') {
-    setTab('chat_kpop');
-  } else if (roomName === 'K-Drama Room') {
-    setTab('chat_kdrama'); // 🚀 Lead to the Peach room!
-  } else {
-    if (setChatRoom) setChatRoom(roomName);
-    setTab('chat');
-  }
-};
+    if (roomName === 'Lavender Lounge') {
+      setTab('chat_lavender');
+    } else if (roomName === 'General K-Pop') {
+      setTab('chat_kpop');
+    } else if (roomName === 'K-Drama Room') {
+      setTab('chat_kdrama');
+    } else if (roomName === 'Purple Lounge') {
+      setTab('chat_purple');
+    } else if (roomName === 'Blink Lounge') {
+      setTab('chat_blink');
+    } else {
+      if (setChatRoom) setChatRoom(roomName);
+      setTab('chat');
+    }
+  };
 
   // ─── THE RULE OF T: STYLES INSIDE ───
   const s = {
     page: {
-      height: "100%", display: "flex", flexDirection: "column",
-      alignItems: "center", background: T.bg, color: T.text,
-      padding: "8vh 24px 4vh", boxSizing: "border-box", textAlign: "center",
+      height: '100%', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', background: T.bg, color: T.text,
+      padding: '8vh 24px 4vh', boxSizing: 'border-box', textAlign: 'center',
+      overflowY: 'auto',
     },
     header: {
-      marginBottom: "40px",
-      opacity: visible ? 1 : 0, 
-      transform: visible ? "translateY(0)" : "translateY(12px)",
-      transition: "all 0.8s ease",
+      marginBottom: '32px',
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(12px)',
+      transition: 'all 0.8s ease',
     },
-    title: { 
-      fontFamily: "'Cormorant Garamond', serif", fontSize: "42px", 
-      fontWeight: 600, margin: "0 0 8px", color: T.accent 
+    title: {
+      fontFamily: "'Cormorant Garamond', serif", fontSize: '42px',
+      fontWeight: 600, margin: '0 0 8px', color: T.accent,
     },
-    subTitle: { 
-      fontFamily: "'DM Sans', sans-serif", fontSize: "11px", 
-      letterSpacing: "3px", textTransform: "uppercase", opacity: 0.6 
+    subTitle: {
+      fontFamily: "'DM Sans', sans-serif", fontSize: '11px',
+      letterSpacing: '3px', textTransform: 'uppercase', opacity: 0.6,
+    },
+    disclaimer: {
+      fontSize: '10px', opacity: 0.4, lineHeight: 1.6,
+      maxWidth: '320px', margin: '8px auto 0',
+      fontFamily: "'DM Sans', sans-serif",
     },
     buttonContainer: {
-      width: "100%", maxWidth: "360px", display: "flex", 
-      flexDirection: "column", gap: "20px",
-      opacity: visible ? 1 : 0, transition: "opacity 0.8s ease 0.2s",
+      width: '100%', maxWidth: '360px', display: 'flex',
+      flexDirection: 'column', gap: '16px',
+      opacity: visible ? 1 : 0, transition: 'opacity 0.8s ease 0.2s',
+    },
+    // ─── Section label ───
+    sectionLabel: {
+      fontSize: '9px', letterSpacing: '3px', textTransform: 'uppercase',
+      opacity: 0.4, textAlign: 'left', paddingLeft: '4px',
+      fontFamily: "'DM Sans', sans-serif", marginBottom: '-6px',
     },
     roomBtn: (col) => ({
-      width: "100%", padding: "22px 20px", borderRadius: "18px",
-      background: `linear-gradient(135deg, ${T.bg} 0%, ${col}25 50%, ${T.bg} 100%)`,
-      border: `1px solid ${col}45`, color: T.text,
-      fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: "16px",
-      cursor: "pointer", textAlign: "left", display: "flex", 
-      alignItems: "center", gap: "18px",
-      boxShadow: `0 8px 20px rgba(0, 0, 0, 0.3), 0 0 12px ${col}15`,
-      transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+      width: '100%', padding: '18px 20px', borderRadius: '18px',
+      background: `linear-gradient(135deg, ${T.bg} 0%, ${col}20 50%, ${T.bg} 100%)`,
+      border: `1px solid ${col}40`, color: T.text,
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: '15px',
+      cursor: 'pointer', textAlign: 'left', display: 'flex',
+      alignItems: 'center', gap: '16px',
+      boxShadow: `0 6px 18px rgba(0,0,0,0.25), 0 0 10px ${col}12`,
+      transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
     }),
     icon: (col) => ({
-      width: "44px", height: "44px", borderRadius: "12px",
-      background: `${col}20`, border: `1px solid ${col}40`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: "22px"
+      width: '42px', height: '42px', borderRadius: '12px',
+      background: `${col}18`, border: `1px solid ${col}35`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '20px', flexShrink: 0,
     }),
+    btnText: {
+      display: 'flex', flexDirection: 'column', gap: '2px',
+    },
+    btnSub: {
+      fontSize: '10px', opacity: 0.45, fontWeight: 400,
+      letterSpacing: '0.5px',
+    },
     backBtn: {
-      marginTop: "auto", background: "none", border: "none", color: T.textSoft,
-      fontSize: "12px", textTransform: "uppercase", letterSpacing: "2px", 
-      cursor: "pointer", opacity: 0.6,
-    }
+      marginTop: 'auto', paddingTop: '24px',
+      background: 'none', border: 'none', color: T.textSoft,
+      fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px',
+      cursor: 'pointer', opacity: 0.5,
+    },
   };
+
+  const rooms = [
+    {
+      group: hi ? 'सभी के लिए' : 'FOR EVERYONE',
+      items: [
+        {
+          name: 'Lavender Lounge',
+          icon: '🪻',
+          col: '#A18CD1',
+          label: hi ? 'के-लैवेंडर लाउंज' : 'K-LAVENDER LOUNGE',
+          sub: hi ? 'Multi-fandom chill space' : 'Multi-fandom chill space',
+        },
+        {
+          name: 'General K-Pop',
+          icon: '🎤',
+          col: '#FF69B4',
+          label: hi ? 'सामान्य के-पॉप रूम' : 'GENERAL K-POP ROOM',
+          sub: hi ? 'सभी K-Pop fans के लिए' : 'All K-Pop fans welcome',
+        },
+        {
+          name: 'K-Drama Room',
+          icon: '🎬',
+          col: '#FAD0C4',
+          label: hi ? 'के-ड्रामा लाउंज' : 'K-DRAMA LOUNGE',
+          sub: hi ? 'Drama discuss करें' : 'Discuss the latest dramas',
+        },
+      ],
+    },
+    {
+      group: hi ? 'फैन-विशेष लाउंज' : 'FAN LOUNGES',
+      items: [
+        {
+          name: 'Purple Lounge',
+          icon: '💜',
+          col: '#9B59B6',
+          label: hi ? 'पर्पल लाउंज' : 'PURPLE LOUNGE',
+          sub: hi ? 'BTS fans के लिए • अनधिकृत' : 'For BTS fans · Unofficial',
+        },
+        {
+          name: 'Blink Lounge',
+          icon: '🌸',
+          col: '#E91E8C',
+          label: hi ? 'ब्लिंक लाउंज' : 'BLINK LOUNGE',
+          sub: hi ? 'BLACKPINK fans के लिए • अनधिकृत' : 'For BLACKPINK fans · Unofficial',
+        },
+      ],
+    },
+  ];
 
   return (
     <div style={s.page}>
+
+      {/* ── HEADER ── */}
       <div style={s.header}>
-        <h1 style={s.title}>{hi ? "के-यूनिवर्स" : "K-Universe"}</h1>
-        <p style={s.subTitle}>{hi ? "अपने समुदाय को खोजें" : "FIND YOUR COMMUNITY"}</p>
+        <h1 style={s.title}>{hi ? 'के-यूनिवर्स' : 'K-Universe'}</h1>
+        <p style={s.subTitle}>{hi ? 'अपने समुदाय को खोजें' : 'FIND YOUR COMMUNITY'}</p>
+        <p style={s.disclaimer}>
+          {hi
+            ? 'ये सभी rooms अनधिकृत fan spaces हैं। HYBE, YG, SM, JYP या किसी भी K-Pop label से कोई संबंध नहीं।'
+            : 'All rooms are unofficial fan spaces. Not affiliated with HYBE, YG, SM, JYP, or any K-pop label.'}
+        </p>
       </div>
 
+      {/* ── ROOM BUTTONS ── */}
       <div style={s.buttonContainer}>
-        {/* Door 1: Lavender Lounge */}
-        <button 
-          style={s.roomBtn("#A18CD1")} 
-          onClick={() => enterRoom('Lavender Lounge')}
-          onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
-          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-        >
-          <div style={s.icon("#A18CD1")}>🪻</div>
-          {hi ? "के-लैवेंडर लाउंज" : "K-LAVENDER LOUNGE"}
-        </button>
-
-        {/* Door 2: General K-Pop */}
-        <button 
-          style={s.roomBtn("#FF69B4")} 
-          onClick={() => enterRoom('General K-Pop')}
-          onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
-          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-        >
-          <div style={s.icon("#FF69B4")}>🎤</div>
-          {hi ? "सामान्य के-पॉप रूम" : "GENERAL K-POP ROOM"}
-        </button>
-
-        {/* Door 3: K-Drama Room */}
-        <button 
-          style={s.roomBtn("#FAD0C4")} 
-          onClick={() => enterRoom('K-Drama Room')}
-          onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
-          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-        >
-          <div style={s.icon("#FAD0C4")}>🎬</div>
-          {hi ? "के-ड्रामा रूम" : "K-DRAMA ROOM"}
-        </button>
+        {rooms.map((group) => (
+          <React.Fragment key={group.group}>
+            <p style={s.sectionLabel}>{group.group}</p>
+            {group.items.map((room) => (
+              <button
+                key={room.name}
+                style={s.roomBtn(room.col)}
+                onClick={() => enterRoom(room.name)}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <div style={s.icon(room.col)}>{room.icon}</div>
+                <div style={s.btnText}>
+                  <span>{room.label}</span>
+                  <span style={s.btnSub}>{room.sub}</span>
+                </div>
+              </button>
+            ))}
+          </React.Fragment>
+        ))}
       </div>
 
       <button style={s.backBtn} onClick={() => setTab('home')}>
-        ← {hi ? "वापस" : "BACK HOME"}
+        ← {hi ? 'वापस' : 'BACK HOME'}
       </button>
     </div>
   );

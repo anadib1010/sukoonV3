@@ -26,7 +26,7 @@ import { AudioPage }      from './features/audio/AudioPage';
 import { Crisis }         from './features/crisis/Crisis';
 import { About }          from './features/about/About';
 import { Privacy }        from './features/privacy/Privacy';
-import { Terms }          from './features/privacy/Terms'; // 🌟 FIXED IMPORT
+import { Terms }          from './features/privacy/Terms';
 import { WishesGallery }  from './features/reflection/WishesGallery';
 import MoodAction         from './MoodAction';
 import { CommunityRoom }  from './features/games/CommunityRoom';
@@ -48,10 +48,14 @@ import { PostReset }      from './components/PostReset';
 import { Reset }          from './components/Reset';
 import { DeepDoor }       from './components/DeepDoor';
 import SukoonChat         from './components/SukoonChat';
-import { KHub } from './features/khub/KHub';
+
+// ─── K-UNIVERSE IMPORTS ───────────────────────────────────────────────────────
+import { KHub }                from './features/khub/KHub';
 import { KLavenderLoungeChat } from './features/khub/KLavenderLoungeChat';
-import { KPopGeneralRoom } from './features/khub/KPopGeneralRoom';
-import { KDramaRoom } from './features/khub/KDramaRoom';
+import { KPopGeneralRoom }     from './features/khub/KPopGeneralRoom';
+import { KDramaRoom }          from './features/khub/KDramaRoom';
+import { PurpleLounge }        from './features/khub/PurpleLounge';   // 💜 NEW
+import { BlinkLounge }         from './features/khub/BlinkLounge';    // 🌸 NEW
 
 // ─── AUTH SHEET ──────────────────────────────────────────────────────────────
 function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
@@ -130,7 +134,7 @@ function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
   );
 }
 
-// ─── INCOMING CALL OVERLAY ──────────────────────────────────────────────
+// ─── INCOMING CALL OVERLAY ────────────────────────────────────────────────────
 function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecline }) {
   const hi = lang === "Hindi";
   const [visible, setVisible] = useState(false);
@@ -157,7 +161,7 @@ function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecli
       transform: visible ? "scale(1)" : "scale(0.92)",
       transition: "transform 0.3s ease",
     },
-    icon: { fontSize: 52, marginBottom: 12 },
+    icon:   { fontSize: 52, marginBottom: 12 },
     title: {
       fontFamily: "'Cormorant Garamond', serif",
       fontSize: 22, color: T.text, fontWeight: 500,
@@ -167,7 +171,7 @@ function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecli
       fontSize: 14, color: T.text, opacity: 0.6,
       marginBottom: 28, fontFamily: "'DM Sans', sans-serif",
     },
-    btnRow: { display: "flex", gap: 12, justifyContent: "center" },
+    btnRow:     { display: "flex", gap: 12, justifyContent: "center" },
     acceptBtn: {
       padding: "12px 28px", borderRadius: 25, border: "none",
       cursor: "pointer", fontWeight: "bold", fontSize: 14,
@@ -219,11 +223,11 @@ function AppContent() {
   });
   const [nextRoute,      setNextRoute]      = useState(null);
 
-  const [authSheet,      setAuthSheet]      = useState(null); 
+  const [authSheet,      setAuthSheet]      = useState(null);
   const [pendingTab,     setPendingTab]      = useState(null);
 
   // ─── INCOMING CALL STATE ───
-  const [incomingCall,   setIncomingCall]   = useState(null); 
+  const [incomingCall,   setIncomingCall]   = useState(null);
 
   const [lang,        setLang]        = useLS("jsukoon_lang", "English");
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
@@ -265,8 +269,7 @@ function AppContent() {
     if (hasOnboarded) track('View Feature', { featureName: location.pathname });
   }, [location, hasOnboarded]);
 
-  // ─── THE TWO-HEADED DRAGON WATCHER (FIXED) 🐉 ───
-  // 🌟 Notice how incomingCall is REMOVED from the dependency array at the bottom so it never drops the radio!
+  // ─── THE TWO-HEADED DRAGON WATCHER 🐉 ───
   useEffect(() => {
     if (!session?.user) return;
     const userId = session.user.id;
@@ -275,22 +278,19 @@ function AppContent() {
 
     callRadar.on('broadcast', { event: 'global-ring' }, (payload) => {
       const data = payload.payload;
-      
+
       if (data.participants && data.participants.includes(userId) && data.callerId !== userId) {
-        
         if (data.action === 'start') {
           setIncomingCall({
-            roomId: data.roomId,
-            callType: 'voice',
+            roomId:      data.roomId,
+            callType:    'voice',
             callerEmail: data.callerEmail,
-            roomDetails: data.roomDetails
+            roomDetails: data.roomDetails,
           });
-          // 🌟 Turn on the global ringtone!
           const ringtone = document.getElementById('global-ringtone');
           if (ringtone) ringtone.play().catch(e => console.log("Ringtone blocked"));
-        } 
+        }
         else if (data.action === 'cancel') {
-          // 🌟 Turn off the popup and the ringtone
           setIncomingCall(prev => {
             if (prev?.roomId === data.roomId) {
               const ringtone = document.getElementById('global-ringtone');
@@ -304,7 +304,7 @@ function AppContent() {
     }).subscribe();
 
     return () => { supabase.removeChannel(callRadar); };
-  }, [session?.user?.id]); // 🌟 FIXED: Removed incomingCall dependency!
+  }, [session?.user?.id]); // FIXED: no incomingCall dependency
 
   useEffect(() => {
     const browseTimer = setInterval(() => creditSession(1, true), 60000);
@@ -319,9 +319,56 @@ function AppContent() {
     }
   }, [hasOnboarded, nextRoute, navigate]);
 
-  // 🌟 ADDED `terms` to PAGE_TITLES
-  const PAGE_TITLES_EN = { home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready", more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place", exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench", journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus", practice: "JSukoon — Practice", warmth: "JSukoon — Warmth", progress: "JSukoon — Progress", settings: "JSukoon — Settings", reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault", resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness", sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support", about: "JSukoon — About", privacy: "JSukoon — Privacy", terms: "JSukoon — Terms", legal: "JSukoon — Legal", moodaction: "JSukoon — Mood Response", community: "JSukoon — Community", quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath", mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud", chat: "JSukoon — Secure Chat", khub: "JSukoon — K-Universe" };
-  const PAGE_TITLES_HI = { home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार", more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान", exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच", journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस", practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट", progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स", reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट", resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता", sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता", about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता", terms: "JSukoon — शर्तें", legal: "JSukoon — कानूनी", moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय", quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान", mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज", chat: "JSukoon — सुरक्षित चैट", khub: "JSukoon — के-यूनिवर्स" };
+  // ─── PAGE TITLES ───
+  const PAGE_TITLES_EN = {
+    home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready",
+    more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place",
+    exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench",
+    journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus",
+    practice: "JSukoon — Practice", warmth: "JSukoon — Warmth",
+    progress: "JSukoon — Progress", settings: "JSukoon — Settings",
+    reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault",
+    resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness",
+    sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support",
+    about: "JSukoon — About", privacy: "JSukoon — Privacy",
+    terms: "JSukoon — Terms", legal: "JSukoon — Legal",
+    moodaction: "JSukoon — Mood Response", community: "JSukoon — Community",
+    quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath",
+    mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud",
+    chat: "JSukoon — Secure Chat",
+    // ─── K-Universe titles ───
+    khub:         "JSukoon — K-Universe",
+    chat_lavender:"JSukoon — Lavender Lounge",
+    chat_kpop:    "JSukoon — K-Pop Room",
+    chat_kdrama:  "JSukoon — K-Drama Lounge",
+    chat_purple:  "JSukoon — Purple Lounge",   // 💜 NEW
+    chat_blink:   "JSukoon — Blink Lounge",    // 🌸 NEW
+  };
+
+  const PAGE_TITLES_HI = {
+    home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार",
+    more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान",
+    exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच",
+    journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस",
+    practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट",
+    progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स",
+    reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट",
+    resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता",
+    sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता",
+    about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता",
+    terms: "JSukoon — शर्तें", legal: "JSukoon — कानूनी",
+    moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय",
+    quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान",
+    mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज",
+    chat: "JSukoon — सुरक्षित चैट",
+    // ─── K-Universe titles ───
+    khub:         "JSukoon — के-यूनिवर्स",
+    chat_lavender:"JSukoon — लैवेंडर लाउंज",
+    chat_kpop:    "JSukoon — के-पॉप रूम",
+    chat_kdrama:  "JSukoon — के-ड्रामा लाउंज",
+    chat_purple:  "JSukoon — पर्पल लाउंज",   // 💜 NEW
+    chat_blink:   "JSukoon — ब्लिंक लाउंज",  // 🌸 NEW
+  };
 
   const setPageTitle = (page) => {
     const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
@@ -388,32 +435,33 @@ function AppContent() {
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
 
-        {/* 🌟 The Global Ringtone Player! */}
+        {/* 🌟 The Global Ringtone Player */}
         <audio id="global-ringtone" src="/ringtone.mp3" loop style={{ display: 'none' }} />
 
         <Routes>
+          {/* ─── WELLNESS ROUTES ─── */}
           <Route path="/"                element={<Home           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/reset"           element={<Reset           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/postreset"       element={<PostReset       setTab={setTab} T={T} lang={lang} />} />
           <Route path="/sleep"           element={<Sleep           setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_scrambler" element={<DreamScrambler setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_ember"     element={<DimmingEmber   setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_scrambler" element={<DreamScrambler  setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_ember"     element={<DimmingEmber    setTab={setTab} T={T} lang={lang} />} />
           <Route path="/sleep_scan"      element={<HeavyScan       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_fire"      element={<MidnightFire   setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/sleep_beat"      element={<DeepRhythm     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_fire"      element={<MidnightFire    setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/sleep_beat"      element={<DeepRhythm      setTab={setTab} T={T} lang={lang} />} />
           <Route path="/focus"           element={<Focus           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/journal"         element={<Journal         setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/warmth"          element={<WarmthPage     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/warmth"          element={<WarmthPage      setTab={setTab} T={T} lang={lang} />} />
           <Route path="/bench"           element={<Bench           setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/more"            element={<MorePage       setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
-          <Route path="/vaultdoor"       element={<DeepDoor       setTab={setTab} T={T} lang={lang} destination="vault" />} />
+          <Route path="/more"            element={<MorePage        setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
+          <Route path="/vaultdoor"       element={<DeepDoor        setTab={setTab} T={T} lang={lang} destination="vault" />} />
           <Route path="/exploremore"     element={<ExploreMore     setTab={setTab} T={T} lang={lang} setThemeKey={setThemeKey} />} />
-          <Route path="/practice"        element={<Practice       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/community"       element={<CommunityRoom  setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/practice"        element={<Practice        setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/community"       element={<CommunityRoom   setTab={setTab} T={T} lang={lang} />} />
           <Route path="/legal"           element={<LegalDisclaimer setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/reflection"      element={<Reflection     setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/progress"        element={<Progress       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/descent"         element={<TheDescent     setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />} />
+          <Route path="/reflection"      element={<Reflection      setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/progress"        element={<Progress        setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/descent"         element={<TheDescent      setTab={setTab} T={T} lang={lang} goBack={() => setTab("vault")} />} />
           <Route path="/vault"           element={<Vault           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/stillness"       element={<Stillness       setTab={setTab} T={T} lang={lang} />} />
           <Route path="/resonance"       element={<Resonance       setTab={setTab} T={T} lang={lang} />} />
@@ -421,23 +469,25 @@ function AppContent() {
           <Route path="/soundbath"       element={<SoundBath       setTab={setTab} T={T} lang={lang} />} />
           <Route path="/mandala"         element={<MandalaFlow     setTab={setTab} T={T} lang={lang} />} />
           <Route path="/seedinmud"       element={<SeedInMud       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/settings"        element={<Settings       setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />} />
+          <Route path="/settings"        element={<Settings        setTab={setTab} T={T} lang={lang} setLang={setLang} setThemeKey={setThemeKey} setThemeSource={setThemeSource} themeSource={themeSource} themeKey={themeKey} />} />
           <Route path="/audio"           element={<AudioPage       setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/crisis"          element={<Crisis           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/crisis"          element={<Crisis          setTab={setTab} T={T} lang={lang} />} />
           <Route path="/about"           element={<About           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/privacy"         element={<Privacy         setTab={setTab} T={T} lang={lang} />} />
           <Route path="/terms"           element={<Terms           setTab={setTab} T={T} lang={lang} />} />
           <Route path="/wishes"          element={<WishesGallery   setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/moodaction"      element={<MoodAction     selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
-          
-          {/* 💖 K-UNIVERSE ROUTES: ALL INSIDE THE SAME CLUBHOUSE NOW! */}
-          <Route path="/khub"            element={<KHub           setTab={setTab} T={T} lang={lang} setChatRoom={setChatRoom} />} />
+          <Route path="/moodaction"      element={<MoodAction      selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
+          <Route path="/chat"            element={<SukoonChat      room={chatRoom} setTab={setTab} T={T} lang={lang} />} />
+
+          {/* ─── K-UNIVERSE ROUTES ─── */}
+          <Route path="/khub"            element={<KHub                setTab={setTab} T={T} lang={lang} setChatRoom={setChatRoom} />} />
           <Route path="/chat_lavender"   element={<KLavenderLoungeChat setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/chat_kpop"       element={<KPopGeneralRoom setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/chat_kdrama"     element={<KDramaRoom     setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/chat"            element={<SukoonChat     room={chatRoom} setTab={setTab} T={T} lang={lang} />} />
-          
-          {/* 🛡️ CATCH-ALL ROUTE (Must be at the very bottom!) */}
+          <Route path="/chat_kpop"       element={<KPopGeneralRoom     setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/chat_kdrama"     element={<KDramaRoom          setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />  {/* 💜 NEW */}
+          <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />  {/* 🌸 NEW */}
+
+          {/* ─── CATCH-ALL (must be last) ─── */}
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
 
@@ -449,19 +499,15 @@ function AppContent() {
             callerEmail={incomingCall.callerEmail}
             callType={incomingCall.callType}
             onAccept={() => {
-              // 🌟 Stop the ringtone!
               const ringtone = document.getElementById('global-ringtone');
               if (ringtone) ringtone.pause();
-
               const roomToJoin = incomingCall.roomDetails;
               setIncomingCall(null);
               navigate("/chat", { state: { incomingCallRoom: roomToJoin } });
             }}
             onDecline={() => {
-              // 🌟 Stop the ringtone!
               const ringtone = document.getElementById('global-ringtone');
               if (ringtone) ringtone.pause();
-              
               setIncomingCall(null);
             }}
           />
@@ -485,6 +531,7 @@ function AppContent() {
             }}
           />
         )}
+
         <Analytics />
       </div>
     </div>

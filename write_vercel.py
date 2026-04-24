@@ -1,0 +1,25 @@
+content = """{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=(), payment=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://us-assets.i.posthog.com https://*.posthog.com https://www.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://vercel.live https://us.i.posthog.com https://us-assets.i.posthog.com https://*.posthog.com https://*.googleapis.com https://*.firebase.com https://140.238.226.129:5000; img-src 'self' data: blob: https://www.svgrepo.com https://ktqkxfj3pddbxgnf.public.blob.vercel-storage.com https://*.supabase.co https://objectstorage.ap-mumbai-1.oraclecloud.com; media-src 'self' https://ktqkxfj3pddbxgnf.public.blob.vercel-storage.com; frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'none';" }
+      ]
+    }
+  ]
+}"""
+
+with open("vercel.json", "w", encoding="utf-8", newline="\n") as f:
+    f.write(content)
+
+print("Done")

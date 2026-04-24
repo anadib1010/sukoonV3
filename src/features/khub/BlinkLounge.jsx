@@ -2,22 +2,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎤 GENERAL K-POP ROOM — Fan Community Chat
-// ⚠️  NOT an official app. Not affiliated with HYBE,
-//     YG, SM, JYP or any K-pop label. Fan use only.
+// 🌸 BLINK LOUNGE — Fan Community Chat
+// ⚠️  NOT an official app. Not affiliated with YG
+//     Entertainment or BLACKPINK in any way.
+//     "BLACKPINK", "BLINK" are trademarks of
+//     YG Entertainment. This is a fan-made space only.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const ROOM_NAME = 'General K-Pop';
-const POP_COL   = '#FF69B4';
+const ROOM_NAME  = 'Blink Lounge';
+const BLINK_COL  = '#E91E8C';   // BLACKPINK's iconic hot pink
 
-// ─── TOXICITY: banned phrase fragments (client pre-check) ───
 const BANNED_FRAGMENTS = [
-  'flop', 'overrated', 'trash', 'ugly', 'hate', 'kill',
-  'die', 'worst', 'garbage', 'pathetic', 'disgusting',
-  'better than', 'worse than', 'sucks', 'loser',
+  'flop', 'overrated', 'trash', 'garbage', 'hate', 'kill',
+  'die', 'ugly', 'disgusting', 'pathetic', 'loser',
+  'better than', 'worse than', 'sucks',
+  'army trash', 'bts trash', 'bts flop',
+  'blink trash', 'blink vs', 'blackpink vs',
 ];
 
-// ─── SPAM: max messages per window ───
 const SPAM_LIMIT    = 5;
 const SPAM_WINDOW_S = 10;
 
@@ -30,25 +32,23 @@ function checkToxicity(text) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export function KPopGeneralRoom({ setTab, T, lang }) {
+export function BlinkLounge({ setTab, T, lang }) {
   const hi = lang === 'Hindi';
 
   const [messages,    setMessages]    = useState([]);
   const [input,       setInput]       = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [showRules,   setShowRules]   = useState(false);
-  const [showReport,  setShowReport]  = useState(null); // message obj
-  const [toast,       setToast]       = useState(null); // { text, type }
+  const [showReport,  setShowReport]  = useState(null);
+  const [toast,       setToast]       = useState(null);
   const [muted,       setMuted]       = useState(false);
 
-  const scrollRef    = useRef(null);
-  const recentMsgs   = useRef([]); // timestamps for spam check
+  const scrollRef  = useRef(null);
+  const recentMsgs = useRef([]);
 
   // ─── 1. AUTH ───
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUser(user);
-    });
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
   }, []);
 
   // ─── 2. FETCH + REALTIME ───
@@ -58,7 +58,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
         .from('khub_messages')
         .select('*')
         .eq('room_name', ROOM_NAME)
-        .eq('status', 'visible')           // never show hidden/deleted
+        .eq('status', 'visible')
         .order('created_at', { ascending: true })
         .limit(100);
       if (!error && data) setMessages(data);
@@ -66,7 +66,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
     fetchMessages();
 
     const sub = supabase
-      .channel('kpop_general_live')
+      .channel('blink_lounge_live')
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'khub_messages',
         filter: `room_name=eq.${ROOM_NAME}`,
@@ -85,39 +85,39 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ─── 4. TOAST helper ───
+  // ─── 4. TOAST ───
   const showToast = (text, type = 'warn') => {
     setToast({ text, type });
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ─── 5. SEND MESSAGE ───
+  // ─── 5. SEND ───
   const sendMessage = async () => {
     if (!input.trim() || !currentUser) return;
-    if (muted) { showToast(hi ? 'आप अभी म्यूट हैं।' : 'You are currently muted.', 'error'); return; }
+    if (muted) {
+      showToast(hi ? 'आप अभी म्यूट हैं।' : 'You are currently muted.', 'error');
+      return;
+    }
 
-    // A. Spam check
     const now = Date.now();
     recentMsgs.current = recentMsgs.current.filter(t => now - t < SPAM_WINDOW_S * 1000);
     if (recentMsgs.current.length >= SPAM_LIMIT) {
-      showToast(hi ? 'बहुत तेज़! थोड़ा रुकें 🐢' : 'Slow down! Too many messages.', 'warn');
+      showToast(hi ? 'बहुत तेज़! थोड़ा रुकें 🐢' : 'Slow down a little 🐢', 'warn');
       return;
     }
     recentMsgs.current.push(now);
 
-    // B. Length check
     if (input.length > 500) {
-      showToast(hi ? 'संदेश बहुत लंबा है (500 chars max)' : 'Message too long (500 chars max)', 'warn');
+      showToast(hi ? 'संदेश 500 chars से छोटा रखें' : 'Keep messages under 500 chars', 'warn');
       return;
     }
 
-    // C. Toxicity pre-check
     const { toxic, reason } = checkToxicity(input);
     if (toxic) {
       showToast(
         hi
-          ? `"${reason}" जैसे शब्द यहाँ allowed नहीं हैं। 🙏`
-          : `Language like "${reason}" isn't allowed here. Keep it kind 🙏`,
+          ? `"${reason}" जैसे शब्द यहाँ allowed नहीं। कृपया respectful रहें 🙏`
+          : `"${reason}" isn't allowed here. Keep it kind 🙏`,
         'error'
       );
       return;
@@ -144,8 +144,6 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       reported_by: currentUser.id,
       reason,
     });
-
-    // If 3+ reports on same message → auto-hide
     const { count } = await supabase
       .from('message_reports')
       .select('*', { count: 'exact', head: true })
@@ -155,7 +153,6 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       await supabase.from('khub_messages').update({ status: 'hidden' }).eq('id', msg.id);
       setMessages(prev => prev.filter(m => m.id !== msg.id));
     }
-
     setShowReport(null);
     showToast(hi ? 'रिपोर्ट भेजी गई ✅' : 'Report submitted ✅', 'ok');
   };
@@ -168,24 +165,24 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
     },
     header: {
       padding: '52px 20px 16px',
-      background: `linear-gradient(180deg, ${POP_COL}18 0%, transparent 100%)`,
-      borderBottom: `1px solid ${POP_COL}30`, textAlign: 'center',
+      background: `linear-gradient(180deg, ${BLINK_COL}18 0%, transparent 100%)`,
+      borderBottom: `1px solid ${BLINK_COL}30`, textAlign: 'center',
     },
     title: {
       fontFamily: "'Cormorant Garamond', serif", fontSize: '24px',
-      fontWeight: 700, color: POP_COL, letterSpacing: '1px', margin: 0,
+      fontWeight: 700, color: BLINK_COL, letterSpacing: '1px', margin: 0,
     },
     unofficialBadge: {
       display: 'inline-block', marginTop: '6px',
-      background: `${POP_COL}18`, border: `1px solid ${POP_COL}40`,
+      background: `${BLINK_COL}15`, border: `1px solid ${BLINK_COL}40`,
       borderRadius: '20px', padding: '3px 10px',
       fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase',
-      color: POP_COL, opacity: 0.8,
+      color: BLINK_COL, opacity: 0.85,
     },
     rulesBtn: {
-      marginTop: '8px', background: 'none', border: `1px solid ${POP_COL}35`,
+      marginTop: '8px', background: 'none', border: `1px solid ${BLINK_COL}35`,
       borderRadius: '12px', padding: '4px 12px',
-      color: POP_COL, fontSize: '11px', cursor: 'pointer',
+      color: BLINK_COL, fontSize: '11px', cursor: 'pointer',
       fontFamily: "'DM Sans', sans-serif",
     },
     chatArea: {
@@ -202,12 +199,13 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       paddingLeft: '4px', fontFamily: "'DM Sans', sans-serif",
     },
     bubble: (isMe) => ({
-      padding: '12px 16px', borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-      background: isMe ? POP_COL : `${T.accent}10`,
+      padding: '12px 16px',
+      borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+      background: isMe ? BLINK_COL : `${T.accent}10`,
       color: isMe ? '#fff' : T.text,
-      border: `1px solid ${isMe ? 'transparent' : `${POP_COL}20`}`,
+      border: `1px solid ${isMe ? 'transparent' : `${BLINK_COL}22`}`,
       fontSize: '14px', lineHeight: '1.6',
-      boxShadow: isMe ? `0 4px 14px ${POP_COL}35` : 'none',
+      boxShadow: isMe ? `0 4px 14px ${BLINK_COL}38` : 'none',
       position: 'relative',
     }),
     reportBtn: {
@@ -218,27 +216,26 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
     },
     inputArea: {
       padding: '16px 16px 32px', background: T.bg,
-      borderTop: `1px solid ${POP_COL}18`,
+      borderTop: `1px solid ${BLINK_COL}18`,
       display: 'flex', gap: '10px', alignItems: 'center',
     },
     inputField: {
       flex: 1, padding: '13px 20px', borderRadius: '28px',
-      background: `${T.accent}06`, border: `1px solid ${POP_COL}30`,
+      background: `${T.accent}06`, border: `1px solid ${BLINK_COL}30`,
       color: T.text, outline: 'none', fontSize: '14px',
       fontFamily: "'DM Sans', sans-serif",
     },
     sendBtn: {
       width: '46px', height: '46px', borderRadius: '50%',
-      background: POP_COL, border: 'none', color: '#fff',
+      background: BLINK_COL, border: 'none', color: '#fff',
       cursor: 'pointer', fontSize: '18px', flexShrink: 0,
-      boxShadow: `0 4px 12px ${POP_COL}45`,
+      boxShadow: `0 4px 12px ${BLINK_COL}42`,
     },
     backBtn: {
       position: 'absolute', left: 16, top: 54,
       background: 'none', border: 'none',
-      color: POP_COL, cursor: 'pointer', fontSize: '20px',
+      color: BLINK_COL, cursor: 'pointer', fontSize: '20px',
     },
-    // Toast
     toast: (type) => ({
       position: 'fixed', bottom: '90px', left: '50%',
       transform: 'translateX(-50%)',
@@ -248,7 +245,6 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       zIndex: 999, boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
       whiteSpace: 'nowrap', maxWidth: '85vw', textAlign: 'center',
     }),
-    // Rules modal
     overlay: {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
       zIndex: 100, display: 'flex', alignItems: 'flex-end',
@@ -258,51 +254,52 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       borderRadius: '24px 24px 0 0',
       padding: '28px 24px 40px',
       maxHeight: '80vh', overflowY: 'auto',
-      border: `1px solid ${POP_COL}30`,
+      border: `1px solid ${BLINK_COL}30`,
     },
     modalTitle: {
       fontFamily: "'Cormorant Garamond', serif",
-      fontSize: '22px', color: POP_COL,
+      fontSize: '22px', color: BLINK_COL,
       margin: '0 0 4px', fontWeight: 700,
     },
     ruleItem: {
       display: 'flex', gap: '10px', alignItems: 'flex-start',
-      padding: '10px 0', borderBottom: `1px solid ${POP_COL}12`,
+      padding: '10px 0', borderBottom: `1px solid ${BLINK_COL}14`,
       fontSize: '13px', lineHeight: 1.5,
     },
     ruleIcon: { fontSize: '16px', marginTop: '1px', flexShrink: 0 },
     closeBtn: {
       width: '100%', marginTop: '20px', padding: '14px',
-      background: POP_COL, border: 'none', borderRadius: '16px',
+      background: BLINK_COL, border: 'none', borderRadius: '16px',
       color: '#fff', fontSize: '15px', fontWeight: 700,
       cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
     },
   };
 
-  // ─── RULES DATA ───
   const rules = hi ? [
-    { icon: '🚫', hard: true,  text: 'कोई hate speech या slurs नहीं — zero tolerance' },
-    { icon: '⚔️', hard: true,  text: 'कोई fandom attacks नहीं — BTS vs BLACKPINK wars बंद' },
-    { icon: '🔞', hard: true,  text: 'NSFW content सख्त मना है — auto-blocked' },
+    { icon: '🚫', hard: true,  text: 'कोई hate speech या slurs नहीं — zero tolerance, instant mute' },
+    { icon: '⚔️', hard: true,  text: 'Fandom wars सख्त मना — दूसरे fandoms को attack नहीं' },
+    { icon: '🔞', hard: true,  text: 'NSFW content पूरी तरह banned — auto-blocked' },
     { icon: '🎵', hard: true,  text: 'Pirated music/content share करना illegal है' },
-    { icon: '💬', hard: false, text: 'Spam या flooding — warning मिलेगी' },
-    { icon: '🎤', hard: false, text: 'अपने idol का celebrate करें, दूसरों को attack न करें' },
-    { icon: '🔗', hard: false, text: 'Spotify/YouTube links share कर सकते हैं — in-app playback नहीं' },
-    { icon: '🚩', hard: false, text: 'हर message पर Report button है — abuse करने पर auto-hide' },
+    { icon: '💬', hard: false, text: 'Max 5 messages per 10 seconds — spam = warning' },
+    { icon: '🌸', hard: false, text: 'अपने idol को celebrate करें — दूसरों को down मत करें' },
+    { icon: '🔗', hard: false, text: 'Spotify/YouTube links share करें — in-app playback नहीं' },
+    { icon: '🚩', hard: false, text: '3 reports = message auto-hidden for review' },
+    { icon: '⚠️', hard: false, text: 'Comparison wars नहीं — "मुझे यह पसंद है" ✅, "यह > वो" ❌' },
   ] : [
     { icon: '🚫', hard: true,  text: 'No hate speech or slurs — zero tolerance, instant mute' },
-    { icon: '⚔️', hard: true,  text: 'No fandom wars — BTS vs BLACKPINK debates = auto-kick' },
-    { icon: '🔞', hard: true,  text: 'No NSFW content — automatically blocked by our system' },
+    { icon: '⚔️', hard: true,  text: 'No fandom wars — attacking other fandoms is not allowed' },
+    { icon: '🔞', hard: true,  text: 'No NSFW content — automatically blocked' },
     { icon: '🎵', hard: true,  text: 'No sharing pirated music or copyrighted content' },
-    { icon: '💬', hard: false, text: 'No spam or flooding — max 5 messages per 10 seconds' },
-    { icon: '🎤', hard: false, text: 'Celebrate your idol without attacking others' },
-    { icon: '🔗', hard: false, text: 'Share Spotify / YouTube links freely — no in-app playback' },
-    { icon: '🚩', hard: false, text: '3 reports from trusted users = message auto-hidden for review' },
+    { icon: '💬', hard: false, text: 'Max 5 messages per 10 seconds — spam gets a warning' },
+    { icon: '🌸', hard: false, text: 'Celebrate your idols without putting others down' },
+    { icon: '🔗', hard: false, text: 'Spotify / YouTube links are welcome — no in-app playback' },
+    { icon: '🚩', hard: false, text: '3 reports from users = message goes to review queue' },
+    { icon: '⚠️', hard: false, text: 'No comparison wars — "I love X" ✅, "X is better than Y" ❌' },
   ];
 
   const reportReasons = hi
-    ? ['घृणास्पद भाषा', 'Spam', 'NSFW', 'Fandom Attack', 'अन्य']
-    : ['Hate speech', 'Spam', 'NSFW content', 'Fandom attack', 'Other'];
+    ? ['घृणास्पद भाषा', 'Spam', 'NSFW', 'Fandom Attack', 'Piracy link', 'अन्य']
+    : ['Hate speech', 'Spam', 'NSFW content', 'Fandom attack', 'Piracy link', 'Other'];
 
   return (
     <div style={s.container}>
@@ -310,10 +307,11 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       {/* ── HEADER ── */}
       <div style={s.header}>
         <button onClick={() => setTab('khub')} style={s.backBtn}>←</button>
-        <h2 style={s.title}>🎤 {hi ? 'के-पॉप फैन रूम' : 'K-Pop Fan Room'}</h2>
+        <h2 style={s.title}>🌸 {hi ? 'ब्लिंक लाउंज' : 'Blink Lounge'}</h2>
         <div style={s.unofficialBadge}>
-          {hi ? '⚠️ अनधिकृत फैन कम्युनिटी — किसी लेबल से संबद्ध नहीं'
-               : '⚠️ Unofficial fan community · Not affiliated with any K-pop label'}
+          {hi
+            ? '⚠️ अनधिकृत फैन कम्युनिटी — YG Entertainment या BLACKPINK से संबद्ध नहीं'
+            : '⚠️ Unofficial fan community · Not affiliated with YG Entertainment or BLACKPINK'}
         </div>
         <br />
         <button style={s.rulesBtn} onClick={() => setShowRules(true)}>
@@ -325,7 +323,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       <div style={s.chatArea}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', opacity: 0.35, marginTop: '40px', fontSize: '13px' }}>
-            {hi ? 'पहले message करने वाले बनें! 🎤' : 'Be the first to say something! 🎤'}
+            {hi ? 'Blink Lounge में आपका स्वागत है! 🌸' : 'Welcome to the Blink Lounge! 🌸'}
           </div>
         )}
         {messages.map(m => {
@@ -334,7 +332,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
             <div key={m.id} style={s.msgRow(isMe)}>
               {!isMe && (
                 <span style={s.senderName}>
-                  {(m.avatar_emoji || '🎤') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}
+                  {(m.avatar_emoji || '🌸') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}
                 </span>
               )}
               <div style={s.bubble(isMe)}>
@@ -353,13 +351,13 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       <div style={s.inputArea}>
         <input
           style={s.inputField}
-          placeholder={hi ? 'अपनी बात share करें...' : 'Share the hype...'}
+          placeholder={hi ? 'Blink Lounge में share करें... 🌸' : 'Share your Blink energy... 🌸'}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
           maxLength={500}
         />
-        <button style={s.sendBtn} onClick={sendMessage}>🔥</button>
+        <button style={s.sendBtn} onClick={sendMessage}>🌸</button>
       </div>
 
       {/* ── TOAST ── */}
@@ -370,21 +368,22 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
         <div style={s.overlay} onClick={() => setShowRules(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <h3 style={s.modalTitle}>📋 {hi ? 'समुदाय नियम' : 'Community Rules'}</h3>
-            <p style={{ fontSize: '11px', opacity: 0.5, marginTop: 0, marginBottom: '16px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-              {hi ? '⚠️ यह JSukoon का एक अनधिकृत K-Pop फैन स्पेस है। HYBE, YG, SM, JYP या किसी भी K-Pop लेबल से कोई संबंध नहीं है।'
-                   : '⚠️ This is an unofficial K-Pop fan space on JSukoon. Not affiliated with HYBE, YG Entertainment, SM Entertainment, JYP Entertainment or any K-pop label.'}
+            <p style={{ fontSize: '11px', opacity: 0.5, marginTop: 0, marginBottom: '16px', letterSpacing: '0.5px' }}>
+              {hi
+                ? '⚠️ यह JSukoon का एक अनधिकृत फैन स्पेस है। YG Entertainment या BLACKPINK से कोई आधिकारिक संबंध नहीं है। "BLACKPINK" और "BLINK" YG Entertainment के registered trademarks हैं।'
+                : '⚠️ This is an unofficial fan space on JSukoon. Not affiliated with YG Entertainment or BLACKPINK. "BLACKPINK" and "BLINK" are registered trademarks of YG Entertainment.'}
             </p>
             {rules.map((r, i) => (
               <div key={i} style={s.ruleItem}>
                 <span style={s.ruleIcon}>{r.icon}</span>
                 <span>
-                  {r.hard && <strong style={{ color: POP_COL }}>{hi ? '[सख्त] ' : '[HARD RULE] '}</strong>}
+                  {r.hard && <strong style={{ color: BLINK_COL }}>{hi ? '[सख्त] ' : '[HARD RULE] '}</strong>}
                   {r.text}
                 </span>
               </div>
             ))}
             <button style={s.closeBtn} onClick={() => setShowRules(false)}>
-              {hi ? 'समझ गया, चैट करें! 🎤' : 'Got it, let me chat! 🎤'}
+              {hi ? 'समझ गया, चैट करें! 🌸' : 'Got it, let me chat! 🌸'}
             </button>
           </div>
         </div>
@@ -405,7 +404,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
                 style={{
                   display: 'block', width: '100%', marginBottom: '10px',
                   padding: '13px 16px', borderRadius: '12px',
-                  background: `${POP_COL}12`, border: `1px solid ${POP_COL}30`,
+                  background: `${BLINK_COL}12`, border: `1px solid ${BLINK_COL}30`,
                   color: T.text, fontSize: '14px', textAlign: 'left',
                   cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
                 }}
@@ -413,8 +412,10 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
                 {reason}
               </button>
             ))}
-            <button style={{ ...s.closeBtn, background: 'transparent', border: `1px solid ${POP_COL}30`, color: T.text }}
-              onClick={() => setShowReport(null)}>
+            <button
+              style={{ ...s.closeBtn, background: 'transparent', border: `1px solid ${BLINK_COL}30`, color: T.text }}
+              onClick={() => setShowReport(null)}
+            >
               {hi ? 'रद्द करें' : 'Cancel'}
             </button>
           </div>
