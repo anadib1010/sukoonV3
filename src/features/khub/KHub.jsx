@@ -103,90 +103,116 @@ export function KHub({ setTab, T, lang, setChatRoom }) {
   };
 
   const rooms = [
-    {
-      group: hi ? 'सभी के लिए' : 'FOR EVERYONE',
-      items: [
-        {
-          name: 'Lavender Lounge',
-          icon: '🪻',
-          col: '#A18CD1',
-          label: hi ? 'के-लैवेंडर लाउंज' : 'K-LAVENDER LOUNGE',
-          sub: hi ? 'Multi-fandom chill space' : 'Multi-fandom chill space',
-        },
-        {
-          name: 'General K-Pop',
-          icon: '🎤',
-          col: '#FF69B4',
-          label: hi ? 'सामान्य के-पॉप रूम' : 'GENERAL K-POP ROOM',
-          sub: hi ? 'सभी K-Pop fans के लिए' : 'All K-Pop fans welcome',
-        },
-        {
-          name: 'K-Drama Room',
-          icon: '🎬',
-          col: '#FAD0C4',
-          label: hi ? 'के-ड्रामा लाउंज' : 'K-DRAMA LOUNGE',
-          sub: hi ? 'Drama discuss करें' : 'Discuss the latest dramas',
-        },
-      ],
-    },
-    {
-      group: hi ? 'फैन-विशेष लाउंज' : 'FAN LOUNGES',
-      items: [
-        {
-          name: 'Purple Lounge',
-          icon: '💜',
-          col: '#9B59B6',
-          label: hi ? 'पर्पल लाउंज' : 'PURPLE LOUNGE',
-          sub: hi ? 'BTS fans के लिए • अनधिकृत' : 'For BTS fans · Unofficial',
-        },
-        {
-          name: 'Blink Lounge',
-          icon: '🌸',
-          col: '#E91E8C',
-          label: hi ? 'ब्लिंक लाउंज' : 'BLINK LOUNGE',
-          sub: hi ? 'BLACKPINK fans के लिए • अनधिकृत' : 'For BLACKPINK fans · Unofficial',
-        },
-      ],
-    },
+    { name: 'Purple Lounge',  icon: '💜', col: '#9B59B6', label: hi ? 'पर्पल लाउंज'      : 'PURPLE LOUNGE',    sub: hi ? 'BTS fans • अनधिकृत'       : 'BTS fans · Unofficial'       },
+    { name: 'Blink Lounge',   icon: '🌸', col: '#E91E8C', label: hi ? 'ब्लिंक लाउंज'     : 'BLINK LOUNGE',     sub: hi ? 'BLACKPINK fans • अनधिकृत' : 'BLACKPINK fans · Unofficial'  },
+    { name: 'Lavender Lounge',icon: '🪻', col: '#A18CD1', label: hi ? 'के-लैवेंडर लाउंज' : 'LAVENDER LOUNGE',  sub: hi ? 'Multi-fandom chill space'  : 'Multi-fandom chill space'    },
+    { name: 'General K-Pop',  icon: '🎤', col: '#FF69B4', label: hi ? 'के-पॉप रूम'       : 'GENERAL K-POP',    sub: hi ? 'सभी K-Pop fans के लिए'    : 'All K-Pop fans welcome'      },
   ];
+
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    width: '100%',
+    maxWidth: '360px',
+    opacity: visible ? 1 : 0,
+    transition: 'opacity 0.8s ease 0.2s',
+  };
+
+  const gridBtn = (col) => ({
+    padding: '16px 12px',
+    borderRadius: '18px',
+    background: `linear-gradient(135deg, ${T.bg} 0%, ${col}22 100%)`,
+    border: `1px solid ${col}40`,
+    color: T.text,
+    fontFamily: "'DM Sans', sans-serif",
+    fontWeight: 600,
+    fontSize: '12px',
+    cursor: 'pointer',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+    boxShadow: `0 4px 14px rgba(0,0,0,0.2), 0 0 8px ${col}12`,
+    transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+  });
+
+  const gridIcon = (col) => ({
+    width: '40px', height: '40px', borderRadius: '12px',
+    background: `${col}20`, border: `1px solid ${col}35`,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '20px',
+  });
+
+  const gridSub = {
+    fontSize: '9px', opacity: 0.4, fontWeight: 400, letterSpacing: '0.3px',
+  };
+
+  const dramaBtn = {
+    width: '100%',
+    maxWidth: '360px',
+    marginTop: '12px',
+    padding: '18px 20px',
+    borderRadius: '18px',
+    background: `linear-gradient(135deg, ${T.bg} 0%, #FAD0C422 50%, ${T.bg} 100%)`,
+    border: '1px solid #FAD0C440',
+    color: T.text,
+    fontFamily: "'DM Sans', sans-serif",
+    fontWeight: 600,
+    fontSize: '15px',
+    cursor: 'pointer',
+    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+    opacity: visible ? 1 : 0,
+    transition: 'opacity 0.8s ease 0.3s, transform 0.3s ease',
+  };
 
   return (
     <div style={s.page}>
-
-      {/* ── HEADER ── */}
       <div style={s.header}>
         <h1 style={s.title}>{hi ? 'के-यूनिवर्स' : 'K-Universe'}</h1>
         <p style={s.subTitle}>{hi ? 'अपने समुदाय को खोजें' : 'FIND YOUR COMMUNITY'}</p>
         <p style={s.disclaimer}>
           {hi
-            ? 'ये सभी rooms अनधिकृत fan spaces हैं। HYBE, YG, SM, JYP या किसी भी K-Pop label से कोई संबंध नहीं।'
-            : 'All rooms are unofficial fan spaces. Not affiliated with HYBE, YG, SM, JYP, or any K-pop label.'}
+            ? 'ये सभी rooms अनधिकृत fan spaces हैं। HYBE, YG, SM, JYP से कोई संबंध नहीं।'
+            : 'All rooms are unofficial fan spaces. Not affiliated with HYBE, YG, SM, or JYP.'}
         </p>
       </div>
 
-      {/* ── ROOM BUTTONS ── */}
-      <div style={s.buttonContainer}>
-        {rooms.map((group) => (
-          <React.Fragment key={group.group}>
-            <p style={s.sectionLabel}>{group.group}</p>
-            {group.items.map((room) => (
-              <button
-                key={room.name}
-                style={s.roomBtn(room.col)}
-                onClick={() => enterRoom(room.name)}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                <div style={s.icon(room.col)}>{room.icon}</div>
-                <div style={s.btnText}>
-                  <span>{room.label}</span>
-                  <span style={s.btnSub}>{room.sub}</span>
-                </div>
-              </button>
-            ))}
-          </React.Fragment>
+      {/* 2x2 Grid */}
+      <div style={gridStyle}>
+        {rooms.map((room) => (
+          <button
+            key={room.name}
+            style={gridBtn(room.col)}
+            onClick={() => enterRoom(room.name)}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <div style={gridIcon(room.col)}>{room.icon}</div>
+            <span>{room.label}</span>
+            <span style={gridSub}>{room.sub}</span>
+          </button>
         ))}
       </div>
+
+      {/* Full-width K-Drama bar */}
+      <button
+        style={dramaBtn}
+        onClick={() => enterRoom('K-Drama Room')}
+        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#FAD0C420', border: '1px solid #FAD0C440', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🎬</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span>{hi ? 'के-ड्रामा लाउंज' : 'K-DRAMA LOUNGE'}</span>
+          <span style={{ fontSize: '10px', opacity: 0.4, fontWeight: 400 }}>{hi ? 'Latest dramas discuss करें' : 'Discuss the latest dramas'}</span>
+        </div>
+      </button>
 
       <button style={s.backBtn} onClick={() => setTab('home')}>
         ← {hi ? 'वापस' : 'BACK HOME'}
