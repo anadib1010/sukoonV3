@@ -45,7 +45,7 @@ export function KDramaRoom({ setTab, T, lang }) {
     if (!input.trim() || !currentUser) return;
     if (muted) { showToast(hi ? '🚫 आप म्यूट हैं।' : '🚫 You are muted.', 'error'); return; }
     if (getTrustLevel(userProfile?.rep_score ?? 0) === 0) { showToast('⚠️ Account restricted.', 'error'); return; }
-    const spam = spamLimiter.check(hi);
+    const spam = spamLimiter3.check(hi);
     if (!spam.allowed) { if (spam.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(spam.warning, 'warn'); return; }
     if (input.length > 500) { showToast('Max 500 characters', 'warn'); return; }
     const { toxic, reason } = checkToxicity(input);
@@ -116,7 +116,7 @@ export function KDramaRoom({ setTab, T, lang }) {
       <FloatingHearts hearts={hearts} roomType="kdrama" />
       <div style={s.header}>
         <button onClick={() => setTab('khub')} style={s.backBtn}>←</button>
-        <h2 style={s.title}>🪻 {hi ? 'लैवेंडर लाउंज' : 'Lavender Lounge'}</h2>
+        <h2 style={s.title}>🎬 {hi ? 'के-ड्रामा लाउंज' : 'K-Drama Lounge'}</h2>
         <div style={s.badge}>{hi ? '⚠️ अनधिकृत फैन कम्युनिटी' : '⚠️ Unofficial fan community'}</div>
         <div style={s.headerActions}>
           <button style={s.rulesBtn} onClick={() => setShowRules(true)}>📋 {hi ? 'नियम' : 'Rules'}</button>
@@ -125,10 +125,10 @@ export function KDramaRoom({ setTab, T, lang }) {
         </div>
       </div>
       <div style={s.chatArea}>
-        {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'K-Drama Lounge में आपका स्वागत है! 🪻' : 'Welcome to the K-Drama Lounge! 🪻'}</div>}
+        {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'K-Drama Lounge में आपका स्वागत है! 🎬' : 'Welcome to the K-Drama Lounge! 🎬'}</div>}
         {messages.map(m => { const isMe = currentUser?.id === m.user_id; return (
           <div key={m.id} style={s.msgRow(isMe)}>
-            {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '🪻') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
+            {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '🎬') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
             <div style={s.bubble(isMe)}>{m.text}{!isMe && <button style={s.reportBtn} onClick={() => setShowReport(m)} title="Report">⚑</button>}</div>
           </div>
         ); })}
@@ -136,7 +136,7 @@ export function KDramaRoom({ setTab, T, lang }) {
       </div>
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Latest drama discuss करें... 🎬' : 'Which drama are you watching? 🎬'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
-        <button style={s.sendBtn} onClick={sendMessage}>✨</button>
+        <button style={s.sendBtn} onClick={sendMessage}>🍿</button>
       </div>
       {toast && <div style={s.toast(toast.type)}>{toast.text}</div>}
       {showRules && (<div style={s.overlay} onClick={() => setShowRules(false)}><div style={s.modal} onClick={e => e.stopPropagation()}><h3 style={s.modalTitle}>📋 {hi ? 'नियम' : 'Community Rules'}</h3><p style={{ fontSize: '10px', opacity: 0.45, margin: '0 0 14px' }}>{hi ? '⚠️ अनधिकृत K-Pop फैन स्पेस। किसी label से संबंध नहीं।' : '⚠️ Unofficial K-Pop fan space. Not affiliated with any label.'}</p>{rules.map((r, i) => (<div key={i} style={s.ruleItem}><span style={{ fontSize: '15px', flexShrink: 0 }}>{r.icon}</span><span>{r.hard && <strong style={{ color: c }}>{hi ? '[सख्त] ' : '[HARD] '}</strong>}{r.text}</span></div>))}<button style={s.closeBtn} onClick={() => setShowRules(false)}>{hi ? 'समझ गया! 🎬' : 'Got it! 🎬'}</button></div></div>)}
