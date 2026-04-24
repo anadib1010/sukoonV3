@@ -328,7 +328,6 @@ export function AudioPage({ setTab, goBack, T, lang }) {
 
     medTime: { textAlign: "center", fontSize: 12, color: T.muted, marginBottom: 16 },
 
-    hindiNote: { fontSize: 11, color: "#888", textAlign: "center", marginBottom: 12, opacity: 0.65 },
     volumeRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 },
     volumeLabel: { fontSize: 12, color: T.muted },
 
