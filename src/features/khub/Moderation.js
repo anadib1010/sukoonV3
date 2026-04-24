@@ -235,7 +235,7 @@ export async function submitReport(messageId, reportedBy, reason, messageUserId)
 //    Call on mount to check if this user is muted
 //    Returns { muted: bool, expiresAt: Date|null }
 // ══════════════════════════════════════════════════════
-// --------------
+
 export async function checkIfMuted(userId) {
   if (!userId) return { muted: false, expiresAt: null };
   try {
