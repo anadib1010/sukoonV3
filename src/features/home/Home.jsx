@@ -63,7 +63,7 @@ export function Home({ setTab, T, lang }) {
 
     // 💖 K-HUB BUTTON (RESTORED & IMPROVED)
     kUniverseBtn: {
-      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "24px",
+      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "12px",
       background: `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`,
       border: `1px solid #FF69B460`, borderRadius: "12px",
       color: "#FF69B4", // Hot Pink
@@ -75,7 +75,7 @@ export function Home({ setTab, T, lang }) {
 
     // 🔮 HOROSCOPE BUTTON (Vedic cosmic purple)
     horoscopeBtn: {
-      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "12px",
+      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "24px",
       background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B620 50%, ${T.bg} 100%)`,
       border: `1px solid #9B59B660`, borderRadius: "12px",
       color: "#9B59B6", // Cosmic Purple
@@ -165,6 +165,25 @@ export function Home({ setTab, T, lang }) {
       {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
 
+        {/* 💖 THE K-HUB PORTAL (Top) */}
+        <button
+          {...pressable}
+          onClick={() => setTab('khub')}
+          style={s.kUniverseBtn}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, #FF69B415 0%, #FF69B450 50%, #FF69B415 100%)`;
+            e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #FF69B440`;
+            e.currentTarget.style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`;
+            e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`;
+            e.currentTarget.style.transform = "translateY(0px)";
+          }}
+        >
+          {hi ? "के-पॉप और के-ड्रामा हब" : "K-POP & K-DRAMA HUB"}
+        </button>
+
         {/* 🔮 THE HOROSCOPE PORTAL — Vedic reading via Gemini AI */}
         <button
           {...pressable}
@@ -182,25 +201,6 @@ export function Home({ setTab, T, lang }) {
           }}
         >
           🔮 {hi ? "आज का राशिफल" : "DAILY HOROSCOPE"}
-        </button>
-
-        {/* 💖 THE K-HUB PORTAL (Fixed & Placed Above Reset) */}
-        <button
-          {...pressable}
-          onClick={() => setTab('khub')}
-          style={s.kUniverseBtn}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = `linear-gradient(135deg, #FF69B415 0%, #FF69B450 50%, #FF69B415 100%)`;
-            e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #FF69B440`;
-            e.currentTarget.style.transform = "translateY(-2px)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`;
-            e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`;
-            e.currentTarget.style.transform = "translateY(0px)";
-          }}
-        >
-          {hi ? "के-पॉप और के-ड्रामा हब" : "K-POP & K-DRAMA HUB"}
         </button>
 
         <p style={s.instruction}>
