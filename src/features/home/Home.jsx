@@ -73,6 +73,18 @@ export function Home({ setTab, T, lang }) {
       transition: "all 0.3s ease",
     },
 
+    // 🔮 HOROSCOPE BUTTON (Vedic cosmic purple)
+    horoscopeBtn: {
+      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "12px",
+      background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B620 50%, ${T.bg} 100%)`,
+      border: `1px solid #9B59B660`, borderRadius: "12px",
+      color: "#9B59B6", // Cosmic Purple
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+      fontSize: "14px", letterSpacing: "2px", cursor: "pointer",
+      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #9B59B630`,
+      transition: "all 0.3s ease",
+    },
+
     buttonBase: {
       background: `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}30 50%, ${T.bg} 100%)`,
       border: `1px solid ${T.accent}40`,
@@ -152,7 +164,26 @@ export function Home({ setTab, T, lang }) {
 
       {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
-        
+
+        {/* 🔮 THE HOROSCOPE PORTAL — Vedic reading via Gemini AI */}
+        <button
+          {...pressable}
+          onClick={() => setTab('horoscope')}
+          style={s.horoscopeBtn}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, #9B59B615 0%, #9B59B650 50%, #9B59B615 100%)`;
+            e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #9B59B640`;
+            e.currentTarget.style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, #9B59B620 50%, ${T.bg} 100%)`;
+            e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #9B59B630`;
+            e.currentTarget.style.transform = "translateY(0px)";
+          }}
+        >
+          🔮 {hi ? "आज का राशिफल" : "DAILY HOROSCOPE"}
+        </button>
+
         {/* 💖 THE K-HUB PORTAL (Fixed & Placed Above Reset) */}
         <button
           {...pressable}
