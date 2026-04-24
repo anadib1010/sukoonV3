@@ -2,7 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getReflection, getReflectionHindi } from '../../utils/quoteEngine';
 import { AUDIO_URLS } from '../../utils/constants';
 
-// Math functions to help us smoothly blend colors and move things
+// 🌟 Supabase Connection
+import { supabase } from '../../supabase';
+
+// Math functions for smooth animations
 function lerpN(a, b, t) { return a + (b - a) * t; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function hexRGB(hex) {
@@ -33,10 +36,7 @@ const CONSTELLATIONS = [
     lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[0,6],[6,5]] },
 ];
 
-// 🌟 NEW: The Mood Dictionary
-// These are the colors and icons for the interactive stars
-// 🌟 NEW: The Mood Dictionary
-// These are the colors and icons for the interactive stars
+// ── THE MOOD DICTIONARY ──
 const MOODS = {
   peace:    { id: 'peace',    color: '180, 255, 255', icon: '🕊️', en: 'Peace',    hi: 'शांति' },
   sad:      { id: 'sad',      color: '100, 150, 255', icon: '💧', en: 'Sad',      hi: 'उदास' },
@@ -53,12 +53,38 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
   const timeRef   = useRef(0);
   const hi = lang === 'Hindi';
 
-  // 🌟 NEW: State to remember the active mood and the stars users click
   const [activeMood, setActiveMood] = useState('peace');
-  // We use useRef for the stars so our fast canvas loop can always see the newest stars without getting confused
   const userStarsRef = useRef([]); 
 
-  // ── YOUR ADVANCED QUOTE ENGINE ──
+  // ── FETCH PERMANENT STARS FROM SUPABASE ──
+  useEffect(() => {
+    const fetchStars = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sanctuary_stars')
+          .select('*');
+          
+        if (error) throw error;
+        
+        if (data) {
+          userStarsRef.current = data.map(star => ({
+            x: star.x,
+            y: star.y,
+            mood: star.mood,
+            size: star.size,
+            twSpd: star.tw_spd,
+            offset: star.tw_offset
+          }));
+        }
+      } catch (err) {
+        console.error("Error loading stars from Supabase:", err);
+      }
+    };
+
+    fetchStars();
+  }, []);
+
+  // ── QUOTE ENGINE ──
   const getQuote = () => lang === 'Hindi' ? getReflectionHindi() : getReflection();
   const [currentQuote, setCurrentQuote] = useState(() => getQuote());
   const [quoteVisible, setQuoteVisible] = useState(true);
@@ -74,7 +100,7 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
     return () => clearInterval(t);
   }, [lang]);
 
-  // Audio Engine
+  // ── AUDIO ENGINE ──
   const [activeSound, setActiveSound] = useState(null);
   const audioRef = useRef(null);
 
@@ -97,34 +123,52 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
 
   useEffect(() => { return () => { killAudio(); cancelAnimationFrame(animRef.current); }; }, []);
 
-  // 🌟 NEW: The Click Listener for the Sky
-  const handleCanvasClick = (e) => {
+  // ── SAVE STAR TO SUPABASE ON CLICK ──
+  const handleCanvasClick = async (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    // Find exactly where the mouse clicked relative to the screen
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
-
-    // Turn it into a percentage (0.0 to 1.0) so it works on any size phone or computer
     const x = clickX / canvas.width;
     const y = clickY / canvas.height;
 
-    // Only allow placing a star in the sky (the top 85% of the screen)
+    // Only allow clicking in the sky
     if (y < 0.85) {
-      userStarsRef.current.push({
+      const newDbStar = {
         x: x, 
         y: y,
-        mood: activeMood, // The mood they selected from the menu
-        size: 1.5 + Math.random() * 2.0, // Random star size
-        twSpd: 0.002 + Math.random() * 0.003, // Random twinkle speed
-        offset: Math.random() * Math.PI * 2 // Random start time for twinkle
+        mood: activeMood,
+        size: 1.5 + Math.random() * 2.0,
+        tw_spd: 0.002 + Math.random() * 0.003,
+        tw_offset: Math.random() * Math.PI * 2
+      };
+
+      // Show immediately to user
+      userStarsRef.current.push({
+        x: newDbStar.x, 
+        y: newDbStar.y,
+        mood: newDbStar.mood,
+        size: newDbStar.size,
+        twSpd: newDbStar.tw_spd,
+        offset: newDbStar.tw_offset
       });
+
+      // Save permanently
+      try {
+        const { error } = await supabase
+          .from('sanctuary_stars')
+          .insert([newDbStar]);
+          
+        if (error) throw error;
+      } catch (err) {
+        console.error("Error saving star to Supabase:", err);
+      }
     }
   };
 
-  // ── CANVAS DRAWING ──
+  // ── CANVAS DRAWING ENGINE ──
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -171,12 +215,12 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
     const conOp = CONSTELLATIONS.map(() => 0);
     let moonX = 0.85;
 
-    // Aurora (Purple/Pink tinted)
+    // Aurora Bands
     const auroraBands = Array.from({length:4}, (_,i) => ({
       off: i*(Math.PI*2/4), spd: 0.0002+i*0.0001, hue: 260+i*20, y: 0.1+i*0.06, amp: 0.03+i*0.01, w: 0.6+i*0.1,
     }));
 
-    // Animals (Bunny, Cat, Bear, Puppy)
+    // Animals
     const TYPES = ['bunny','cat','bear','puppy'];
     const SIZES = { bunny:0.7, cat:0.8, bear:1.3, puppy:0.85 };
     const animals = [];
@@ -189,7 +233,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       animals.push({ type, dir, x: dir>0 ? -0.1 : 1.1, y: 0, spd: 0.0001+Math.random()*0.0001, wp: 0, sz: SIZES[type], alive:true });
     };
 
-    // Draw Sky
     const drawSky = (ctx) => {
       const { top, bot } = getCol('top','bot');
       const g = ctx.createLinearGradient(0, 0, 0, H()*0.88);
@@ -197,7 +240,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       ctx.fillStyle = g; ctx.fillRect(0, 0, W(), H()*0.88);
     };
 
-    // Draw Background Stars
     const drawStars = (ctx, time) => {
       const vis = getVal('stars');
       if (vis < 0.02) return;
@@ -208,16 +250,15 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       });
     };
 
-    // 🌟 NEW: Draw the custom user stars!
     const drawUserStars = (ctx, time) => {
       userStarsRef.current.forEach(star => {
         const moodData = MOODS[star.mood];
-        // Math magic to make the star pulse gently
+        if (!moodData) return; 
+        
         const twinkle = 0.6 + 0.4 * Math.sin(time * star.twSpd + star.offset);
         const cx = star.x * W();
         const cy = star.y * H();
 
-        // Draw the glowing aura around the star
         const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, star.size * 5);
         glow.addColorStop(0, `rgba(${moodData.color}, ${0.8 * twinkle})`);
         glow.addColorStop(1, `rgba(${moodData.color}, 0)`);
@@ -226,7 +267,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
         ctx.arc(cx, cy, star.size * 5, 0, Math.PI*2); 
         ctx.fill();
 
-        // Draw the solid bright center of the star
         ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * twinkle})`;
         ctx.beginPath(); 
         ctx.arc(cx, cy, star.size, 0, Math.PI*2); 
@@ -234,7 +274,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       });
     };
 
-    // Draw Moon
     const drawMoon = (ctx) => {
       const op = getVal('moon');
       if (op < 0.02) return;
@@ -249,7 +288,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       ctx.fillStyle = `rgba(26,11,46,${op*0.9})`; ctx.fill();
     };
 
-    // Draw Aurora
     const drawAurora = (ctx, time) => {
       const vis = getVal('aurora');
       if (vis < 0.02) return;
@@ -275,7 +313,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       });
     };
 
-    // Draw Constellations
     const drawConstellations = (ctx, time) => {
       const vis = getVal('stars');
       CONSTELLATIONS.forEach((con, ci) => {
@@ -306,7 +343,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       });
     };
 
-    // Draw 7 Shadow Dancers
     const drawStageAndDancers = (ctx, time) => {
       const cx = W() * 0.5; 
       const cy = H() * 0.86; 
@@ -339,7 +375,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       }
     };
 
-    // Draw Floating Music Notes
     const drawFloatingNotes = (ctx, time) => {
       ctx.save();
       ctx.textAlign = 'center';
@@ -362,7 +397,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       ctx.restore();
     };
 
-    // Draw Ground
     const drawGround = (ctx) => {
       const gY = H()*0.88;
       const gg = ctx.createLinearGradient(0, gY, 0, H());
@@ -371,7 +405,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       ctx.fillStyle = gg; ctx.fillRect(0, gY, W(), H()*0.12);
     };
 
-    // Animal Drawing Logic
     const drawBunny = (ctx, s) => {
       ctx.beginPath(); ctx.ellipse(0,0,s*10,s*7,0,0,Math.PI*2); ctx.fill(); 
       ctx.beginPath(); ctx.arc(s*9,s*-4,s*5,0,Math.PI*2); ctx.fill(); 
@@ -402,7 +435,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       if (a.x > 1.2 || a.x < -0.2) a.alive = false;
     };
 
-    // Render Loop
     const render = (time) => {
       timeRef.current = time;
       const ctx = canvas.getContext('2d');
@@ -431,9 +463,7 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       drawConstellations(ctx, time);
       drawMoon(ctx);
       
-      // 🌟 NEW: Draw the stars the user clicked!
       drawUserStars(ctx, time);
-
       drawStageAndDancers(ctx, time);
       drawFloatingNotes(ctx, time);
       
@@ -460,7 +490,6 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
     } catch {}
   };
 
-  // ── SOUNDS SETUP ──
   const SOUNDS = [
     { key:'flute.mp3',  icon:'🪈', en:'Bamboo Flute', hiL:'बांसुरी' },
     { key:'birds.mp3',  icon:'🐦', en:'Birds',        hiL:'पक्षी' },
@@ -469,13 +498,11 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
     { key:'waves.mp3',  icon:'💦', en:'Waves',        hiL:'लहरें' },
   ];
 
-  // ── DYNAMIC STYLES USING 'T' ──
   const s = {
     page:      { position:'fixed', inset:0, zIndex:50, backgroundColor: T?.bg || '#1a0b2e', overflow:'hidden' },
-    canvas:    { position:'absolute', inset:0, width:'100%', height:'100%', display:'block', cursor:'crosshair' }, // Added crosshair so they know they can click!
+    canvas:    { position:'absolute', inset:0, width:'100%', height:'100%', display:'block', cursor:'crosshair' }, 
     backBtn:   { position:'absolute', top:16, left:16, zIndex:10, backgroundColor: T?.cardBg || 'rgba(255,255,255,0.1)', border:`1px solid ${T?.border || 'rgba(255,255,255,0.2)'}`, borderRadius:99, color: T?.text || '#fff', padding:'8px 16px', fontSize:13, cursor:'pointer' },
     
-    // 🌟 NEW: Styles for our Mood Toolbar
     moodBarWrap: { position:'absolute', top:16, right:16, zIndex:10, display:'flex', gap:'8px', background: T?.cardBg || 'rgba(0,0,0,0.3)', padding:'6px', borderRadius:'99px', border:`1px solid ${T?.border || 'rgba(255,255,255,0.1)'}`, backdropFilter:'blur(8px)' },
     moodBtn: (isActive, moodColor) => ({
       background: isActive ? `rgba(${moodColor}, 0.3)` : 'transparent',
@@ -510,14 +537,12 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
 
   return (
     <div style={s.page}>
-      {/* 🌟 NEW: Added onClick handler to the canvas */}
       <canvas ref={canvasRef} style={s.canvas} onClick={handleCanvasClick} />
 
       <button onClick={() => { killAudio(); if(goBack) goBack(); else setTab('home'); }} style={s.backBtn}>
         ← {hi ? 'वापस' : 'Back'}
       </button>
 
-      {/* 🌟 NEW: The Mood Selection Toolbar */}
       <div style={s.moodBarWrap}>
         {Object.values(MOODS).map(mood => (
           <button 
