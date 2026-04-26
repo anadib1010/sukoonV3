@@ -34,7 +34,7 @@ export function PurpleLounge({ setTab, T, lang }) {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       setCurrentUser(user);
-      const { data } = await supabase.from('profiles').select('rep_score, trust_level').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('rep_score, trust_level, is_admin').eq('id', user.id).single();
       setUserProfile(data);
       const { muted: isMuted, expiresAt } = await checkIfMuted(user.id);
       if (isMuted) { setMuted(true); setMuteUntil(expiresAt); }
@@ -186,18 +186,26 @@ export function PurpleLounge({ setTab, T, lang }) {
                 lang={hi ? 'hi' : 'en'}
                 isMine={isMe}
                 onReport={!isMe ? () => setShowReport(m) : undefined}
+                onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+                currentUserProfile={userProfile}
               />
             );
           }
           return (
-            <div key={m.id} style={s.msgRow(isMe)}>
-              {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '💜') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
-              <div style={s.bubble(isMe)}>
-                {m.text}
-                {!isMe && <button style={s.reportBtn} onClick={() => setShowReport(m)} title="Report">⚑</button>}
-              </div>
-            </div>
-          );
+          <MessageBubble
+            key={m.id}
+            msg={m}
+            accent={PURPLE_COL}
+            T={T}
+            lang={hi ? 'hi' : 'en'}
+            isMine={isMe}
+            onReport={!isMe ? () => setShowReport(m) : undefined}
+            onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+            currentUserProfile={userProfile}
+            
+            senderLabel={!isMe ? (m.avatar_emoji || '💜') + ' ' + (m.user_email?.split('@')[0] ?? 'fan') : undefined}
+          />
+        );
         })}
         <div ref={scrollRef} />
       </div>

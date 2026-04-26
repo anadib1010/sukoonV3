@@ -28,7 +28,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return; setCurrentUser(user);
-      const { data } = await supabase.from('profiles').select('rep_score, trust_level').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('rep_score, trust_level, is_admin').eq('id', user.id).single();
       setUserProfile(data);
       const { muted: isMuted } = await checkIfMuted(user.id);
       if (isMuted) setMuted(true);
@@ -168,15 +168,26 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
                 lang={hi ? 'hi' : 'en'}
                 isMine={isMe}
                 onReport={!isMe ? () => setShowReport(m) : undefined}
+                onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+                currentUserProfile={userProfile}
               />
             );
           }
           // Text messages → original rendering (preserves your styling)
+          // Text messages → MessageBubble (with delete)
           return (
-            <div key={m.id} style={s.msgRow(isMe)}>
-              {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '🪻') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
-              <div style={s.bubble(isMe)}>{m.text}{!isMe && <button style={s.reportBtn} onClick={() => setShowReport(m)} title="Report">⚑</button>}</div>
-            </div>
+            <MessageBubble
+              key={m.id}
+              msg={m}
+              accent={LAV_COL}
+              T={T}
+              lang={hi ? 'hi' : 'en'}
+              isMine={isMe}
+              onReport={!isMe ? () => setShowReport(m) : undefined}
+              onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+              currentUserProfile={userProfile}
+              senderLabel={!isMe ? (m.avatar_emoji || '🪻') + ' ' + (m.user_email?.split('@')[0] ?? 'fan') : undefined}
+            />
           );
         })}
         <div ref={scrollRef} />
