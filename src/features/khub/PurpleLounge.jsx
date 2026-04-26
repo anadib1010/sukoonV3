@@ -5,6 +5,8 @@ import {
   submitReport, checkIfMuted, REP_POINTS,
   getTrustLevel, getTrustLabel,
 } from './moderation';
+import MemeUploader from './MemeUploader';
+import MessageBubble from './MessageBubble';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
 
 const ROOM_NAME  = 'Purple Lounge';
@@ -65,13 +67,32 @@ export function PurpleLounge({ setTab, T, lang }) {
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
     const textToSend = input.trim(); setInput('');
-    const { error: insertError } = await supabase.from('khub_messages').insert({ room_name: ROOM_NAME, user_id: currentUser.id, user_email: currentUser.email, text: textToSend, status: 'visible', msg_type: 'text' });
-    if (insertError) {
-      console.error('[chat insert failed]', insertError);
-      showToast(hi ? `❌ भेजने में error: ${insertError.message}` : `❌ Send failed: ${insertError.message}`, 'error');
-      return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-message-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          room: 'purple',
+          roomName: ROOM_NAME,
+          msg_type: 'text',
+          text: textToSend,
+          avatar_emoji: '💜',
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        showToast(hi ? `❌ ${data.message || data.error || 'Send failed'}` : `❌ ${data.message || data.error || 'Send failed'}`, 'error');
+        return;
+      }
+      await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
+    } catch (err) {
+      showToast(hi ? `❌ Network error` : `❌ Network error`, 'error');
     }
-    await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
   };
 
   const handleHeart = () => { setHeartCount(c => c + 1); };
@@ -153,6 +174,19 @@ export function PurpleLounge({ setTab, T, lang }) {
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'Purple Lounge में आपका स्वागत है! 💜' : 'Welcome to the Purple Lounge! 💜'}</div>}
         {messages.map(m => {
           const isMe = currentUser?.id === m.user_id;
+          if (m.msg_type === 'image') {
+            return (
+              <MessageBubble
+                key={m.id}
+                msg={m}
+                accent={PURPLE_COL}
+                T={T}
+                lang={hi ? 'hi' : 'en'}
+                isMine={isMe}
+                onReport={!isMe ? () => setShowReport(m) : undefined}
+              />
+            );
+          }
           return (
             <div key={m.id} style={s.msgRow(isMe)}>
               {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '💜') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
@@ -168,6 +202,17 @@ export function PurpleLounge({ setTab, T, lang }) {
 
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Purple Lounge में share करें... 💜' : 'Share your purple energy... 💜'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
+        <MemeUploader
+          room="purple"
+          roomName={ROOM_NAME}
+          accent={PURPLE_COL}
+          avatarEmoji="💜"
+          T={T}
+          lang={hi ? 'hi' : 'en'}
+          onSent={() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          onToast={(text, type) => showToast(text, type === 'error' ? 'error' : type === 'warn' ? 'warn' : 'ok')}
+          disabled={muted}
+        />
         <button style={s.sendBtn} onClick={sendMessage}>💜</button>
       </div>
 

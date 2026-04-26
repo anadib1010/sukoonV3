@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
 import { checkToxicity, SpamLimiter, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
+import MemeUploader from './MemeUploader';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
+import MessageBubble from './MessageBubble';
 
 const ROOM_NAME = 'Lavender Lounge';
 const LAV_COL = '#A18CD1';
@@ -51,13 +53,33 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
     const t = input.trim(); setInput('');
-    const { error: insertError } = await supabase.from('khub_messages').insert({ room_name: ROOM_NAME, user_id: currentUser.id, user_email: currentUser.email, text: t, status: 'visible', msg_type: 'text' });
-    if (insertError) {
-      console.error('[chat insert failed]', insertError);
-      showToast(hi ? `❌ भेजने में error: ${insertError.message}` : `❌ Send failed: ${insertError.message}`, 'error');
-      return;
+
+    // Send via Edge Function (server re-checks toxicity, rate limit, length)
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-message-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          room: 'lavender',
+          roomName: ROOM_NAME,
+          msg_type: 'text',
+          text: t,
+          avatar_emoji: '🪻',
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        showToast(hi ? `❌ ${data.message || data.error || 'Send failed'}` : `❌ ${data.message || data.error || 'Send failed'}`, 'error');
+        return;
+      }
+      await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
+    } catch (err) {
+      showToast(hi ? `❌ Network error` : `❌ Network error`, 'error');
     }
-    await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
   };
 
   const handleReport = async (msg, reason) => {
@@ -131,16 +153,45 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
       </div>
       <div style={s.chatArea}>
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'Lavender Lounge में आपका स्वागत है! 🪻' : 'Welcome to the Lavender Lounge! 🪻'}</div>}
-        {messages.map(m => { const isMe = currentUser?.id === m.user_id; return (
-          <div key={m.id} style={s.msgRow(isMe)}>
-            {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '🪻') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
-            <div style={s.bubble(isMe)}>{m.text}{!isMe && <button style={s.reportBtn} onClick={() => setShowReport(m)} title="Report">⚑</button>}</div>
-          </div>
-        ); })}
+        {messages.map(m => {
+          const isMe = currentUser?.id === m.user_id;
+          // Image messages → render via MessageBubble (handles auth-gated fetch + blur)
+          if (m.msg_type === 'image') {
+            return (
+              <MessageBubble
+                key={m.id}
+                msg={m}
+                accent={LAV_COL}
+                T={T}
+                lang={hi ? 'hi' : 'en'}
+                isMine={isMe}
+                onReport={!isMe ? () => setShowReport(m) : undefined}
+              />
+            );
+          }
+          // Text messages → original rendering (preserves your styling)
+          return (
+            <div key={m.id} style={s.msgRow(isMe)}>
+              {!isMe && <span style={s.senderName}>{(m.avatar_emoji || '🪻') + ' ' + (m.user_email?.split('@')[0] ?? 'fan')}</span>}
+              <div style={s.bubble(isMe)}>{m.text}{!isMe && <button style={s.reportBtn} onClick={() => setShowReport(m)} title="Report">⚑</button>}</div>
+            </div>
+          );
+        })}
         <div ref={scrollRef} />
       </div>
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Share करें... 🪻' : 'Share your thoughts... 🪻'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
+        <MemeUploader
+          room="lavender"
+          roomName={ROOM_NAME}
+          accent={LAV_COL}
+          avatarEmoji="🪻"
+          T={T}
+          lang={hi ? 'hi' : 'en'}
+          onSent={() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          onToast={(text, type) => showToast(text, type === 'error' ? 'error' : type === 'warn' ? 'warn' : 'ok')}
+          disabled={muted}
+        />
         <button style={s.sendBtn} onClick={sendMessage}>✨</button>
       </div>
       {toast && <div style={s.toast(toast.type)}>{toast.text}</div>}

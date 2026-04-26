@@ -1,21 +1,23 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // src/features/khub/moderation.js
 // Shared moderation system for all 5 K-Hub chat rooms
-// Import what you need in each room file
+// V3 — original functions + meme upload (Oracle VM-backed)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { supabase } from '../../supabase';
 
+// VM API URL (override in .env via VITE_JSUKOON_API_URL if needed)
+const VM_API_URL = import.meta.env.VITE_JSUKOON_API_URL
+  || 'https://jsukoon-api.duckdns.org';
+
 // ══════════════════════════════════════════════════════
 // 1. COMPLETE BANNED WORD LIST
 //    English + Hindi + Roman Hindi (Hinglish)
-//    covers: slurs, fandom attacks, obscenity,
-//            violence, comparison wars
 // ══════════════════════════════════════════════════════
 
 export const BANNED_FRAGMENTS = [
 
-  // ── FANDOM WARS (the #1 cause of K-pop fights) ──
+  // ── FANDOM WARS ──
   'better than',    'worse than',     'vs bts',        'vs blackpink',
   'bts vs',         'blackpink vs',   'army vs',        'blink vs',
   'army trash',     'blink trash',    'bts trash',      'bp trash',
@@ -34,7 +36,7 @@ export const BANNED_FRAGMENTS = [
   'shut up',        'go away',        'nobody cares',   'no one asked',
   'cringe',         'flop',           'irrelevant',     'delete this',
 
-  // ── OBSCENITY (keeping it clean for 18-35 Indian audience) ──
+  // ── OBSCENITY ──
   'f**k',           'fk',             'fck',            'wtf',
   'bs',             'bullsh',         'sh*t',           'sht',
   'b*tch',          'btch',           'a**hole',        'asshole',
@@ -66,25 +68,47 @@ export const BANNED_FRAGMENTS = [
 ];
 
 // ══════════════════════════════════════════════════════
+// 1b. LEETSPEAK NORMALIZER (NEW — catches tr@sh, f.l.o.p, etc.)
+// ══════════════════════════════════════════════════════
+
+const LOOKALIKE = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't',
+  '@': 'a', '$': 's', '!': 'i', '|': 'i',
+};
+
+function _normalize(input) {
+  let s = String(input || '').toLowerCase();
+  s = s.replace(/[0134578@$!|]/g, (c) => LOOKALIKE[c] ?? c);
+  // keep latin + devanagari + spaces
+  s = s.replace(/[^a-z\u0900-\u097F\s]/g, '');
+  // collapse triple+ repeats: fuuuck -> fuck
+  s = s.replace(/(.)\1{2,}/g, '$1');
+  s = s.replace(/\s+/g, ' ').trim();
+  // also produce a no-space variant so "f u c k" matches "fuck"
+  return s + ' ||| ' + s.replace(/\s/g, '');
+}
+
+// ══════════════════════════════════════════════════════
 // 2. TOXICITY CHECKER
 //    Returns { toxic: bool, reason: string }
+//    Now with leetspeak normalization for harder bypass detection.
 // ══════════════════════════════════════════════════════
 
 export function checkToxicity(text) {
   if (!text || typeof text !== 'string') return { toxic: false };
   const lower = text.toLowerCase();
+  const norm  = _normalize(text);
   for (const frag of BANNED_FRAGMENTS) {
-    if (lower.includes(frag.toLowerCase())) {
-      return { toxic: true, reason: frag };
-    }
+    const f = frag.toLowerCase();
+    if (lower.includes(f)) return { toxic: true, reason: frag };
+    // also check the normalized form for sneaky variants like tr@sh, fuuuck
+    if (norm.includes(f.replace(/\s/g, ''))) return { toxic: true, reason: frag };
   }
   return { toxic: false };
 }
 
 // ══════════════════════════════════════════════════════
 // 3. SPAM RATE LIMITER
-//    Use one instance per chat room component
-//    const limiter = new SpamLimiter(5, 10)
 // ══════════════════════════════════════════════════════
 
 export class SpamLimiter {
@@ -92,12 +116,10 @@ export class SpamLimiter {
     this.max    = maxMessages;
     this.window = windowSeconds * 1000;
     this.times  = [];
-    // escalation tracking
     this.warnings = 0;
     this.lastWarn = 0;
   }
 
-  // Returns { allowed: bool, warning: string|null, muted: bool }
   check(hi = false) {
     const now = Date.now();
     this.times = this.times.filter(t => now - t < this.window);
@@ -106,7 +128,6 @@ export class SpamLimiter {
       this.warnings++;
       this.lastWarn = now;
 
-      // After 3 spam attempts in a session → temporary local mute (60s)
       if (this.warnings >= 3) {
         return {
           allowed: false,
@@ -135,25 +156,23 @@ export class SpamLimiter {
 
 // ══════════════════════════════════════════════════════
 // 4. REPUTATION SYSTEM
-//    Call these after key events to update rep score
 // ══════════════════════════════════════════════════════
 
-// Points awarded/deducted for actions
 export const REP_POINTS = {
-  GOOD_MESSAGE:    +1,   // every clean message sent
-  VALID_REPORT:    +5,   // report was acted on (auto-hide triggered)
-  DAILY_ACTIVE:    +2,   // first message of the day
-  TOXIC_MESSAGE:  -10,   // message blocked by toxicity filter
-  REPORTED:        -5,   // someone reported their message
-  SPAM_WARNED:    -3,    // spam warning received
+  GOOD_MESSAGE:    +1,
+  VALID_REPORT:    +5,
+  DAILY_ACTIVE:    +2,
+  TOXIC_MESSAGE:  -10,
+  REPORTED:        -5,
+  SPAM_WARNED:    -3,
+  NSFW_BLOCKED:   -20,   // NEW — for blocked NSFW image uploads
 };
 
-// Trust levels based on rep score
 export function getTrustLevel(score) {
-  if (score < -20) return 0;  // restricted — only genuinely bad actors
-  if (score < 50)  return 1;  // new/normal user — default for everyone
-  if (score < 200) return 2;  // trusted — full access
-  return 3;                   // elite — can help moderate
+  if (score < -20) return 0;
+  if (score < 50)  return 1;
+  if (score < 200) return 2;
+  return 3;
 }
 
 export function getTrustLabel(level, hi = false) {
@@ -163,11 +182,9 @@ export function getTrustLabel(level, hi = false) {
   return labels[level] ?? labels[1];
 }
 
-// Update rep score in Supabase
 export async function updateRepScore(userId, points) {
   if (!userId) return;
   try {
-    // Get current score
     const { data } = await supabase
       .from('profiles')
       .select('rep_score')
@@ -175,7 +192,7 @@ export async function updateRepScore(userId, points) {
       .single();
 
     const current  = data?.rep_score ?? 0;
-    const newScore = Math.max(-100, current + points); // floor at -100
+    const newScore = Math.max(-100, current + points);
     const newLevel = getTrustLevel(newScore);
 
     await supabase
@@ -187,38 +204,31 @@ export async function updateRepScore(userId, points) {
 
 // ══════════════════════════════════════════════════════
 // 5. REPORT HANDLER
-//    Call this when user submits a report
-//    Returns { reported: bool, autoHidden: bool }
 // ══════════════════════════════════════════════════════
 
 export async function submitReport(messageId, reportedBy, reason, messageUserId) {
   if (!messageId || !reportedBy) return { reported: false, autoHidden: false };
 
   try {
-    // Insert report
     await supabase.from('message_reports').insert({
       message_id:  messageId,
       reported_by: reportedBy,
       reason,
     });
 
-    // Deduct rep from reported user
     if (messageUserId) await updateRepScore(messageUserId, REP_POINTS.REPORTED);
 
-    // Count total reports on this message
     const { count } = await supabase
       .from('message_reports')
       .select('*', { count: 'exact', head: true })
       .eq('message_id', messageId);
 
-    // 3+ reports → auto hide
     if (count >= 3) {
       await supabase
         .from('khub_messages')
         .update({ status: 'hidden' })
         .eq('id', messageId);
 
-      // Extra rep hit for the reported user (message was auto-hidden)
       if (messageUserId) await updateRepScore(messageUserId, REP_POINTS.TOXIC_MESSAGE);
 
       return { reported: true, autoHidden: true };
@@ -232,8 +242,6 @@ export async function submitReport(messageId, reportedBy, reason, messageUserId)
 
 // ══════════════════════════════════════════════════════
 // 6. MUTE CHECKER
-//    Call on mount to check if this user is muted
-//    Returns { muted: bool, expiresAt: Date|null }
 // ══════════════════════════════════════════════════════
 
 export async function checkIfMuted(userId) {
@@ -254,4 +262,115 @@ export async function checkIfMuted(userId) {
   } catch (_) {
     return { muted: false, expiresAt: null };
   }
+}
+
+// ══════════════════════════════════════════════════════
+// 7. MEME UPLOAD (NEW — Oracle VM-backed)
+//    Browser → VM (NSFW check + Oracle upload) → Supabase Edge Function
+// ══════════════════════════════════════════════════════
+
+const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-message-check`;
+
+async function _callEdgeFunction(payload) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw Object.assign(new Error('not_authenticated'), { code: 'not_authenticated' });
+
+  const r = await fetch(FN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = new Error(data?.message || data?.error || `HTTP ${r.status}`);
+    err.code = data?.error;
+    err.status = r.status;
+    throw err;
+  }
+  return data;
+}
+
+/**
+ * Uploads a meme: browser → VM (scores + Oracle upload) → Supabase (records msg).
+ * Returns { ok, nsfw_state }.
+ *
+ * room       — 'lavender' | 'kpop' | 'kdrama' | 'purple' | 'blink'
+ * roomName   — full room name as it appears in khub_messages.room_name
+ *              (passed because legacy rooms use 'Lavender Lounge' etc, not 'lavender')
+ * blob       — image Blob (already compressed)
+ * caption    — optional text caption
+ * avatarEmoji — emoji for the user's avatar in this room
+ */
+export async function uploadAndSendMeme({ room, roomName, blob, caption, avatarEmoji }) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw Object.assign(new Error('not_authenticated'), { code: 'not_authenticated' });
+
+  // 1. Upload to VM
+  const form = new FormData();
+  form.append('file', blob, 'meme.jpg');
+
+  const vmRes = await fetch(`${VM_API_URL}/meme-upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    body: form,
+  });
+  const vmData = await vmRes.json().catch(() => ({}));
+  if (!vmRes.ok) {
+    const err = new Error(vmData?.message || vmData?.error || `HTTP ${vmRes.status}`);
+    err.code = vmData?.error;
+    err.status = vmRes.status;
+    err.score = vmData?.score;
+    throw err;
+  }
+
+  // 2. Tell Edge Function to insert the message row
+  return _callEdgeFunction({
+    room,
+    roomName,
+    msg_type: 'image',
+    text: caption || '',
+    avatar_emoji: avatarEmoji,
+    file_id:     vmData.file_id,
+    object_path: vmData.object_name,
+    nsfw_state:  vmData.nsfw_state,
+    nsfw_score:  vmData.nsfw_score,
+    ts:          vmData.ts,
+    signature:   vmData.signature,
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// 8. AUTH-GATED IMAGE FETCH (NEW)
+//    For rendering meme images. Bucket is private; we proxy
+//    through the VM with the user's JWT.
+// ══════════════════════════════════════════════════════
+
+const _imageCache = new Map();   // object_path -> { url, expiresAt }
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+export async function fetchAuthedImage(object_path) {
+  const cached = _imageCache.get(object_path);
+  if (cached && cached.expiresAt > Date.now()) return cached.url;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('not_authenticated');
+
+  const r = await fetch(`${VM_API_URL}/meme/${object_path}`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+  if (!r.ok) throw new Error(`image_fetch_${r.status}`);
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+
+  if (cached?.url) URL.revokeObjectURL(cached.url);
+  _imageCache.set(object_path, { url, expiresAt: Date.now() + CACHE_TTL_MS });
+  return url;
+}
+
+export function clearImageCache() {
+  for (const { url } of _imageCache.values()) URL.revokeObjectURL(url);
+  _imageCache.clear();
 }

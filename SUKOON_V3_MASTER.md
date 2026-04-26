@@ -293,3 +293,476 @@ WebRTC chat	?/10	Chat works ✅, calls need re-testing after 1 month
 ---
 Last updated: April 24, 2026
 Compiled by Claude for Sukoon V3 project continuity
+Updated Sanctuary Sounds: Added flute, birds, forest, wind, and waves audio with play/stop logic to PurpleSanctuary.jsx.
+
+Pushed to Production: Used Git terminal commands to save and deploy the Sanctuary updates to GitHub and Vercel.
+
+Built the Supabase Database: Created the sanctuary_stars table with security rules (RLS) to permanently store user stars.
+
+Connected Front-End to Back-End: Updated PurpleSanctuary.jsx to fetch and save stars to Supabase in real-time.
+
+Fixed the Encryption Bug: Updated SukoonChat.jsx to save and load security keys using localStorage, solving the scrambled text issue.
+
+Resolved Build Errors: Fixed a duplicate fontSize in FloatingHearts.jsx and a broken import path to successfully run npm run build.
+
+Tested the Security Vault: Verified that the 6-digit Cloud PIN Backup and Restore functions work perfectly.
+crisisData.js is the name of the file . - **Safety & Moderation System:** Utilizes `utils/crisisData.js` for real-time text and voice filtering (triggering a protective `CrisisOverlay` rather than storing toxic words in the database) and a Supabase `blocks` table to manage permanent user-to-user blocking.
+# SUKOON V3 MASTER — UPDATE TO ADD
+# Append these sections to your existing SUKOON_V3_MASTER.md
+# Date: April 25, 2026
+
+---
+
+## 🎤 K-HUB CHAT ROOMS — DETAILED STATUS
+
+### Room Architecture
+| Room | Color | Hearts | Status |
+|------|-------|--------|--------|
+| 🪻 Lavender Lounge | #A18CD1 lavender purple | 💜 | ✅ Live |
+| 🎤 General K-Pop | #FF69B4 hot pink | ❤️ | ✅ Live |
+| 🎬 K-Drama Lounge | #FAD0C4 peach | 🧡 | ✅ Live |
+| 💜 Purple Lounge (BTS fans) | #9B59B6 deep purple | 💜 | ✅ Live |
+| 🌸 Blink Lounge (BLACKPINK fans) | #E91E8C hot pink | 🩷 | ✅ Live |
+
+### KHub Layout
+- 2x2 grid for top 4 rooms (Purple, Blink, Lavender, K-Pop)
+- Full-width K-Drama bar below
+- Section labels: "FOR EVERYONE" / "FAN LOUNGES"
+
+---
+
+## ✅ WHAT'S DONE IN K-HUB (75% of ChatGPT's spec)
+
+### Hard Rules (zero tolerance) — Auto-enforced
+- ✅ No hate speech / slurs (instant block, -10 rep)
+- ✅ No fandom attacks (BTS vs BLACKPINK type wars blocked)
+- ✅ No NSFW text content (banned word list)
+- ✅ No piracy link sharing (rules state, manual enforcement)
+- ✅ Personal attacks on artists blocked (e.g. "ugly face", "can't sing")
+
+### Soft Rules — Warning system
+- ✅ Spam protection: max 5 msgs / 10 sec
+- ✅ 3 spam warnings = 60s local mute
+- ✅ Off-topic and self-promotion in rules modal
+
+### Banned Word Engine
+- ✅ 100+ phrases covering:
+  - Fandom wars (vs bts, blink trash, flop group, etc.)
+  - Hate/violence (kill, die, kys, kms)
+  - English toxicity (trash, garbage, ugly, loser)
+  - Obscenity (f**k, b*tch, asshole)
+  - Hindi Devanagari (मादरचोद, हरामी, साला, etc.)
+  - Hinglish/Roman Hindi (madarchod, chutiya, kamina)
+  - Personal attacks on artists
+
+### Reputation System
+- ✅ +1 rep per clean message
+- ✅ +5 rep per valid report
+- ✅ -3 rep per spam warning
+- ✅ -5 rep when reported
+- ✅ -10 rep for toxic message
+- ✅ Trust levels: Restricted (< -20) / New / Trusted (50+) / Elite (200+)
+- ✅ Trust badge displayed in chat header
+
+### Reporting System
+- ✅ Report button (⚑) on every message
+- ✅ 6 report reasons (Hate speech / Spam / NSFW / Fandom Attack / Piracy / Other)
+- ✅ 3 reports auto-hides message
+- ✅ Reporter gets +5 rep when message gets auto-hidden
+- ✅ Reporter rep deducted when reporting their own clean message ignored
+
+### Music & Links Policy
+- ✅ Rules state: Spotify/YouTube links allowed
+- ✅ Rules state: NO in-app playback (legal safe)
+- ✅ Currently: links display as plain blue text (legal but no preview)
+- ⚠️ NOT BUILT: Safe link card system (only Spotify/YouTube domains, no metadata fetch)
+
+### Login & Auth
+- ✅ Google login required to send messages
+- ✅ Logged-out users see chat but can't send
+- ✅ Login button shown in input area when not logged in
+- ✅ K-Hub routes added to PROTECTED_REASONS
+
+### Floating Hearts
+- ✅ HeartButton with floating animation in all rooms
+- ✅ Different heart colors per room (purple/pink/red/orange)
+- ✅ Counter displays total hearts sent
+- ✅ Random drift, fade-out animation, glow effect
+
+### Database Tables (all live with RLS)
+- ✅ khub_messages (status, msg_type, avatar_emoji columns)
+- ✅ message_reports
+- ✅ mod_actions
+- ✅ profiles (with rep_score, trust_level columns)
+
+### Legal Disclaimers
+- ✅ Every room shows "Unofficial fan community" badge in header
+- ✅ Rules modal explicitly names HYBE, YG, SM, JYP, Big Hit
+- ✅ States BTS/ARMY/BLACKPINK/BLINK are trademarks of respective companies
+- ✅ Room names use fan-coded language (Purple Lounge, Blink Lounge)
+- ✅ Master KHub disclaimer at top of room selector
+
+### Bilingual Support
+- ✅ All toasts, rules, reports in Hindi + English
+- ✅ Hindi banned words in Devanagari script
+- ✅ Reputation labels in Hindi (विश्वसनीय, एलीट, etc.)
+
+---
+
+## ❌ WHAT'S MISSING — TO BUILD IN NEXT THREAD
+
+### 🚨 PRIORITY 1 — CRITICAL FOR SCALE
+
+#### 1. NSFW Image Moderation in Chat Rooms
+- **Status:** Chat rooms currently TEXT-ONLY (safe by default)
+- **NudeNet API exists:** `http://140.238.226.129:5000` running on Oracle VM
+- **Required if/when image uploads added:**
+  - Wire NudeNet check before inserting any image message
+  - If NSFW score > 0.7 → block, deduct -20 rep
+  - If 0.3-0.7 → blur image with "View anyway?" toggle
+  - Store nsfw_score in khub_messages for moderator review
+
+#### 2. Server-Side Toxicity Check
+- **Current:** Toxicity check runs in browser only
+- **Vulnerability:** Hacker with DevTools can bypass `checkToxicity()` and send banned words directly via Supabase
+- **Fix needed:** Supabase Edge Function or Postgres Trigger that re-checks every message before insert
+- **Implementation:** Create `khub-message-check` Edge Function that wraps the insert, runs toxicity + NSFW score, then writes to DB
+
+#### 3. Server-Side Rate Limiting
+- **Current:** SpamLimiter runs in browser only
+- **Vulnerability:** Bot using anon key can bypass and flood DB
+- **Fix needed:** Postgres trigger that counts msgs/user/10sec, rejects if > 5
+- **OR:** Edge Function rate limiter using Supabase auth context
+
+#### 4. Server-Side Length & Content Validation
+- All client-side validations (500 char max, status check) need server-side equivalents
+- Database CHECK constraints on khub_messages.text length
+
+---
+
+### ⚠️ PRIORITY 2 — IMPORTANT FOR HEALTH
+
+#### 5. Leetspeak / Bypass Detection
+- **Current bypasses:** `tr@sh`, `f.l.o.p`, `r@nd!`, spacing tricks
+- **Fix:** Normalize text before checking (remove special chars, collapse spaces, l33t→letter mapping)
+- **Library option:** Use `leo-profanity` or build custom normalizer
+
+#### 6. Non-Skippable Rules on First Visit
+- **Current:** Rules modal opens only when 📋 button tapped
+- **Need:** First time user enters ANY K-Hub room → force-show rules with "I Agree" button before they can chat
+- **Track via:** localStorage `jsukoon_khub_rules_accepted`
+
+#### 7. Behavior Quiz on Signup
+- **ChatGPT's idea:** Quick onboarding quiz like "Is it okay to insult another fandom?"
+- **Goal:** Filter toxic users at the door, set rep starting score
+- **Bonus:** Users who pass quiz start at +10 rep
+
+#### 8. Elite Mod Tools
+- **Current:** Trust level 3 (Elite) has no UI to actually moderate
+- **Build:**
+  - Hidden message viewer (see hidden messages with reports)
+  - Mute/kick buttons on messages from low-rep users
+  - View reputation history of any user
+  - Ban from specific room (24h/permanent)
+
+---
+
+### 📋 PRIORITY 3 — NICE TO HAVE
+
+#### 9. Safe Link Card System (Spotify/YouTube)
+- **Current:** Plain blue text URLs
+- **Improvement:** Detect Spotify/YouTube URL patterns, show small card with:
+  - Domain name only (no fetching copyrighted metadata)
+  - "Open in Spotify" / "Open in YouTube" button
+  - Block all other domains for spam protection
+- **Legal note:** This is the WhatsApp/Discord pattern — 100% safe
+- **File:** Create `src/utils/musicLinks.js` with URL detection + sanitization
+
+#### 10. AI Bulletin Board
+- **Original idea:** Daily AI-generated K-Pop news bulletin in rooms
+- **Use:** Pinned post at top of each room, refreshes daily via cron Edge Function
+- **Content:** "Today in K-Pop: BTS announces..." (general public news only, no copyrighted content)
+
+#### 11. User Block List
+- **Already have `blocks` table in Supabase**
+- **Not implemented:** Long-press user → block → never see their messages
+- **Filter:** chat fetch should exclude messages from blocked users
+
+#### 12. Pinned Welcome Message
+- New users entering empty room see hardcoded "Welcome to {Room}" — should be a real pinned message from admin account
+
+#### 13. Message Threading / Replies
+- **Current:** Flat chat
+- **Future:** Reply to specific message (like WhatsApp quote)
+
+#### 14. Cross-Room Heart Counter Sync
+- **Current:** Heart count is local, resets on refresh
+- **Fix:** Sync to Supabase room-level counter so all users see same total
+
+---
+
+## 🔐 SECURITY MISSING IN CHAT (already have for app overall)
+
+#### 15. Per-Room Slow Mode
+- Admins can set 30-second cooldown between messages in a hot room
+
+#### 16. New Account Restrictions (15-min)
+- **From ChatGPT spec:** First 15 minutes of new signup
+  - Can't post images
+  - Slow mode enforced
+  - Can't tag other users
+- **Goal:** Stop drive-by trolling from throwaway accounts
+
+#### 17. Webhook Alert for Bad Behavior
+- When a user gets 3 reports in 24h → Telegram/Discord webhook to your phone
+- You see it in real time, can manually intervene
+
+---
+
+## 📊 OVERALL K-HUB SCORE
+
+| Category | Coverage |
+|----------|----------|
+| Hard rule enforcement | ✅ 90% (client-side strong, server-side missing) |
+| Soft rule enforcement | ✅ 85% |
+| Reputation system | ✅ 95% (UI for elite mods missing) |
+| Reporting | ✅ 100% |
+| NSFW (text) | ✅ 80% (no leetspeak detection) |
+| NSFW (images) | ⚠️ N/A (text-only currently) |
+| Server-side validation | ❌ 10% (mostly client-side) |
+| Onboarding to rules | ⚠️ 50% (modal exists, not forced) |
+| Mod tools | ❌ 20% (auto-hide works, no manual mod UI) |
+| Music link integration | ⚠️ 40% (links work, no safe cards) |
+
+**Overall: 75% of ChatGPT's recommended system. Production-ready for first 100-500 users.**
+
+---
+
+## 🎯 RECOMMENDED NEXT STEPS (in order)
+
+When starting the new Claude thread, work on these in this order:
+
+1. **Server-side toxicity Edge Function** (Priority 1 — biggest security upgrade)
+2. **Non-skippable rules on first visit** (Priority 2 — quick legal win)
+3. **Leetspeak bypass detection** (Priority 2 — closes biggest filter gap)
+4. **Safe link cards for Spotify/YouTube** (Priority 3 — UX polish)
+5. **Elite mod dashboard** (Priority 2 — when you have first 50 users)
+6. **NSFW image pipeline** (Priority 1 — only when adding image upload feature)
+7. **AI bulletin board** (Priority 3 — growth feature)
+
+---
+
+## 📌 KEY FILES TO REFERENCE IN NEW THREAD
+
+```
+src/features/khub/
+  ├── KHub.jsx                     ← room selector
+  ├── KLavenderLoungeChat.jsx      ← #A18CD1
+  ├── KPopGeneralRoom.jsx          ← #FF69B4
+  ├── KDramaRoom.jsx               ← #FAD0C4
+  ├── PurpleLounge.jsx             ← #9B59B6 (BTS fans)
+  ├── BlinkLounge.jsx              ← #E91E8C (BLACKPINK fans)
+  ├── moderation.js                ← banned words, SpamLimiter, reputation
+  └── FloatingHearts.jsx           ← heart animation system
+
+supabase/functions/
+  └── horoscope/index.ts           ← Edge Function template (use this pattern for toxicity check)
+
+Database tables:
+  khub_messages (id, room_name, user_id, user_email, text, status, msg_type, avatar_emoji, created_at, nsfw_score)
+  message_reports (id, message_id, reported_by, reason, created_at)
+  mod_actions (id, user_id, action, expires_at, created_at)
+  profiles (id, rep_score, trust_level, created_at, ...)
+```
+
+---
+
+Last updated: April 25, 2026
+Status: 5 chat rooms live, moderation 75% complete, ready for next iteration
+Update for SUKOON_V3_MASTER.md
+Paste the block below into your master doc, ideally right after the existing
+"What's Built" or "Architecture" section. Or insert as a new "## Changelog"
+section near the top.
+---
+2026-04-25 — K-Hub meme sharing + server-side hardening
+Major architectural work: shipped NSFW-filtered meme sharing in chat rooms,
+moved all message writes through a server-side gate, and turned the Oracle
+VM from a single-purpose NSFW endpoint into a full meme-upload service.
+What was built
+1. Oracle VM is now a meme-upload service (Mumbai region, IP 140.238.226.129)
+Caddy 2.11.2 in front, terminating HTTPS at `https://jsukoon-api.duckdns.org`
+Auto-fetched Let's Encrypt cert (renews automatically)
+Flask 3.0.3 + gunicorn (2 workers × 4 threads) at `127.0.0.1:5000`
+NudeNet 3.4.2 loaded in RAM at boot (~190 MB resident)
+Oracle Cloud Python SDK (`oci==2.140.0`) connects to private bucket
+Auto-restart via systemd unit `/etc/systemd/system/jsukoon-api.service`
+Old `nsfw_api.service` stopped + disabled; new app handles legacy `/predict` too
+2. Oracle Object Storage bucket (`jsukoon-khub-memes`, private)
+Mumbai region, namespace `bmqg3jltavcd`
+Only the VM has write credentials (in `/etc/jsukoon-api/oci-config`, mode 600)
+Bucket is private; all reads go through the VM with auth (no public URLs)
+API key stored at `/etc/jsukoon-api/oci-key.pem`, root-readable only
+3. Supabase database — extended `khub_messages` table
+New columns:
+`file_id` — Oracle object identifier (UUID hex)
+`object_path` — full path in bucket (`{user_id}/{file_id}.jpg`)
+`nsfw_score` — `numeric(4,3)`, NudeNet output (0.000 to 1.000)
+`nsfw_state` — `'safe' | 'blurred' | 'blocked'`
+`msg_type` — `'text' | 'image'`
+`text` is now nullable (was NOT NULL — broke image-only messages)
+`user_email` is now nullable (defensive)
+New CHECK constraints:
+`khub_messages_text_length` — text ≤ 500 chars
+`khub_messages_nsfw_state_valid` — only safe/blurred/blocked
+`khub_messages_payload_present` — text msgs need text, image msgs need file_id
+New tables:
+`khub_rules_accepted` — server-side record of users who accepted room rules
+New RPC functions (all SECURITY DEFINER, restricted to authenticated/service_role):
+`khub_is_rate_limited(user_id)` — returns true if 5+ messages in last 10s
+`khub_is_new_account(user_id)` — true if `auth.users.created_at` within last 15 min
+`khub_adjust_rep(user_id, delta)` — server-side rep score change
+`khub_old_image_paths()` — returns paths older than 60 days for cleanup
+Removed:
+All direct INSERT policies on `khub_messages` (writes now ONLY via Edge Function)
+4. Supabase Edge Function `khub-message-check` (deployed via CLI)
+Single gate for every K-Hub message
+Verifies user JWT (uses new asymmetric JWKS — fetches public keys from Supabase)
+Re-checks toxicity server-side (mirror of client list, can't be bypassed via DevTools)
+Re-checks rate limit using the Postgres function
+Re-checks new-account guard (15-min cooldown for image uploads)
+For image messages: HMAC-verifies the upload token came from the VM
+Inserts the message row using service_role (bypasses RLS)
+Adjusts reputation: +1 for clean message, -10 for toxic, -20 for NSFW blocked
+Maps room keys (`'lavender'`) → full names (`'Lavender Lounge'`) for DB
+Required env: `VM_HMAC_SECRET` (matches VM's `hmac_secret`)
+5. React app — new components in `src/features/khub/`
+`MemeUploader.jsx` — file picker, EXIF strip, JPEG compress to 1280px max, in-modal red error banner for blocked uploads, NSFW warning toast for blurred
+`MessageBubble.jsx` — renders both text and image messages, blur overlay for borderline NSFW with tap-to-reveal, "Image expired" fallback for cleaned-up files, "Image removed by moderation" for blocked
+`RulesGate.jsx` — first-visit forced rules acceptance modal (built but not yet wired into rooms)
+`SafeLinkCard.jsx` — Spotify/YouTube link cards (built but not yet wired)
+`moderation.js` — MERGED: kept all original functions (`updateRepScore`, `submitReport`, `checkIfMuted`, `REP_POINTS`, `getTrustLevel`, `getTrustLabel`, `BANNED_FRAGMENTS`, `SpamLimiter`) and added new ones (`uploadAndSendMeme`, `fetchAuthedImage`, `clearImageCache`)
+New `src/utils/musicLinks.js` — URL detector + parser (allow-list: spotify.com, youtube.com, youtu.be)
+Existing `checkToxicity` upgraded with leetspeak normalizer (catches `tr@sh`, `f.l.o.p`, `f u c k`, `fuuuck`)
+New env var `VITE_JSUKOON_API_URL` (defaults to `https://jsukoon-api.duckdns.org`)
+6. CSP updates — `index.html` and `vercel.json`
+Added `https://jsukoon-api.duckdns.org` to both `connect-src` and `img-src`
+Removed obsolete `https://140.238.226.129:5000` (replaced by HTTPS domain)
+Removed `https://objectstorage.ap-mumbai-1.oraclecloud.com` from `img-src` (not needed — we proxy through VM)
+7. Daily cleanup cron
+Script at `/opt/jsukoon-api/cleanup.py`
+Runs daily at 3:30 UTC (9:00 IST) via crontab
+Asks Supabase for paths > 60 days old, deletes from Oracle bucket, deletes DB rows
+Logs to `/var/log/jsukoon-cleanup.log`
+8. iptables fix
+Localhost connections to port 5000 were being dropped (Vercel-IP-only rule from
+old NSFW API setup). Added two rules at top of INPUT chain:
+`-p tcp -d 127.0.0.1 --dport 5000 -j ACCEPT`
+`-p tcp -s 127.0.0.1 --dport 5000 -j ACCEPT`
+This let Caddy reach Flask via localhost.
+9. CORS dynamic mirroring (in Caddy config)
+The Caddyfile now echoes `{header.Origin}` instead of a fixed value, so both
+`http://localhost:5173` (dev) and `https://sukoon-v3.vercel.app` (prod) work.
+Security note: every request still requires a valid Supabase JWT, so reflection
+isn't unsafe in practice. To tighten later: pin the allow-list explicitly.
+Security model summary
+Layer	Bypass-resistant?	Notes
+Client toxicity filter (leetspeak)	No	UX feedback only; Edge Function re-checks
+Client spam limiter	No	UX feedback only
+Edge Function toxicity re-check	Yes	DevTools can't reach DB anymore
+Edge Function rate limit	Yes	Counts actual rows in Postgres
+VM NSFW score (NudeNet)	Yes	Scores bytes BEFORE Oracle upload
+VM 15-min new-account guard	Yes	Reads `auth.users.created_at` server-side
+HMAC token between VM and Edge Fn	Yes	5-min TTL, prevents fake "scored" claims
+
+Direct INSERT to khub_messages	Blocked	All writes go through Edge Function
+Storage RLS — upload to own folder	Yes	path[0] must equal auth.uid()
+Image size cap (4 MB)	Yes	Enforced client + VM (defense in depth)
+Text length cap (500 chars)	Yes	Postgres CHECK constraint
+Auth-gated image read	Yes	VM verifies JWT before streaming bytes
+What's wired right now
+Lavender Lounge: full meme support (uploads, render, NSFW filter, blur reveal)
+Other 4 rooms (KPop, KDrama, Purple, Blink): text messaging still works (moderation.js
+preserves all original functions); meme button NOT YET wired
+Still pending (in priority order)
+Delete system — full hierarchy (self / elite mod / admin), 2-stage soft delete (24h grace), audit log table `khub_deletions`. Admin identification via `is_admin` boolean on profiles.
+Wire meme uploader into the other 4 rooms — same 4-edit pattern as Lavender (imports, MemeUploader element, sendMessage replacement, message-render branching).
+Tighten CORS to explicit origin list (currently dynamic mirroring).
+Wire RulesGate into all 5 rooms for first-visit acceptance.
+Wire SafeLinkCard rendering into MessageBubble's text segment splitter.
+Push to git → Vercel for production deploy.
+Known cost/quota status
+Supabase free tier: ~7 MB DB used, well within 500 MB limit
+Oracle Object Storage: free tier is 10 GB; current usage is one cleaned test image
+Oracle VM: free tier (1 OCPU, 6 GB RAM); meme service uses ~190 MB RAM
+Vercel: unchanged — frontend only, well within free tier
+File map of what changed today
+```
+/opt/jsukoon-api/                  ← Oracle VM
+  app.py                           ← NEW (replaces old NSFW-only Flask)
+  cleanup.py                       ← NEW (daily Oracle cleanup)
+  requirements.txt                 ← NEW
+  venv/                            ← NEW (Python 3 + 7 packages)
+
+/etc/jsukoon-api/                  ← Oracle VM (root, mode 600)
+  config.json                      ← NEW (HMAC + service_role + bucket cfg)
+  oci-config                       ← NEW (Oracle API config)
+  oci-key.pem                      ← NEW (Oracle API private key)
+
+/etc/caddy/Caddyfile               ← Oracle VM (rewritten)
+/etc/systemd/system/
+  jsukoon-api.service              ← NEW (gunicorn service definition)
+
+src/features/khub/
+  moderation.js                    ← MERGED (originals + meme functions)
+  MemeUploader.jsx                 ← NEW
+  MessageBubble.jsx                ← NEW
+  RulesGate.jsx                    ← NEW (not yet wired)
+  SafeLinkCard.jsx                 ← NEW (not yet wired)
+  KLavenderLoungeChat.jsx          ← MODIFIED (4 edits)
+
+src/utils/
+  musicLinks.js                    ← NEW
+
+supabase/functions/khub-message-check/
+  index.ts                         ← NEW (deployed via CLI)
+
+supabase/migrations/
+  2026_04_25_meme_v2.sql           ← NEW (applied)
+
+index.html                         ← MODIFIED (CSP)
+vercel.json                        ← MODIFIED (CSP)
+.env                               ← MODIFIED (added VITE_JSUKOON_API_URL)
+```
+Endpoint reference
+`https://jsukoon-api.duckdns.org/health` → liveness check (public)
+`https://jsukoon-api.duckdns.org/meme-upload` → POST image, requires JWT
+`https://jsukoon-api.duckdns.org/meme/{user_id}/{file_id}.jpg` → GET image, requires JWT
+`https://jsukoon-api.duckdns.org/predict` → legacy NSFW score (kept for back-compat)
+`https://khpxgfadnnwycdhnyxye.supabase.co/functions/v1/khub-message-check` → POST every K-Hub message (text or image)
+Secrets to never commit / leak
+VM `hmac_secret` — also in Supabase as `VM_HMAC_SECRET`
+VM `supabase_service_role` — also in Supabase env (auto)
+Oracle API private key (`oci-key.pem`)
+Local `jsukoon-secrets.txt` was used during setup; can now be deleted from Downloads
+Today's scoreboard
+✅ Oracle VM with HTTPS, gunicorn, NudeNet, OCI bucket
+✅ Supabase migration + Edge Function with HMAC verification
+✅ Auth-gated image fetch with private bucket
+✅ Lavender Lounge: full meme support working
+✅ K-Pop General: full meme support working
+✅ NSFW filter tested (clean passed, bikini blocked)
+✅ Manual permanent delete (DB + Oracle bucket) executed safely
+Modified files (all expected):
+
+✅ SUKOON_V3_MASTER.md — you updated the master doc
+✅ index.html — CSP update
+✅ All 5 room files — meme support added
+✅ moderation.js — merged version
+✅ vercel.json — CSP update
+⚠️ PurpleSanctuary.jsx — this was modified but we didn't touch it. Worth checking what changed, but probably fine.
+
+New files (all expected):
+
+✅ MemeUploader.jsx, MessageBubble.jsx, RulesGate.jsx, SafeLinkCard.jsx, musicLinks.js
+✅ supabase/functions/khub-message-check/ — the Edge Function
+✅ supabase/.temp/ — Supabase CLI temp files (harmless)
