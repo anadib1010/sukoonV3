@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
 import { checkToxicity, SpamLimiter, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
+import RulesGate from './RulesGate';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
 import MessageBubble from './MessageBubble';
 
@@ -139,6 +140,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
   const reportReasons = hi ? ['घृणास्पद भाषा', 'Spam', 'NSFW', 'Fandom Attack', 'Piracy link', 'अन्य'] : ['Hate speech', 'Spam', 'NSFW', 'Fandom attack', 'Piracy link', 'Other'];
 
   return (
+    <RulesGate lang={hi ? 'hi' : 'en'} T={T} accent="#A18CD1">
     <div style={s.container}>
       <FloatingHearts hearts={hearts} roomType="lavender" />
       <div style={s.header}>
@@ -198,5 +200,6 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
       {showRules && (<div style={s.overlay} onClick={() => setShowRules(false)}><div style={s.modal} onClick={e => e.stopPropagation()}><h3 style={s.modalTitle}>📋 {hi ? 'नियम' : 'Community Rules'}</h3><p style={{ fontSize: '10px', opacity: 0.45, margin: '0 0 14px' }}>{hi ? '⚠️ अनधिकृत K-Pop फैन स्पेस। किसी label से संबंध नहीं।' : '⚠️ Unofficial K-Pop fan space. Not affiliated with any label.'}</p>{rules.map((r, i) => (<div key={i} style={s.ruleItem}><span style={{ fontSize: '15px', flexShrink: 0 }}>{r.icon}</span><span>{r.hard && <strong style={{ color: c }}>{hi ? '[सख्त] ' : '[HARD] '}</strong>}{r.text}</span></div>))}<button style={s.closeBtn} onClick={() => setShowRules(false)}>{hi ? 'समझ गया! 🪻' : 'Got it! 🪻'}</button></div></div>)}
       {showReport && (<div style={s.overlay} onClick={() => setShowReport(null)}><div style={{ ...s.modal, padding: '22px 22px 36px' }} onClick={e => e.stopPropagation()}><h3 style={s.modalTitle}>🚩 {hi ? 'रिपोर्ट' : 'Report'}</h3><p style={{ fontSize: '12px', opacity: 0.55, margin: '6px 0 14px' }}>"{showReport.text?.slice(0, 80)}..."</p>{reportReasons.map(r => (<button key={r} onClick={() => handleReport(showReport, r)} style={{ display: 'block', width: '100%', marginBottom: '8px', padding: '12px 14px', borderRadius: '12px', background: `${c}10`, border: `1px solid ${c}28`, color: T.text, fontSize: '14px', textAlign: 'left', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>{r}</button>))}<button style={{ ...s.closeBtn, background: 'transparent', border: `1px solid ${c}30`, color: T.text }} onClick={() => setShowReport(null)}>{hi ? 'रद्द करें' : 'Cancel'}</button></div></div>)}
     </div>
+    </RulesGate>
   );
 }

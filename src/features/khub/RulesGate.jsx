@@ -17,7 +17,7 @@
 // ============================================================================
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../supabase";
 
 const STORAGE_KEY = "jsukoon_khub_rules_accepted_v1";
 const RULES_VERSION = 1;

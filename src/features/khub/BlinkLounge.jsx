@@ -3,6 +3,7 @@ import { supabase } from '../../supabase';
 import { checkToxicity, SpamLimiter, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
+import RulesGate from './RulesGate';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
 
 const ROOM_NAME = 'Blink Lounge';
@@ -140,6 +141,7 @@ export function BlinkLounge({ setTab, T, lang }) {
   const reportReasons = hi ? ['घृणास्पद भाषा', 'Spam', 'NSFW', 'Fandom Attack', 'Piracy link', 'अन्य'] : ['Hate speech', 'Spam', 'NSFW content', 'Fandom attack', 'Piracy link', 'Other'];
 
   return (
+    <RulesGate lang={hi ? 'hi' : 'en'} T={T} accent="#E91E8C">
     <div style={s.container}>
       <FloatingHearts hearts={hearts} roomType="blink" />
       <div style={s.header}>
@@ -215,5 +217,6 @@ export function BlinkLounge({ setTab, T, lang }) {
         </div>
       )}
     </div>
+    </RulesGate>
   );
 }

@@ -7,6 +7,7 @@ import {
 } from './moderation';
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
+import RulesGate from './RulesGate';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
 
 const ROOM_NAME  = 'Purple Lounge';
@@ -157,6 +158,7 @@ export function PurpleLounge({ setTab, T, lang }) {
     : ['Hate speech', 'Spam', 'NSFW content', 'Fandom attack', 'Piracy link', 'Other'];
 
   return (
+    <RulesGate lang={hi ? 'hi' : 'en'} T={T} accent="#9B59B6">
     <div style={s.container}>
       <FloatingHearts hearts={hearts} roomType="purple" />
       <div style={s.header}>
@@ -247,5 +249,6 @@ export function PurpleLounge({ setTab, T, lang }) {
         </div>
       )}
     </div>
+    </RulesGate>
   );
 }

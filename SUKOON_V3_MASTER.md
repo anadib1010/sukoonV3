@@ -766,3 +766,11 @@ New files (all expected):
 ✅ MemeUploader.jsx, MessageBubble.jsx, RulesGate.jsx, SafeLinkCard.jsx, musicLinks.js
 ✅ supabase/functions/khub-message-check/ — the Edge Function
 ✅ supabase/.temp/ — Supabase CLI temp files (harmless)
+📷 Meme sharing — tap the camera button, pick an image, send
+🛡️ NSFW filter — NudeNet scores every image before it's saved
+🔴 Hard blocks — explicit content blocked, -20 rep deducted
+🟡 Blur warnings — borderline content blurred with tap-to-reveal
+🔒 Auth-gated images — private Oracle bucket, only logged-in users see images
+⏰ 60-day auto-delete — old memes cleaned up automatically at 3:30 AM IST
+🔤 Server-side text moderation — toxicity, rate limits, leetspeak bypass detection
+✅ All 5 rooms: Lavender, K-Pop General, K-Drama, Purple Lounge, Blink Lounge
