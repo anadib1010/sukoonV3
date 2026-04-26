@@ -224,15 +224,40 @@ export async function submitReport(messageId, reportedBy, reason, messageUserId)
       .eq('message_id', messageId);
 
     if (count >= 3) {
-      await supabase
-        .from('khub_messages')
-        .update({ status: 'hidden' })
-        .eq('id', messageId);
+  await supabase
+    .from('khub_messages')
+    .update({ status: 'hidden' })
+    .eq('id', messageId);
 
-      if (messageUserId) await updateRepScore(messageUserId, REP_POINTS.TOXIC_MESSAGE);
+  if (messageUserId) await updateRepScore(messageUserId, REP_POINTS.TOXIC_MESSAGE);
 
-      return { reported: true, autoHidden: true };
+  // Send Telegram alert
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const msgData = await supabase
+      .from('khub_messages')
+      .select('room_name, user_email, text')
+      .eq('id', messageId)
+      .single();
+    if (session && msgData.data) {
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-telegram-alert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          room_name:    msgData.data.room_name,
+          user_email:   msgData.data.user_email,
+          message_text: msgData.data.text,
+          report_count: count,
+        }),
+      });
     }
+  } catch (_) {}
+
+  return { reported: true, autoHidden: true };
+}
 
     return { reported: true, autoHidden: false };
   } catch (_) {
