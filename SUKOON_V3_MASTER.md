@@ -774,3 +774,15 @@ New files (all expected):
 ⏰ 60-day auto-delete — old memes cleaned up automatically at 3:30 AM IST
 🔤 Server-side text moderation — toxicity, rate limits, leetspeak bypass detection
 ✅ All 5 rooms: Lavender, K-Pop General, K-Drama, Purple Lounge, Blink Lounge
+✅ Group A: CORS pinned to specific origins, NSFW threshold tightened (bikini/swimwear now blocked at >0.6 confidence)
+✅ Group B: RulesGate wired into all 5 rooms (forced acceptance on first visit)
+✅ Group C: Full delete system — self/mod/admin hierarchy, 2-stage soft delete, 10s undo, audit log in khub_deletions
+✅ Group D: Telegram alerts — you get a message on your phone when 3 reports auto-hide a message
+✅ CORS tightened to specific origins
+✅ NSFW threshold tightened (bikini/swimwear blocked at >0.6)
+✅ RulesGate wired into all 5 rooms
+✅ Full delete system (self/mod/admin, 2-stage, undo, audit log)
+✅ Telegram alerts on 3 reports
+✅ SafeLinkCard working (links render after refresh)
+⏳ Realtime fix for Purple Lounge link messages
+⏳ Cron job update for pending_delete cleanup

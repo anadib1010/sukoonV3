@@ -74,7 +74,10 @@ function normalize(input: string): string {
 }
 
 function isToxic(text: string): boolean {
-  const n = normalize(text);
+  // Strip URLs before checking — Spotify/YouTube links should never be blocked
+  const stripped = text.replace(/https?:\/\/\S+/g, "");
+  if (!stripped.trim()) return false;
+  const n = normalize(stripped);
   return BANNED_PHRASES.some((p) => n.includes(p.toLowerCase()));
 }
 

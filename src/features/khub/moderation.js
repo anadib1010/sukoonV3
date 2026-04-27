@@ -96,8 +96,11 @@ function _normalize(input) {
 
 export function checkToxicity(text) {
   if (!text || typeof text !== 'string') return { toxic: false };
-  const lower = text.toLowerCase();
-  const norm  = _normalize(text);
+  // Strip URLs before checking — Spotify/YouTube links should never be blocked
+  const stripped = text.replace(/https?:\/\/\S+/g, '');
+  if (!stripped.trim()) return { toxic: false };
+  const lower = stripped.toLowerCase();
+  const norm  = _normalize(stripped);
   for (const frag of BANNED_FRAGMENTS) {
     const f = frag.toLowerCase();
     if (lower.includes(f)) return { toxic: true, reason: frag };
