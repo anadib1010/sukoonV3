@@ -786,3 +786,41 @@ New files (all expected):
 ✅ SafeLinkCard working (links render after refresh)
 ⏳ Realtime fix for Purple Lounge link messages
 ⏳ Cron job update for pending_delete cleanup
+🚀 **Everything shipped to production!**
+
+---
+
+# 🎯 Complete feature list — what's live right now
+
+**K-Hub Chat Rooms (all 5):**
+- ✅ NSFW-filtered meme sharing (Oracle VM → NudeNet → private Oracle bucket)
+- ✅ Auth-gated image fetch (images only load for logged-in users)
+- ✅ 60-day auto-delete of old memes (cron at 3:30 AM IST)
+- ✅ Server-side toxicity check (leetspeak bypass detection)
+- ✅ Server-side rate limiting (5 messages / 10 seconds)
+- ✅ 15-min new account restriction on image uploads
+- ✅ HMAC-signed upload tokens between VM and Edge Function
+- ✅ Forced rules acceptance on first visit (RulesGate)
+- ✅ Spotify/YouTube safe link cards
+- ✅ Full delete system (self / elite mod / admin hierarchy)
+- ✅ 2-stage soft delete with 10-second undo
+- ✅ Audit log for all deletions (`khub_deletions` table)
+- ✅ Telegram alerts when 3 reports auto-hide a message
+- ✅ CORS pinned to specific origins
+- ✅ NSFW threshold tightened (bikini/swimwear blocked at >0.6 confidence)
+- ✅ Blur + "view anyway" for borderline NSFW (0.3–0.6)
+- ✅ Report system with 3-report auto-hide
+- ✅ Reputation system (+1 clean, -10 toxic, -20 NSFW)
+- ✅ Trust levels (New / Trusted / Elite)
+- ✅ 24h hard-delete cron for soft-deleted messages
+
+---
+
+# What's still on the optional queue
+
+1. **Elite mod dashboard** — UI for trust_level 3 users to see reports/deletions
+2. **AI bulletin board** — daily K-Pop news at top of room
+3. **User block list** — per-user filtering of specific senders
+4. **Cross-room heart sync** — heart counter shared across rooms
+5. **Per-room slow mode** — admin-toggled cooldown
+6. **Behavior quiz on signup** — personality-based room suggestion

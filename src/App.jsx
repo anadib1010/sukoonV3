@@ -223,8 +223,7 @@ function AppContent() {
     try { return localStorage.getItem("jsukoon_onboarded") === "true"; }
     catch { return false; }
   });
-  const [nextRoute,      setNextRoute]      = useState(null);
-
+  
   const [authSheet,      setAuthSheet]      = useState(null);
   const [pendingTab,     setPendingTab]      = useState(null);
 
@@ -313,15 +312,7 @@ function AppContent() {
     return () => clearInterval(browseTimer);
   }, []);
 
-  useEffect(() => {
-    if (hasOnboarded && nextRoute) {
-      if (nextRoute === "reset") navigate("/reset", { replace: true });
-      else navigate("/", { replace: true });
-      setNextRoute(null);
-    }
-  }, [hasOnboarded, nextRoute, navigate]);
-
-  // ─── PAGE TITLES ───
+    // ─── PAGE TITLES ───
   const PAGE_TITLES_EN = {
     home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready",
     more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place",
@@ -426,13 +417,28 @@ function AppContent() {
     return (
       <Onboarding
         onComplete={(destination) => {
+          // 1. Save the secret note in the browser safe
           localStorage.setItem("jsukoon_onboarded", "true");
+          
+          // 2. Tell Vercel Analytics we finished onboarding
           track('Onboarding Complete');
-          setNextRoute(destination);
+          
+          // 3. Turn off the onboarding screen
           setHasOnboarded(true);
+
+          // 4. Send them EXACTLY where they clicked!
+          // Note: In our Onboarding.jsx we named the tab 'kpop', 
+          // but your actual K-Pop route in App.jsx is called 'khub'. 
+          // We translate that right here!
+          if (destination === 'kpop') {
+            setTab('khub');
+          } else {
+            setTab(destination); // Handles 'reset', 'horoscope', and 'chat' perfectly
+          }
         }}
         setThemeKey={setThemeKey}
         setLang={setLang}
+        lang={lang} // Passing lang so Onboarding knows if it should speak Hindi or English
         T={T}
       />
     );
