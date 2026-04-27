@@ -282,6 +282,10 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'Englis
           0%, 100% { transform: scale(1); }
           50%      { transform: scale(1.04); }
         }
+        @keyframes kpopBreathe {
+          0%, 100% { box-shadow: 0 0 0px #FF6B9D00, 0 0 8px #FF6B9D40; border-color: #FF6B9D55; }
+          50%      { box-shadow: 0 0 10px #FF6B9D90, 0 0 20px #FF6B9D50; border-color: #FF6B9DCC; }
+        }
       `}</style>
 
       {/* Top Text */}
@@ -302,7 +306,13 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'Englis
             key={choice.id} 
             role="button"
             tabIndex={0}
-            style={st.card(choice.color)}
+            style={{
+              ...st.card(choice.color),
+              ...(choice.id === 'kpop' && {
+                animation: "kpopBreathe 2s ease-in-out infinite",
+                borderWidth: "2px",
+              }),
+            }}
             onClick={() => handleChoice(choice)}
             onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
             onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
