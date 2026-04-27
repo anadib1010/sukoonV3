@@ -180,17 +180,17 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'Englis
     },
     legalText: {
       fontFamily: "'DM Sans', sans-serif",
-      fontSize: "10px",
-      color: "rgba(255,255,255,0.25)",
+      fontSize: "12px",                      // Up from 10px — readable on mobile
+      color: "rgba(255,255,255,0.65)",       // Up from 0.25 — legally visible
       textAlign: "center",
       maxWidth: "340px",
-      lineHeight: 1.5,
+      lineHeight: 1.6,
       margin: 0,
     },
     link: {
       textDecoration: "underline",
       cursor: "pointer",
-      color: "rgba(255,255,255,0.5)",
+      color: "rgba(255,255,255,0.9)",        // Up from 0.5 — links must be clearly tappable
     },
     // Welcome Screen Styles
     welcomePage: (color) => ({
@@ -286,7 +286,7 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'Englis
 
       {/* Top Text */}
       <div style={st.header}>
-        <h1 style={st.brand}>JSukoon</h1>
+        <h1 style={st.brand}>J Sukoon</h1>
         <h2 style={st.headline}>
           {isHi ? 'आज क्या मन है?' : "What's calling you today?"}
         </h2>
@@ -337,8 +337,8 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'Englis
             {isHi ? "गोपनीयता नीति" : "Privacy Policy"}
           </span>
           {isHi 
-            ? " से सहमत हैं। JSukoon एक स्व-सहायता उपकरण है, कोई चिकित्सा सेवा नहीं।" 
-            : ". JSukoon is a self-help tool, not a medical service."}
+            ? <> से सहमत हैं। <span style={{whiteSpace:"nowrap"}}>J Sukoon</span> एक स्व-सहायता उपकरण है, कोई चिकित्सा सेवा नहीं।</> 
+            : <><span style={{whiteSpace:"nowrap"}}>. J Sukoon</span> is a self-help tool, not a medical service.</>}
         </p>
       </div>
     </div>

@@ -148,10 +148,12 @@ export function Home({ setTab, T, lang }) {
       padding: "8px 12px",
     },
     disclaimer: {
-      fontFamily: "'DM Sans', sans-serif", fontSize: "9px",
-      color: T.text, opacity: 0.35, letterSpacing: "0.5px",
+      fontFamily: "'DM Sans', sans-serif", fontSize: "11px",  // slightly larger
+      color: T.textSoft,  // use a muted token, not full opacity reduction
+      opacity: 0.7,       // readable — WCAG recommends min 4.5:1 contrast ratio
+      letterSpacing: "0.5px",
       textAlign: "center", maxWidth: "340px", margin: 0,
-    },
+  },
   };
 
   const handleHover = (e, isEnter) => {
