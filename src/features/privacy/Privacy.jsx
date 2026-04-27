@@ -13,6 +13,20 @@ export function Privacy({ setTab, goBack, T, lang }) {
       hiD: "हम आपके द्वारा प्रदान की गई जानकारी एकत्र कर सकते हैं, जैसे आपका ईमेल पता (खाता बनाने के लिए), जर्नल एंट्री, मूड लॉग, विचार और सत्र से जुड़ी जानकारी। यह डेटा सुरक्षित क्लाउड सिस्टम पर संग्रहीत किया जाता है और केवल आपके खाते से जुड़ा होता है।",
     },
     {
+      icon: "🎶",
+      en: "Personalization & Interests",
+      hi: "व्यक्तिगत अनुभव और रुचियां",
+      enD: "We may store your interests (such as favorite K-pop groups or horoscope signs) to personalize your J Sukoon experience. This data is protected with the same high-level encryption as your mood history.",
+      hiD: "हम आपके अनुभव को बेहतर बनाने के लिए आपकी रुचियों (जैसे पसंदीदा K-pop ग्रुप या राशि) को स्टोर कर सकते हैं। यह डेटा आपके मूड हिस्ट्री की तरह ही उच्च-स्तरीय एन्क्रिप्शन के साथ सुरक्षित है।",
+    },
+    {
+      icon: "🔒",
+      en: "Mood History & Security",
+      hi: "मूड हिस्ट्री और सुरक्षा",
+      enD: "Your emotional journey and mood history are encrypted and accessible only to you. We use international-level security standards to ensure your 'Digital Sanctuary' remains private.",
+      hiD: "आपकी भावनात्मक यात्रा और मूड हिस्ट्री एन्क्रिप्टेड है और केवल आपके लिए उपलब्ध है। हम यह सुनिश्चित करने के लिए अंतरराष्ट्रीय स्तर के सुरक्षा मानकों का उपयोग करते हैं कि आपका 'डिजिटल आश्रय' निजी रहे।",
+    },
+    {
       icon: "🎯",
       en: "Why We Collect It",
       hi: "हम यह डेटा क्यों एकत्र करते हैं",
@@ -79,8 +93,8 @@ export function Privacy({ setTab, goBack, T, lang }) {
       icon: "⚠️",
       en: "Not Medical or Mental Health Advice",
       hi: "चिकित्सा या मानसिक स्वास्थ्य सलाह नहीं",
-      enD: "JSukoon is intended as a self-help and wellness tool. It does not provide medical, psychological, or therapeutic advice, and it is not a substitute for professional care. If you are experiencing distress or health concerns, please consult a qualified professional.",
-      hiD: "JSukoon एक सेल्फ-हेल्प और वेलनेस टूल है। यह चिकित्सा, मनोवैज्ञानिक या चिकित्सीय सलाह प्रदान नहीं करता है और यह पेशेवर उपचार का विकल्प नहीं है। यदि आप किसी मानसिक या शारीरिक परेशानी का अनुभव कर रहे हैं, तो कृपया किसी योग्य विशेषज्ञ से संपर्क करें।",
+      enD: "J Sukoon is intended as a self-help and wellness tool. It does not provide medical, psychological, or therapeutic advice, and it is not a substitute for professional care. If you are experiencing distress or health concerns, please consult a qualified professional.",
+      hiD: "J Sukoon एक सेल्फ-हेल्प और वेलनेस टूल है। यह चिकित्सा, मनोवैज्ञानिक या चिकित्सीय सलाह प्रदान नहीं करता है और यह पेशेवर उपचार का विकल्प नहीं है। यदि आप किसी मानसिक या शारीरिक परेशानी का अनुभव कर रहे हैं, तो कृपया किसी योग्य विशेषज्ञ से संपर्क करें।",
     }
   ];
 
@@ -114,7 +128,7 @@ export function Privacy({ setTab, goBack, T, lang }) {
         <div style={s.header}>
           <div style={s.iconCircle}>🔒</div>
           <h1 style={s.heading}>{hi ? "गोपनीयता नीति (Privacy Policy)" : "Privacy Policy"}</h1>
-          <p style={s.updated}>{hi ? "अंतिम अपडेट: मार्च 2026" : "Last updated: March 2026"}</p>
+          <p style={s.updated}>{hi ? "अंतिम अपडेट: अप्रैल 2026" : "Last updated: April 2026"}</p>
         </div>
 
         <div style={s.highlight}>
@@ -151,8 +165,8 @@ export function Privacy({ setTab, goBack, T, lang }) {
         <div style={s.closing}>
           <p style={s.closingText}>
             {hi
-              ? "JSukoon में हम आपकी गोपनीयता का सम्मान करने और आपके डेटा को जिम्मेदारी से संभालने का प्रयास करते हैं।"
-              : "At JSukoon, we aim to respect your privacy and handle your data responsibly."}
+              ? "J Sukoon में हम आपकी गोपनीयता का सम्मान करने और आपके डेटा को जिम्मेदारी से संभालने का प्रयास करते हैं।"
+              : "At J Sukoon, we aim to respect your privacy and handle your data responsibly."}
           </p>
         </div>
 

@@ -3,8 +3,7 @@ import { PageNav } from '../../components/SharedUI';
 import { supabase, addCredits, fireGrandConfetti } from "../../supabase";
 
 export function Progress({ setTab, goBack, T, lang }) {
-  const [stats, setStats] = useState({ total_sessions: 0, total_minutes: 0, current_streak: 0, grace_days: 2, credits: 0 });
-  const [weekData, setWeekData] = useState({ Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 });
+  const [stats, setStats] = useState({ total_sessions: 0, total_minutes: 0, credits: 0 });
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(false);
@@ -32,18 +31,13 @@ export function Progress({ setTab, goBack, T, lang }) {
       let { data: statsData } = await supabase
         .from('progress_user_stats').select('*')
         .eq('user_id', user.id).maybeSingle();
-      if (statsData) setStats(statsData);
-
-      let { data: activityData } = await supabase
-        .from('daily_activity').select('activity_date')
-        .eq('user_id', user.id).limit(7);
-      if (activityData) {
-        const newWeekData = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
-        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        activityData.forEach(act => {
-          newWeekData[days[new Date(act.activity_date).getDay()]] = 1;
+      if (statsData) {
+        // Only carry over the fields we still use — no streak, no grace_days
+        setStats({
+          total_sessions: statsData.total_sessions || 0,
+          total_minutes: statsData.total_minutes || 0,
+          credits: statsData.credits || 0,
         });
-        setWeekData(newWeekData);
       }
 
       let { data: histData } = await supabase
@@ -84,10 +78,11 @@ export function Progress({ setTab, goBack, T, lang }) {
     );
   };
 
+  // ── Replaced "Streak" with "Reflections" (journal entry count) ──
   const statCards = [
-    { glyph: "✦", value: stats.total_sessions, label: hi ? "सत्र"       : "Sessions" },
-    { glyph: "◈", value: stats.current_streak, label: hi ? "सिलसिला"   : "Streak"   },
-    { glyph: "⬡", value: stats.credits || 0,   label: hi ? "क्रेडिट्स" : "Credits"  },
+    { glyph: "✦", value: stats.total_sessions,  label: hi ? "सत्र"         : "Sessions"    },
+    { glyph: "◈", value: history.length,         label: hi ? "विचार"        : "Reflections" },
+    { glyph: "⬡", value: stats.credits || 0,     label: hi ? "क्रेडिट्स"   : "Credits"     },
   ];
 
   // ─── STYLES ───
@@ -101,7 +96,6 @@ export function Progress({ setTab, goBack, T, lang }) {
       position: "relative",
     },
 
-    // Subtle ambient glow at top
     glow: {
       position: "absolute",
       top: 0,
@@ -160,7 +154,7 @@ export function Progress({ setTab, goBack, T, lang }) {
       display: "grid",
       gridTemplateColumns: "1fr 1fr 1fr",
       gap: 12,
-      marginBottom: 24,
+      marginBottom: 32,
       opacity: visible ? 1 : 0,
       transform: visible ? "translateY(0)" : "translateY(12px)",
       transition: "opacity 0.6s ease 0.2s, transform 0.6s ease 0.2s",
@@ -196,41 +190,6 @@ export function Progress({ setTab, goBack, T, lang }) {
       textTransform: "uppercase",
       letterSpacing: 1,
       margin: 0,
-    },
-
-    graceCard: {
-      background: `${T.accent}10`,
-      border: `1px solid ${T.accent}30`,
-      borderRadius: 18,
-      padding: "16px 20px",
-      marginBottom: 32,
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 14,
-      opacity: visible ? 1 : 0,
-      transition: "opacity 0.6s ease 0.3s",
-    },
-
-    graceGlyph: {
-      fontSize: 20,
-      color: T.accent,
-      flexShrink: 0,
-      marginTop: 2,
-      fontFamily: "'Cormorant Garamond', serif",
-    },
-
-    graceTitle: {
-      fontSize: 14,
-      color: T.text,
-      fontWeight: 500,
-      margin: "0 0 4px",
-    },
-
-    graceSub: {
-      fontSize: 12,
-      color: T.textSoft,
-      margin: 0,
-      lineHeight: 1.5,
     },
 
     historyLabel: {
@@ -314,7 +273,7 @@ export function Progress({ setTab, goBack, T, lang }) {
         {/* Growth Tree */}
         {renderTree(stats.total_sessions)}
 
-        {/* Stats Grid */}
+        {/* Stats Grid — Sessions · Reflections · Credits */}
         <div style={s.statsGrid}>
           {statCards.map(({ glyph, value, label }) => (
             <div
@@ -336,25 +295,10 @@ export function Progress({ setTab, goBack, T, lang }) {
           ))}
         </div>
 
-        {/* Grace Days */}
-        <div style={s.graceCard}>
-          <div style={s.graceGlyph}>✿</div>
-          <div>
-            <p style={s.graceTitle}>
-              {stats.grace_days} {hi ? "ग्रेस दिन बचे हैं" : "Grace Days Left"}
-            </p>
-            <p style={s.graceSub}>
-              {hi
-                ? "आपकी streak सुरक्षित है — एक दिन छोड़ने पर भी।"
-                : "Your streak is safe even if you miss a day."}
-            </p>
-          </div>
-        </div>
-
-        {/* Journal History */}
+        {/* Journal History — renamed "Your Reflections" */}
         <div>
           <p style={s.historyLabel}>
-            {hi ? "आपकी डायरी" : "Your History"}
+            {hi ? "आपके विचार" : "Your Reflections"}
           </p>
           {loading ? (
             <p style={s.historyEmpty}>
