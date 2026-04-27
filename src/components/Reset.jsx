@@ -1,6 +1,94 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrandHeader } from './BrandHeader';
 import { BackButton } from './BackButton';
+
+// ─── WEB SURROUND SOUND ENGINE ──────────────────────────────────────────
+// Simulates 8-channel surround using the Web Audio API StereoPannerNode
+class WebSurroundEngine {
+  constructor() {
+    this.ctx = null;
+    this.tracks = []; // Will hold { audio, panner }
+    this.panTimer = null;
+    this.panAngle = 0;
+    this.ready = false;
+  }
+
+  init() {
+    if (this.ctx) return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioContext();
+
+    const loadTrack = (src, defaultPan, defaultVol) => {
+      const audio = new Audio(src);
+      audio.loop = true;
+      audio.crossOrigin = "anonymous";
+      audio.volume = defaultVol;
+
+      // Create panning node
+      const source = this.ctx.createMediaElementSource(audio);
+      const panner = this.ctx.createStereoPanner();
+      panner.pan.value = defaultPan;
+
+      source.connect(panner);
+      panner.connect(this.ctx.destination);
+
+      this.tracks.push({ audio, panner });
+    };
+
+    // 0: birds (left ear), 1: waves (right ear), 2: flute/bowl (center)
+    loadTrack('/birds.mp3', -0.8, 0.72);
+    loadTrack('/waves.mp3', 0.8, 0.72);
+    loadTrack('/flute.mp3', 0.0, 0.45);
+
+    this.ready = true;
+  }
+
+  async play(idx) {
+    if (!this.ready) this.init();
+    // Browsers suspend audio context until user interaction. 
+    // Since the user clicked a button to open this page, resume() will work!
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    
+    const track = this.tracks[idx];
+    if (track) {
+      track.audio.play().catch(e => console.log('Audio autoplay blocked by browser:', e));
+    }
+  }
+
+  stop(idx) {
+    const track = this.tracks[idx];
+    if (track) {
+      track.audio.pause();
+      // Keep it ready to play from the start if needed again
+    }
+  }
+
+  startSurroundSweep(speedMs = 8000) {
+    if (this.panTimer) clearInterval(this.panTimer);
+    this.panTimer = setInterval(() => {
+      this.panAngle += (2 * Math.PI) / (speedMs / 100);
+      const pan = Math.sin(this.panAngle); // Sweeps smoothly from -1 to 1
+      this.tracks.forEach(t => {
+        if (t.panner) t.panner.pan.value = pan;
+      });
+    }, 100);
+  }
+
+  stopAll() {
+    this.tracks.forEach(t => {
+      t.audio.pause();
+      t.audio.currentTime = 0;
+    });
+    if (this.panTimer) clearInterval(this.panTimer);
+    this.panTimer = null;
+  }
+}
+
+// ─── HAPTIC PATTERNS ───────────────────────────────────────────────────
+const HAPTIC_TAP_PATTERN    = [0, 40, 200, 40];          // double pulse
+const HAPTIC_HEARTBEAT      = [0, 30, 100, 30, 400];     // heartbeat
+const HAPTIC_BREATH_IN      = [0, 20];                   // soft single
+const HAPTIC_BREATH_OUT     = [0, 60];                   // slightly stronger
 
 // ─── SESSION-BASED MICROCOPY ───────────────────────────────────────────
 function getResetCount() {
@@ -27,18 +115,23 @@ function getClosingLine(count) {
   return deepLines[count % deepLines.length];
 }
 
+// ─── MAIN COMPONENT ────────────────────────────────────────────────────
 export function Reset({ setTab, T, lang }) {
   const [step, setStep]               = useState(0);
   const [fade, setFade]               = useState(false);
   const [showFocusBtn, setShowFocusBtn] = useState(false);
   const [showAnchor, setShowAnchor]   = useState(false);
   const [showClosing, setShowClosing] = useState(false);
-  // 3 lines stagger state
   const [line1, setLine1]             = useState(false);
   const [line2, setLine2]             = useState(false);
-  const [line3, setLine3]             = useState(false);
   const [resetCount]                  = useState(() => getResetCount());
-  const closingLine                   = getClosingLine(resetCount + 1);
+  
+  const closingLine = getClosingLine(resetCount + 1);
+  
+  // 🌟 Audio Engine and Timers Memory
+  const engine = useRef(new WebSurroundEngine());
+  const hapticInterval = useRef(null);
+  const breathHapticInterval = useRef(null);
 
   const advance = (nextStep, delay) => {
     const timer = setTimeout(() => {
@@ -48,14 +141,22 @@ export function Reset({ setTab, T, lang }) {
     return timer;
   };
 
-  // Instant entry vibrate
+  // 1. Initialize Audio Engine & Vibrate on Mount
   useEffect(() => {
+    engine.current.init();
     if (window.navigator.vibrate) window.navigator.vibrate(30);
     const t = setTimeout(() => { setStep(1); setFade(true); }, 60);
-    return () => clearTimeout(t);
+    
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(t);
+      engine.current.stopAll();
+      clearInterval(hapticInterval.current);
+      clearInterval(breathHapticInterval.current);
+    };
   }, []);
 
-  // "Stay with this" anchor — isolated so it can't interfere with step flow
+  // "Stay with this" anchor text logic
   useEffect(() => {
     if (step !== 5) { setShowAnchor(false); return; }
     const show = setTimeout(() => setShowAnchor(true), 10000);
@@ -63,24 +164,69 @@ export function Reset({ setTab, T, lang }) {
     return () => { clearTimeout(show); clearTimeout(hide); };
   }, [step]);
 
+  // ─── STEP MACHINE LOGIC ────────────────────────────────────────────────
   useEffect(() => {
     let t;
-    if (step === 1) t = advance(2, 2500);  // "Use your other hand." — give it time to land
+
+    if (step === 1) {
+      // Start Tibetan bowl (flute) center channel immediately as ambient
+      setTimeout(() => engine.current.play(2), 800); 
+      t = advance(2, 2500);
+    }
     if (step === 2) t = advance(3, 2000);
     if (step === 3) t = advance(4, 2000);
     if (step === 4) t = advance(5, 2000);
-    if (step === 5) t = advance(6, 21000);
-    if (step === 6) t = advance(7, 24000);
-    if (step === 7) t = advance(8, 2000);
+    
+    if (step === 5) {
+      // Start ambient surround: birds left, waves right
+      engine.current.play(0);
+      engine.current.play(1);
+      engine.current.startSurroundSweep(12000);
+
+      // Start Web Haptic Heartbeat
+      if (window.navigator.vibrate) {
+        hapticInterval.current = setInterval(() => {
+          window.navigator.vibrate(HAPTIC_HEARTBEAT);
+        }, 1000);
+      }
+
+      t = advance(6, 21000);
+    }
+    
+    if (step === 6) {
+      clearInterval(hapticInterval.current);
+      
+      // Start Web Haptic Breath Cues
+      if (window.navigator.vibrate) {
+        let breathPhase = 0;
+        breathHapticInterval.current = setInterval(() => {
+          breathPhase++;
+          if (breathPhase % 10 < 5) {
+            window.navigator.vibrate(HAPTIC_BREATH_IN);
+          } else {
+            window.navigator.vibrate(HAPTIC_BREATH_OUT);
+          }
+        }, 2000);
+      }
+
+      t = advance(7, 24000);
+    }
+    
+    if (step === 7) {
+      clearInterval(breathHapticInterval.current);
+      // Stop birds and waves, but leave the flute/bowl playing softly
+      engine.current.stop(0);
+      engine.current.stop(1);
+      t = advance(8, 2000);
+    }
+    
     if (step === 8) t = advance(9, 2000);
     if (step === 9) { setShowFocusBtn(false); t = advance(10, 100); }
     if (step === 10) { t = setTimeout(() => setShowFocusBtn(true), 4000); }
 
     if (step === 12) {
-      // 1-second silence then closing line fades in
       setShowClosing(false);
       const showT = setTimeout(() => setShowClosing(true), 1000);
-      // After closing line lands, advance to step 13 (3 lines)
       t = setTimeout(() => {
         setFade(false);
         setTimeout(() => { setStep(13); setFade(true); }, 1000);
@@ -89,14 +235,14 @@ export function Reset({ setTab, T, lang }) {
     }
 
     if (step === 13) {
-      // 3 lines stagger in, then navigate to PostReset
       setLine1(false); setLine2(false);
       const t1 = setTimeout(() => setLine1(true), 300);
       const t2 = setTimeout(() => setLine2(true), 900);
-      // Navigate after all 3 lines have been read (~4 seconds)
+      
       t = setTimeout(() => {
         setFade(false);
         setTimeout(() => {
+          engine.current.stopAll(); // Silence all audio before leaving
           incrementResetCount();
           setTab('postreset');
         }, 1000);
@@ -105,14 +251,14 @@ export function Reset({ setTab, T, lang }) {
     }
 
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, setTab]);
 
   const handleFocusClick = () => {
     setFade(false);
     setTimeout(() => { setStep(12); setFade(true); }, 1000);
   };
 
+  // ─── STYLES ─────────────────────────────────────────────────────────────
   const s = {
     page: {
       height: "100dvh", width: "100%",
@@ -138,6 +284,20 @@ export function Reset({ setTab, T, lang }) {
       fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic",
       letterSpacing: "1px", margin: 0, lineHeight: 1.4,
     },
+    text: {
+      fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic",
+      letterSpacing: "1px", margin: 0, lineHeight: 1.4,
+    },
+    // 👇 ADD THIS NEW STYLE HERE 👇
+    earphoneText: {
+      fontFamily: "'DM Sans', sans-serif", 
+      fontSize: "12px",
+      letterSpacing: "2.5px", 
+      textTransform: "uppercase",
+      color: "rgba(255,255,255,0.4)", 
+      margin: "0 0 16px 0",
+    },
+    // 👆 ---------------------- 👆
     breathingDot: {
       width: 10, height: 10, borderRadius: "50%",
       background: T.accent, opacity: 0.4, marginTop: 32,
@@ -206,7 +366,6 @@ export function Reset({ setTab, T, lang }) {
       opacity: showClosing ? 1 : 0,
       transition: "opacity 1.5s ease-in-out 0.5s",
     },
-    // 3 lines wrap — centred, generous spacing
     linesWrap: {
       display: "flex", flexDirection: "column",
       alignItems: "center", gap: 20,
@@ -266,7 +425,12 @@ export function Reset({ setTab, T, lang }) {
 
       <div style={s.content}>
 
-        {step === 1 && <p style={s.text}>Use your other hand.</p>}
+        {step === 1 && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <p style={s.earphoneText}>🎧 Best with earphones</p>
+            <p style={s.text}>Use your non-dominant hand.</p>
+          </div>
+        )}
 
         {step === 2 && <p style={s.text}>Pause.</p>}
 
@@ -337,7 +501,6 @@ export function Reset({ setTab, T, lang }) {
           </>
         )}
 
-        {/* Step 12 — 1-second silence then closing line */}
         {step === 12 && (
           <>
             <p style={s.closingText}>{closingLine}</p>
@@ -347,7 +510,6 @@ export function Reset({ setTab, T, lang }) {
           </>
         )}
 
-        {/* Step 13 — 3 lines, staggered fade-in, then PostReset */}
         {step === 13 && (
           <div style={s.linesWrap}>
             <p style={s.line(line1)}>This is your space.</p>

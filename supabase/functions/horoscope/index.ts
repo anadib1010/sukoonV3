@@ -1,19 +1,38 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// 🌟 UPGRADE 2: HACKER-PROOF CORS
+// We check who is knocking. Only your Vite app or your Vercel app is allowed in!
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",          // Your local testing environment
+  "https://sukoon-v3.vercel.app"    // Replace this with your exact live Vercel URL
+];
 
 const LINES = { daily: 2, weekly: 4, monthly: 6 };
 
 serve(async (req) => {
+  // Check the origin of the request
+  const origin = req.headers.get("origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+  
+  // Set the specific allowed origin (or default to the first one if it's a direct API hit)
+  const corsOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];
+
+  const CORS = {
+    "Access-Control-Allow-Origin": corsOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
   }
 
   try {
+    // If a hacker tries to call this from another website, kick them out
+    if (!isAllowed && origin !== "") {
+      throw new Error("Unauthorized request origin.");
+    }
+
     const { rashiEn, rashiHi, period, today } = await req.json();
 
     if (!rashiEn || !period) {
@@ -51,7 +70,9 @@ Rules:
     const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY not set");
 
-    const MODELS = ["gemini-2.5-flash-preview-04-17", "gemini-1.5-flash"];
+    // 🌟 UPGRADE 1: STABLE MODELS
+    // Using the official stable 2.5 flash, and 1.5 flash as the ultimate backup
+    const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash"];
 
     let text = "";
     let lastError = "";

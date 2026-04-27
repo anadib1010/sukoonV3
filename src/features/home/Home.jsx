@@ -32,8 +32,12 @@ export function Home({ setTab, T, lang }) {
       transition: "opacity 0.8s ease, transform 0.8s ease",
     },
     title: {
-      fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(48px, 14vw, 64px)",
-      fontWeight: 600, margin: "0 0 4px", letterSpacing: "3px",
+      fontFamily: "'Cormorant Garamond', serif", 
+      // 👇 Reduced from 48px/64px to 32px/42px 👇
+      fontSize: "clamp(32px, 8vw, 42px)", 
+      fontWeight: 600, 
+      margin: "0 0 4px", 
+      letterSpacing: "3px",
     },
     subTitle: {
       fontFamily: "'DM Sans', sans-serif", fontSize: "11px", fontWeight: 500,
@@ -63,14 +67,21 @@ export function Home({ setTab, T, lang }) {
 
     // 💖 K-HUB BUTTON (RESTORED & IMPROVED)
     kUniverseBtn: {
-      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "12px",
-      background: `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`,
-      border: `1px solid #FF69B460`, borderRadius: "12px",
-      color: "#FF69B4", // Hot Pink
-      fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
-      fontSize: "14px", letterSpacing: "2px", cursor: "pointer",
-      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`,
+      width: "100%", 
+      maxWidth: "340px", 
+      padding: "22px 0",      // 👈 Taller than the others
+      marginBottom: "16px",   // 👈 More space below it
+      background: `linear-gradient(135deg, ${T.bg} 0%, #FF69B425 50%, ${T.bg} 100%)`,
+      border: `2px solid #FF69B460`, // 👈 Thicker 2px border
+      borderRadius: "14px",   // 👈 Slightly rounder for a premium feel
+      color: "#FF69B4", 
+      fontFamily: "'DM Sans', sans-serif", 
+      fontWeight: 800,        // 👈 Extra Bold text
+      fontSize: "16px",       // 👈 Larger text
+      letterSpacing: "2.5px", 
+      cursor: "pointer",
       transition: "all 0.3s ease",
+      animation: "kpopSuperPulse 3s ease-in-out infinite", // 👈 Using our new Super Pulse
     },
 
     // 🔮 HOROSCOPE BUTTON (Vedic cosmic purple)
@@ -94,8 +105,12 @@ export function Home({ setTab, T, lang }) {
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
     },
     resetBtn: {
-      width: "100%", maxWidth: "340px", padding: "22px 0",
-      fontSize: "17px", letterSpacing: "2px",
+      width: "100%", maxWidth: "340px", 
+      // 👇 CHANGE THESE TWO LINES TO MATCH 18px and 14px 👇
+      padding: "18px 0",
+      fontSize: "14px", 
+      letterSpacing: "2px",
+      marginBottom: "2px",
     },
     bottomContainer: {
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -153,6 +168,22 @@ export function Home({ setTab, T, lang }) {
 
   return (
     <div style={s.page}>
+      {/* 🌟 UPGRADED: Neon Pulse Animation */}
+      <style>{`
+        @keyframes kpopSuperPulse {
+          0%, 100% { 
+            transform: translateY(0px); 
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430;
+            border-color: #FF69B460;
+          }
+          50% { 
+            transform: translateY(-4px); 
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), 0 0 25px #FF69B480;
+            border-color: #FF69B4; 
+          }
+        }
+      `}</style>
+      {/* 👆 ------------------- 👆 */}
 
       {/* 1. TOP SECTION */}
       <div style={s.topSection}>
@@ -173,12 +204,12 @@ export function Home({ setTab, T, lang }) {
           onMouseEnter={(e) => {
             e.currentTarget.style.background = `linear-gradient(135deg, #FF69B415 0%, #FF69B450 50%, #FF69B415 100%)`;
             e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #FF69B440`;
-            e.currentTarget.style.transform = "translateY(-2px)";
+            // Removed manual transform so the breathing animation stays perfectly smooth!
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`;
             e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`;
-            e.currentTarget.style.transform = "translateY(0px)";
+            // Removed manual transform
           }}
         >
           {hi ? "के-पॉप और के-ड्रामा हब" : "K-POP & K-DRAMA HUB"}
