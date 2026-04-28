@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
-import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, ShadowThrottle, fetchSlowMode, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
+import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, ShadowThrottle, fetchSlowMode, blockUser, fetchBlockedIds, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
@@ -30,6 +30,7 @@ export function KDramaRoom({ setTab, T, lang }) {
   const [slowMode, setSlowMode] = useState({ enabled: false, cooldown_seconds: 30 });
   const [slowModeTimer, setSlowModeTimer] = useState(0);
   const lastSentRef = useRef(0);
+  const [blockedIds, setBlockedIds] = useState([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -38,6 +39,7 @@ export function KDramaRoom({ setTab, T, lang }) {
       setUserProfile(data);
       const { muted: isMuted } = await checkIfMuted(user.id);
       if (isMuted) setMuted(true);
+      fetchBlockedIds(user.id).then(setBlockedIds);
       const { data: banData } = await supabase.rpc('khub_check_ban', { p_user_id: user.id });
       if (banData?.status && banData.status !== 'clear') setBanInfo(banData);
     });
@@ -194,7 +196,7 @@ export function KDramaRoom({ setTab, T, lang }) {
       </div>
       <div style={s.chatArea}>
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'K-Drama Lounge में आपका स्वागत है! 🎬' : 'Welcome to the K-Drama Lounge! 🎬'}</div>}
-        {messages.map(m => {
+        {messages.filter(m => !blockedIds.includes(m.user_id)).map(m => {
           const isMe = currentUser?.id === m.user_id;
           // Image messages → render via MessageBubble (handles auth-gated fetch + blur)
           if (m.msg_type === 'image') {
@@ -207,6 +209,7 @@ export function KDramaRoom({ setTab, T, lang }) {
                 lang={hi ? 'hi' : 'en'}
                 isMine={isMe}
                 onReport={!isMe ? () => setShowReport(m) : undefined}
+                onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
                 onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
                 currentUserProfile={userProfile}
               />
@@ -222,6 +225,7 @@ export function KDramaRoom({ setTab, T, lang }) {
               lang={hi ? 'hi' : 'en'}
               isMine={isMe}
               onReport={!isMe ? () => setShowReport(m) : undefined}
+              onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
               onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
               currentUserProfile={userProfile}
               senderLabel={!isMe ? (m.avatar_emoji || '🎬') + ' ' + (m.user_email?.split('@')[0] ?? 'fan') : undefined}

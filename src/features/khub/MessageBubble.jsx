@@ -13,6 +13,8 @@ const FN_DELETE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-delete
 const COPY = {
   en: {
     nsfwHidden:   "Possibly sensitive",
+    block:        "🚫 Block user",
+    blocked:      "User blocked",
     viewAnyway:   "View anyway",
     hide:         "Hide",
     blocked:      "[Image removed by moderation]",
@@ -32,6 +34,8 @@ const COPY = {
   },
   hi: {
     nsfwHidden:   "संभावित रूप से संवेदनशील",
+    block:        "🚫 Block करें",
+    blocked:      "User block किया",
     viewAnyway:   "फिर भी देखें",
     hide:         "छिपाएँ",
     blocked:      "[मॉडरेशन द्वारा इमेज हटाई गई]",
@@ -100,10 +104,12 @@ export default function MessageBubble({
   customBubbleStyle,   // optional: override bubble background/border (preserves room styling)
   customRowStyle,      // optional: override the row wrapper style
   senderLabel,         // optional: override the sender name display
+  onBlock,             // optional: callback to block this message's sender
 }) {
   const t = COPY[lang] ?? COPY.en;
   const [revealed,       setRevealed]       = useState(false);
   const [showMenu,       setShowMenu]       = useState(false);
+  const [showActions,    setShowActions]    = useState(false);
   const [showConfirm,    setShowConfirm]    = useState(false);
   const [showReasons,    setShowReasons]    = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
@@ -183,7 +189,10 @@ export default function MessageBubble({
           </div>
         )}
 
-        <div style={bubbleStyle} onClick={() => canDelete && setShowMenu(!showMenu)}>
+        <div style={bubbleStyle} onClick={() => {
+          if (canDelete) setShowMenu(!showMenu);
+          else if (!isMine && onReport) setShowActions(prev => !prev);
+        }}>
           {isImage && !blocked && (
             <div style={{ position: "relative", marginBottom: msg.text ? 8 : 0 }}>
               <AuthedImage object_path={msg.object_path} blurred={blurred} revealed={revealed} t={t} accent={accent} onClick={() => blurred && setRevealed(!revealed)} />
@@ -218,16 +227,35 @@ export default function MessageBubble({
             </div>
           )}
 
-          {!isMine && onReport && !showMenu && (
-            <button type="button" onClick={(e) => { e.stopPropagation(); onReport(msg.id); }}
-              aria-label="Report message"
-              style={{ position: "absolute", top: 4, right: 4, background: "transparent", border: "none", color: `${text}55`, fontSize: 12, cursor: "pointer", padding: 2 }}>
-              ⚑
-            </button>
+          {!isMine && onReport && showActions && (
+            <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }} onClick={e => e.stopPropagation()}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); onReport(msg.id); setShowActions(false); }}
+                style={{ background: "#ffffff11", border: "none", color: `${text}99`, fontSize: 11, cursor: "pointer", padding: "3px 8px", borderRadius: 12 }}>
+                ⚐ Report
+              </button>
+              {onBlock && (
+                <button type="button" onClick={(e) => { e.stopPropagation(); onBlock(msg.user_id); setShowActions(false); }}
+                  style={{ background: "#ffffff11", border: "none", color: `${text}99`, fontSize: 11, cursor: "pointer", padding: "3px 8px", borderRadius: 12 }}>
+                  🚫 Block
+                </button>
+              )}
+            </div>
           )}
 
           {showMenu && canDelete && (
             <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }} onClick={e => e.stopPropagation()}>
+              {!isMine && onReport && (
+                <button type="button" onClick={() => { onReport(msg.id); setShowMenu(false); }}
+                  style={{ background: "#ffffff11", border: "none", color: `${text}99`, fontSize: 11, cursor: "pointer", padding: "3px 8px", borderRadius: 12 }}>
+                  ⚐ Report
+                </button>
+              )}
+              {!isMine && onBlock && (
+                <button type="button" onClick={() => { onBlock(msg.user_id); setShowMenu(false); }}
+                  style={{ background: "#ffffff11", border: "none", color: `${text}99`, fontSize: 11, cursor: "pointer", padding: "3px 8px", borderRadius: 12 }}>
+                  🚫 Block
+                </button>
+              )}
               <button type="button"
                 onClick={() => {
                   const dtype = resolveDeleteType();

@@ -255,6 +255,30 @@ export async function fetchSlowMode(roomName) {
 }
 
 // ══════════════════════════════════════════════════════
+// 3e. USER BLOCK LIST
+// ══════════════════════════════════════════════════════
+
+export async function blockUser(blockerId, blockedId) {
+  if (!blockerId || !blockedId || blockerId === blockedId) return;
+  try {
+    await supabase.from('khub_user_blocks').insert({ blocker_id: blockerId, blocked_id: blockedId });
+  } catch (_) {}
+}
+
+export async function fetchBlockedIds(userId) {
+  if (!userId) return [];
+  try {
+    const { data } = await supabase
+      .from('khub_user_blocks')
+      .select('blocked_id')
+      .eq('blocker_id', userId);
+    return data?.map(r => r.blocked_id) ?? [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// ══════════════════════════════════════════════════════
 // 4. REPUTATION SYSTEM
 // ══════════════════════════════════════════════════════
 
