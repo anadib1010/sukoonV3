@@ -78,6 +78,8 @@ export default function MemeUploader({
   const toast = (msg, kind = "info") => onToast?.(msg, kind);
 
   async function onPick(e) {
+    e.target.value = "";
+    if (disabled) return;
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -101,7 +103,7 @@ export default function MemeUploader({
   }
 
   async function send() {
-    if (!preview || busy) return;
+    if (!preview || busy || disabled) return;
     setBusy(true);
     try {
       const result = await uploadAndSendMeme({
@@ -156,6 +158,7 @@ export default function MemeUploader({
           <input
             ref={fileRef} type="file" accept="image/*"
             onChange={onPick} style={{ display: "none" }}
+            disabled={disabled}
           />
         </>
       )}

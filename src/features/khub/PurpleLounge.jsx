@@ -32,7 +32,7 @@ export function PurpleLounge({ setTab, T, lang }) {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       setCurrentUser(user);
-      const { data } = await supabase.from('profiles').select('rep_score, trust_level, is_admin').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('rep_score, trust_level, is_admin, strike_count').eq('id', user.id).single();
       setUserProfile(data);
       const { muted: isMuted, expiresAt } = await checkIfMuted(user.id);
         if (isMuted) { setMuted(true); setMuteUntil(expiresAt); }
@@ -228,7 +228,6 @@ export function PurpleLounge({ setTab, T, lang }) {
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Purple Lounge में share करें... 💜' : 'Share your purple energy... 💜'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
         <MemeUploader
-          disabled={isShadowRestricted(userProfile)}
           room="purple"
           roomName={ROOM_NAME}
           accent={PURPLE_COL}
@@ -237,7 +236,7 @@ export function PurpleLounge({ setTab, T, lang }) {
           lang={hi ? 'hi' : 'en'}
           onSent={() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
           onToast={(text, type) => showToast(text, type === 'error' ? 'error' : type === 'warn' ? 'warn' : 'ok')}
-          disabled={muted}
+          disabled={muted || isShadowRestricted(userProfile)}
         />
         <button style={s.sendBtn} onClick={sendMessage}>💜</button>
       </div>

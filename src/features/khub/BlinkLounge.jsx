@@ -31,7 +31,7 @@ export function BlinkLounge({ setTab, T, lang }) {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       setCurrentUser(user);
-      const { data } = await supabase.from('profiles').select('rep_score, trust_level, is_admin').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('rep_score, trust_level, is_admin, strike_count').eq('id', user.id).single();
       setUserProfile(data);
       const { muted: isMuted } = await checkIfMuted(user.id);
       if (isMuted) setMuted(true);
@@ -214,7 +214,6 @@ export function BlinkLounge({ setTab, T, lang }) {
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Blink Lounge में share करें... 🌸' : 'Share your Blink energy... 🌸'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
         <MemeUploader
-          disabled={isShadowRestricted(userProfile)}
           room="blink"
           roomName={ROOM_NAME}
           accent={BLINK_COL}
@@ -223,7 +222,7 @@ export function BlinkLounge({ setTab, T, lang }) {
           lang={hi ? 'hi' : 'en'}
           onSent={() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
           onToast={(text, type) => showToast(text, type === 'error' ? 'error' : type === 'warn' ? 'warn' : 'ok')}
-          disabled={muted}
+          disabled={muted || isShadowRestricted(userProfile)}
         />
         <button style={s.sendBtn} onClick={sendMessage}>🌸</button>
       </div>
