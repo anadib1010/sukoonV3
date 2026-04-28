@@ -235,6 +235,26 @@ export class ShadowThrottle {
 }
 
 // ══════════════════════════════════════════════════════
+// 3d. PER-ROOM SLOW MODE
+//     Fetches slow mode config from Supabase on mount.
+//     Subscribes to realtime changes — no deploy needed to toggle.
+// ══════════════════════════════════════════════════════
+
+export async function fetchSlowMode(roomName) {
+  try {
+    const { data, error } = await supabase
+      .from('khub_slow_mode')
+      .select('enabled, cooldown_seconds')
+      .eq('room_name', roomName)
+      .single();
+    if (error || !data) return { enabled: false, cooldown_seconds: 30 };
+    return data;
+  } catch (_) {
+    return { enabled: false, cooldown_seconds: 30 };
+  }
+}
+
+// ══════════════════════════════════════════════════════
 // 4. REPUTATION SYSTEM
 // ══════════════════════════════════════════════════════
 

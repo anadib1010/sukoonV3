@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
-import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, ShadowThrottle, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
+import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, ShadowThrottle, fetchSlowMode, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
@@ -26,6 +26,10 @@ export function KDramaRoom({ setTab, T, lang }) {
   const [heartCount, setHeartCount] = useState(0);
   const scrollRef = useRef(null);
   const { hearts, spawnHeart } = useHearts();
+  // ADD after existing useState declarations:
+  const [slowMode, setSlowMode] = useState({ enabled: false, cooldown_seconds: 30 });
+  const [slowModeTimer, setSlowModeTimer] = useState(0);
+  const lastSentRef = useRef(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -42,9 +46,14 @@ export function KDramaRoom({ setTab, T, lang }) {
   useEffect(() => {
     supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible').order('created_at', { ascending: true }).limit(100).then(({ data }) => { if (data) setMessages(data); });
     const sub = supabase.channel('kdrama_live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'khub_messages', filter: `room_name=eq.${ROOM_NAME}` }, (p) => { if (p.new.status === 'visible') setMessages(prev => [...prev, p.new]); }).subscribe();
-    return () => { supabase.removeChannel(sub); };
+    fetchSlowMode(ROOM_NAME).then(setSlowMode);
+    const slowSub = supabase
+      .channel('slow_mode_blink')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'khub_slow_mode', filter: `room_name=eq.${ROOM_NAME}` },
+        (p) => setSlowMode({ enabled: p.new.enabled, cooldown_seconds: p.new.cooldown_seconds })
+      ).subscribe();
+    return () => { supabase.removeChannel(sub); supabase.removeChannel(slowSub); };
   }, []);
-
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
@@ -55,10 +64,19 @@ export function KDramaRoom({ setTab, T, lang }) {
     const dup = dupDetector.check(input.trim(), hi);
     if (!dup.allowed) { if (dup.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(dup.warning, 'warn'); return; }
     if (isShadowRestricted(userProfile)) { if (!shadowThrottle.check().allowed) return; }
+    if (slowMode.enabled) {
+      const elapsed = Date.now() - lastSentRef.current;
+      const wait = slowMode.cooldown_seconds * 1000;
+      if (elapsed < wait) {
+        const secs = Math.ceil((wait - elapsed) / 1000);
+        showToast(hi ? `🐢 Slow mode चालू है। ${secs} सेकंड रुकें।` : `🐢 Slow mode is on. Wait ${secs}s.`, 'warn');
+        return;
+      }
+    }
     if (input.length > 500) { showToast('Max 500 characters', 'warn'); return; }
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
-    const t = input.trim(); setInput('');
+    const textToSend = input.trim(); setInput('');
 
     // Send via Edge Function (server re-checks toxicity, rate limit, length)
     try {
@@ -73,7 +91,7 @@ export function KDramaRoom({ setTab, T, lang }) {
           room: 'kdrama',
           roomName: ROOM_NAME,
           msg_type: 'text',
-          text: t,
+          text: textToSend,
           avatar_emoji: '🎬',
         }),
       });
@@ -83,11 +101,12 @@ export function KDramaRoom({ setTab, T, lang }) {
         return;
       }
       await updateRepScore(currentUser.id, REP_POINTS.GOOD_MESSAGE);
+      lastSentRef.current = Date.now();
     } catch (err) {
       showToast(hi ? `❌ Network error` : `❌ Network error`, 'error');
     }
   };
-
+  
   const handleReport = async (msg, reason) => {
     if (!currentUser) return;
     const { reported, autoHidden } = await submitReport(msg.id, currentUser.id, reason, msg.user_id);
