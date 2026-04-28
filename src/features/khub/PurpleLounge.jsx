@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
-import {
-  checkToxicity, SpamLimiter, updateRepScore,
-  submitReport, checkIfMuted, REP_POINTS,
-  getTrustLevel, getTrustLabel,
-} from './moderation';
+import { checkToxicity, SpamLimiter, DuplicateDetector, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation'
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
@@ -13,7 +9,7 @@ import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './Floatin
 const ROOM_NAME  = 'Purple Lounge';
 const PURPLE_COL = '#9B59B6';
 const HEART_CFG  = HEART_CONFIGS.purple;
-const spamLimiter = new SpamLimiter(5, 10);
+const dupDetector = new DuplicateDetector(3, 300);
 
 export function PurpleLounge({ setTab, T, lang }) {
   const hi = lang === 'Hindi';
@@ -65,8 +61,8 @@ export function PurpleLounge({ setTab, T, lang }) {
     if (muted) { showToast(hi ? `🚫 आप म्यूट हैं।` : `🚫 You are muted.`, 'error'); return; }
     const level = getTrustLevel(userProfile?.rep_score ?? 0);
     if (level === 0) { showToast(hi ? '⚠️ Account restricted।' : '⚠️ Account restricted.', 'error'); return; }
-    const spam = spamLimiter.check(hi);
-    if (!spam.allowed) { if (spam.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(spam.warning, 'warn'); return; }
+    const dup = dupDetector.check(input.trim(), hi);
+    if (!dup.allowed) { if (dup.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(dup.warning, 'warn'); return; }
     if (input.length > 500) { showToast(hi ? 'Max 500 characters' : 'Max 500 characters', 'warn'); return; }
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }

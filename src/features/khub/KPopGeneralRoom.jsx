@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
-import { checkToxicity, SpamLimiter, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
+import { checkToxicity, SpamLimiter, DuplicateDetector, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
@@ -9,7 +9,7 @@ import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './Floatin
 const ROOM_NAME = "General K-Pop";
 const POP_COL = "#FF69B4";
 const HEART_CFG = HEART_CONFIGS.kpop
-const spamLimiter2 = new SpamLimiter(5, 10);
+const dupDetector = new DuplicateDetector(3, 300);
 
 export function KPopGeneralRoom({ setTab, T, lang }) {
   const hi = lang === 'Hindi';
@@ -34,6 +34,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
       const { muted: isMuted } = await checkIfMuted(user.id);
       if (isMuted) setMuted(true);
       const { data: banData } = await supabase.rpc('khub_check_ban', { p_user_id: user.id });
+      
       if (banData?.status && banData.status !== 'clear') setBanInfo(banData);
     });
   }, []);
@@ -51,8 +52,8 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
     if (!input.trim() || !currentUser) return;
     if (muted) { showToast(hi ? '🚫 आप म्यूट हैं।' : '🚫 You are muted.', 'error'); return; }
     if (getTrustLevel(userProfile?.rep_score ?? 0) === 0) { showToast('⚠️ Account restricted.', 'error'); return; }
-    const spam = spamLimiter2.check(hi);
-    if (!spam.allowed) { if (spam.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(spam.warning, 'warn'); return; }
+    const dup = dupDetector.check(input.trim(), hi);
+    if (!dup.allowed) { if (dup.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(dup.warning, 'warn'); return; }
     if (input.length > 500) { showToast('Max 500 characters', 'warn'); return; }
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }

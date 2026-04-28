@@ -158,6 +158,56 @@ export class SpamLimiter {
 }
 
 // ══════════════════════════════════════════════════════
+// 3b. DUPLICATE MESSAGE DETECTOR
+//     Same message sent 3+ times within 5 minutes = auto-mute
+// ══════════════════════════════════════════════════════
+
+export class DuplicateDetector {
+  constructor(maxRepeats = 3, windowSeconds = 300) {
+    this.maxRepeats = maxRepeats;
+    this.window     = windowSeconds * 1000;
+    this.history    = [];
+  }
+
+  check(text, hi = false) {
+    if (!text || !text.trim()) return { allowed: true };
+
+    const now        = Date.now();
+    const normalized = text.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    this.history = this.history.filter(e => now - e.ts < this.window);
+
+    const count = this.history.filter(e => e.normalized === normalized).length;
+
+    if (count >= this.maxRepeats) {
+      return {
+        allowed: false,
+        muted:   true,
+        warning: hi
+          ? `🚫 एक ही message बार-बार मत भेजें। Spam के लिए mute किया जा रहा है।`
+          : `🚫 Stop sending the same message repeatedly. You've been muted for spam.`,
+      };
+    }
+
+    if (count === this.maxRepeats - 1) {
+      this.history.push({ normalized, ts: now });
+      return {
+        allowed: false,
+        muted:   false,
+        warning: hi
+          ? `⚠️ यह message आप पहले भेज चुके हैं। अगली बार mute होगा।`
+          : `⚠️ You've already sent this message. One more repeat = mute.`,
+      };
+    }
+
+    this.history.push({ normalized, ts: now });
+    return { allowed: true };
+  }
+
+  reset() { this.history = []; }
+}
+
+// ══════════════════════════════════════════════════════
 // 4. REPUTATION SYSTEM
 // ══════════════════════════════════════════════════════
 
