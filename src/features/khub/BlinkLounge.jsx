@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
-import { checkToxicity, SpamLimiter, DuplicateDetector, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
+import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, ShadowThrottle, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
@@ -10,6 +10,7 @@ const ROOM_NAME = 'Blink Lounge';
 const BLINK_COL = '#E91E8C';
 const HEART_CFG = HEART_CONFIGS.blink;
 const dupDetector = new DuplicateDetector(3, 300);
+const shadowThrottle = new ShadowThrottle(8);
 
 export function BlinkLounge({ setTab, T, lang }) {
   const hi = lang === 'Hindi';
@@ -55,6 +56,7 @@ export function BlinkLounge({ setTab, T, lang }) {
     if (getTrustLevel(userProfile?.rep_score ?? 0) === 0) { showToast(hi ? '⚠️ Account restricted.' : '⚠️ Account restricted.', 'error'); return; }
     const dup = dupDetector.check(input.trim(), hi);
     if (!dup.allowed) { if (dup.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(dup.warning, 'warn'); return; }
+    if (isShadowRestricted(userProfile)) { if (!shadowThrottle.check().allowed) return; }
     if (input.length > 500) { showToast('Max 500 characters', 'warn'); return; }
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
@@ -212,6 +214,7 @@ export function BlinkLounge({ setTab, T, lang }) {
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Blink Lounge में share करें... 🌸' : 'Share your Blink energy... 🌸'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
         <MemeUploader
+          disabled={isShadowRestricted(userProfile)}
           room="blink"
           roomName={ROOM_NAME}
           accent={BLINK_COL}

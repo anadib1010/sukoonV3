@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
-import { checkToxicity, SpamLimiter, DuplicateDetector, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
+import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, ShadowThrottle, updateRepScore, submitReport, checkIfMuted, REP_POINTS, getTrustLevel, getTrustLabel } from './moderation';
 import MemeUploader from './MemeUploader';
 import RulesGate from './RulesGate';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
@@ -10,6 +10,7 @@ const ROOM_NAME = 'Lavender Lounge';
 const LAV_COL = '#A18CD1';
 const HEART_CFG = HEART_CONFIGS.lavender;
 const dupDetector = new DuplicateDetector(3, 300);
+const shadowThrottle = new ShadowThrottle(8);
 
 export function KLavenderLoungeChat({ setTab, T, lang }) {
   const hi = lang === 'Hindi';
@@ -53,6 +54,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
     if (getTrustLevel(userProfile?.rep_score ?? 0) === 0) { showToast('⚠️ Account restricted.', 'error'); return; }
     const dup = dupDetector.check(input.trim(), hi);
     if (!dup.allowed) { if (dup.muted) setMuted(true); await updateRepScore(currentUser.id, REP_POINTS.SPAM_WARNED); showToast(dup.warning, 'warn'); return; }
+    if (isShadowRestricted(userProfile)) { if (!shadowThrottle.check().allowed) return; }
     if (input.length > 500) { showToast('Max 500 characters', 'warn'); return; }
     const { toxic, reason } = checkToxicity(input);
     if (toxic) { await updateRepScore(currentUser.id, REP_POINTS.TOXIC_MESSAGE); showToast(hi ? `"${reason}" allowed नहीं 🙏` : `"${reason}" isn't allowed 🙏`, 'error'); return; }
@@ -213,6 +215,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Share करें... 🪻' : 'Share your thoughts... 🪻'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
         <MemeUploader
+          disabled={isShadowRestricted(userProfile)}
           room="lavender"
           roomName={ROOM_NAME}
           accent={LAV_COL}

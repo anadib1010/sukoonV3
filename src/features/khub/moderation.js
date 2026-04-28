@@ -208,6 +208,33 @@ export class DuplicateDetector {
 }
 
 // ══════════════════════════════════════════════════════
+// 3c. SHADOW RESTRICT
+//     Users with strike_count >= 3 OR rep_score < -15
+//     are silently throttled. They don't know.
+// ══════════════════════════════════════════════════════
+
+export function isShadowRestricted(profile) {
+  if (!profile) return false;
+  return (profile.strike_count >= 3) || (profile.rep_score < -15);
+}
+
+export class ShadowThrottle {
+  constructor(cooldownSeconds = 8) {
+    this.cooldown = cooldownSeconds * 1000;
+    this.lastSent = 0;
+  }
+
+  check() {
+    const now = Date.now();
+    if (now - this.lastSent < this.cooldown) {
+      return { allowed: false };
+    }
+    this.lastSent = now;
+    return { allowed: true };
+  }
+}
+
+// ══════════════════════════════════════════════════════
 // 4. REPUTATION SYSTEM
 // ══════════════════════════════════════════════════════
 
