@@ -32,6 +32,8 @@ export function PurpleLounge({ setTab, T, lang }) {
   const [slowModeTimer, setSlowModeTimer] = useState(0);
   const lastSentRef = useRef(0);
   const [blockedIds, setBlockedIds] = useState([]);
+  const [bulletin, setBulletin] = useState(null);
+  const [showBulletin, setShowBulletin] = useState(true);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -57,6 +59,7 @@ export function PurpleLounge({ setTab, T, lang }) {
         (payload) => { if (payload.new.status === 'visible') setMessages(prev => [...prev, payload.new]); })
       .subscribe();
     fetchSlowMode(ROOM_NAME).then(setSlowMode);
+    supabase.from('khub_bulletins').select('content').eq('room_name', ROOM_NAME).eq('is_active', true).single().then(({ data }) => { if (data) setBulletin(data.content); });
     const slowSub = supabase
       .channel('slow_mode_blink')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'khub_slow_mode', filter: `room_name=eq.${ROOM_NAME}` },
@@ -208,6 +211,15 @@ export function PurpleLounge({ setTab, T, lang }) {
         </div>
       </div>
 
+      {bulletin && showBulletin && (
+        <div style={{ background: '#ffffff08', borderBottom: '1px solid #ffffff15', padding: '8px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          onClick={() => setShowBulletin(false)}>
+          <span style={{ fontSize: 12, color: PURPLE_COL, fontFamily: "'DM Sans', sans-serif", flex: 1, lineHeight: 1.4 }}>
+            {"🤖 " + bulletin.split('\n').filter(l => l.trim() && !l.startsWith('Fan bulletin') && !l.startsWith('AI Fan'))[0]}
+          </span>
+          <span style={{ fontSize: 11, opacity: 0.4, marginLeft: 8, whiteSpace: 'nowrap' }}>📌 tap to close</span>
+        </div>
+      )}
       <div style={s.chatArea}>
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'Purple Lounge में आपका स्वागत है! 💜' : 'Welcome to the Purple Lounge! 💜'}</div>}
         {messages.filter(m => !blockedIds.includes(m.user_id)).map(m => {
