@@ -78,8 +78,7 @@ export default function MemeUploader({
   const toast = (msg, kind = "info") => onToast?.(msg, kind);
 
   async function onPick(e) {
-    e.target.value = "";
-    if (disabled) return;
+    if (disabled) { e.target.value = ""; return; }
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
