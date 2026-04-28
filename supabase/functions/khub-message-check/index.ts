@@ -163,7 +163,17 @@ serve(async (req) => {
 
     if (isToxic(text)) {
       await admin.rpc("khub_adjust_rep", { p_user_id: user.id, p_delta: -10 });
-      return json(403, { error: "toxic", message: "Message blocked. -10 reputation." });
+      const strike = await admin.rpc("khub_issue_strike", {
+        p_target_user_id: user.id,
+        p_reason:         "toxic_text",
+        p_issued_by:      user.id,
+        p_room_id:        null,
+      });
+      return json(403, {
+        error:      "toxic",
+        message:    "Message blocked. -10 reputation.",
+        strike:     strike.data,
+      });
     }
 
     const { error: insErr } = await admin.from("khub_messages").insert({

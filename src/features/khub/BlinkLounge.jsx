@@ -21,6 +21,7 @@ export function BlinkLounge({ setTab, T, lang }) {
   const [showReport, setShowReport] = useState(null);
   const [toast, setToast] = useState(null);
   const [muted, setMuted] = useState(false);
+  const [banInfo, setBanInfo] = useState(null);
   const [heartCount, setHeartCount] = useState(0);
   const scrollRef = useRef(null);
   const { hearts, spawnHeart } = useHearts();
@@ -33,6 +34,8 @@ export function BlinkLounge({ setTab, T, lang }) {
       setUserProfile(data);
       const { muted: isMuted } = await checkIfMuted(user.id);
       if (isMuted) setMuted(true);
+      const { data: banData } = await supabase.rpc('khub_check_ban', { p_user_id: user.id });
+      if (banData?.status && banData.status !== 'clear') setBanInfo(banData);
     });
   }, []);
 
@@ -139,7 +142,22 @@ export function BlinkLounge({ setTab, T, lang }) {
   ];
 
   const reportReasons = hi ? ['घृणास्पद भाषा', 'Spam', 'NSFW', 'Fandom Attack', 'Piracy link', 'अन्य'] : ['Hate speech', 'Spam', 'NSFW content', 'Fandom attack', 'Piracy link', 'Other'];
-
+  if (banInfo) {
+    const isPermanent = banInfo.status === 'ban_permanent'; const isMuted = banInfo.status === 'mute_1h'; const is24h = banInfo.status === 'ban_24h'; const expiresAt = banInfo.expires_at ? new Date(banInfo.expires_at).toLocaleString() : null; const statusLabel = isPermanent ? 'Permanently Banned' : isMuted ? 'Muted for 1 Hour' : is24h ? 'Banned for 24 Hours' : 'Restricted';
+    return (
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: T.bg, color: T.text, padding: 32, textAlign: 'center' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: BLINK_COL, marginBottom: 8 }}>
+          {statusLabel}
+        </h2>
+        <p style={{ fontSize: 14, opacity: 0.6, maxWidth: 280, lineHeight: 1.6 }}>
+          {isPermanent ? 'Your account has been permanently banned from K-Hub.' : 'This restriction expires at ' + expiresAt + '.'}
+        </p>
+        <p style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>{isMuted ? 'You can chat again after 1 hour.' : is24h ? 'You have been banned for 24 hours.' : isPermanent ? 'This ban is permanent.' : ''}</p>
+        <button onClick={() => setTab('khub')} style={{ marginTop: 24, padding: '10px 24px', background: BLINK_COL, border: 'none', borderRadius: 20, color: '#fff', cursor: 'pointer', fontSize: 14 }}>Go Back</button>
+      </div>
+    );
+  }
   return (
     <RulesGate lang={hi ? 'hi' : 'en'} T={T} accent="#E91E8C">
     <div style={s.container}>
