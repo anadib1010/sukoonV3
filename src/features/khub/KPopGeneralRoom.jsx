@@ -67,7 +67,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   // ─── LOGOUT ───
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setTab('home');
+    window.location.href = '/';
   };
 
   const sendMessage = async () => {
@@ -131,7 +131,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   const c = POP_COL;
   const s = {
     container: { height: '100dvh', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, position: 'relative', overflow: 'hidden' },
-    header: { padding: '52px 20px 14px', background: `linear-gradient(180deg, ${c}18 0%, transparent 100%)`, borderBottom: `1px solid ${c}28`, textAlign: 'center' },
+    header: { padding: '52px 20px 14px', background: `linear-gradient(180deg, ${c}18 0%, transparent 100%)`, borderBottom: `1px solid ${c}28`, textAlign: 'center', position: 'relative' },
     title: { fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 700, color: c, letterSpacing: '1px', margin: 0 },
     badge: { display: 'inline-block', marginTop: '5px', background: `${c}18`, border: `1px solid ${c}40`, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: c, opacity: 0.85 },
     headerActions: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '8px' },

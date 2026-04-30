@@ -67,7 +67,7 @@ export function BlinkLounge({ setTab, T, lang }) {
   // ─── LOGOUT ───
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setTab('home');
+    window.location.href = '/';
   };
 
   const sendMessage = async () => {
@@ -129,7 +129,7 @@ export function BlinkLounge({ setTab, T, lang }) {
 
   const s = {
     container: { height: '100dvh', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, position: 'relative', overflow: 'hidden' },
-    header: { padding: '52px 20px 14px', background: `linear-gradient(180deg, ${BLINK_COL}18 0%, transparent 100%)`, borderBottom: `1px solid ${BLINK_COL}30`, textAlign: 'center' },
+    header: { padding: '52px 20px 14px', background: `linear-gradient(180deg, ${BLINK_COL}18 0%, transparent 100%)`, borderBottom: `1px solid ${BLINK_COL}30`, textAlign: 'center', position: 'relative' },
     title: { fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 700, color: BLINK_COL, letterSpacing: '1px', margin: 0 },
     badge: { display: 'inline-block', marginTop: '5px', background: `${BLINK_COL}15`, border: `1px solid ${BLINK_COL}40`, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: BLINK_COL, opacity: 0.85 },
     headerActions: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '8px' },
