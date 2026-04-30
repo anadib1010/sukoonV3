@@ -1309,7 +1309,7 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 28px rgba(140,80,255,0.45)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 18px rgba(120,60,220,0.25)'}
             >
-              🌸 {hi ? 'चैट रूम में जाएं' : 'Enter Chat Rooms'}
+              💜 {hi ? 'चैट रूम में जाएं' : 'Enter Chat Rooms'}
             </button>
           </div>
         </div>
