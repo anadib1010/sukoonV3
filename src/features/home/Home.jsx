@@ -189,7 +189,7 @@ export function Home({ setTab, T, lang }) {
 
       {/* 1. TOP SECTION */}
       <div style={s.topSection}>
-        <h1 style={s.title}>J Sukoon</h1>
+        <h1 style={s.title}>J Su Kun</h1>
         <p style={s.subTitle}>{hi ? "स्पष्ट दिमाग। फिर आगे।" : "CLEAR HEAD. THEN CONTINUE."}</p>
         <p style={s.greeting}>{greeting}</p>
         <p style={s.quote}>"{quote}"</p>

@@ -48,6 +48,7 @@ import { PostReset }      from './components/PostReset';
 import { Reset }          from './components/Reset';
 import { DeepDoor }       from './components/DeepDoor';
 import SukoonChat         from './components/SukoonChat';
+import { PinkSanctuary } from './features/khub/PinkSanctuary';
 
 // ─── K-UNIVERSE IMPORTS ───────────────────────────────────────────────────────
 import { KHub }                from './features/khub/KHub';
@@ -314,58 +315,58 @@ function AppContent() {
 
     // ─── PAGE TITLES ───
   const PAGE_TITLES_EN = {
-    home: "JSukoon — Home", reset: "JSukoon — Reset", postreset: "JSukoon — Ready",
-    more: "JSukoon — More", vaultdoor: "JSukoon — The Quieter Place",
-    exploremore: "JSukoon — Explore More", bench: "JSukoon — The Bench",
-    journal: "JSukoon — Journal", audio: "JSukoon — Audio", focus: "JSukoon — Focus",
-    practice: "JSukoon — Practice", warmth: "JSukoon — Warmth",
-    progress: "JSukoon — Progress", settings: "JSukoon — Settings",
-    reflection: "JSukoon — Reflection", vault: "JSukoon — The Vault",
-    resonance: "JSukoon — Resonance", stillness: "JSukoon — Stillness",
-    sleep: "JSukoon — Sleep", crisis: "JSukoon — Crisis Support",
-    about: "JSukoon — About", privacy: "JSukoon — Privacy",
-    terms: "JSukoon — Terms", legal: "JSukoon — Legal",
-    moodaction: "JSukoon — Mood Response", community: "JSukoon — Community",
-    quietcorner: "JSukoon — Quiet Corner", soundbath: "JSukoon — Sound Bath",
-    mandala: "JSukoon — Mandala Flow", seedinmud: "JSukoon — Seed in the Mud",
-    chat: "JSukoon — Secure Chat",
+    home: "J Su Kun — Home", reset: "J Su Kun — Reset", postreset: "J Su Kun — Ready",
+    more: "J Su Kun — More", vaultdoor: "J Su Kun — The Quieter Place",
+    exploremore: "J Su Kun — Explore More", bench: "J Su Kun — The Bench",
+    journal: "J Su Kun — Journal", audio: "J Su Kun — Audio", focus: "J Su Kun — Focus",
+    practice: "J Su Kun — Practice", warmth: "J Su Kun — Warmth",
+    progress: "J Su Kun — Progress", settings: "J Su Kun — Settings",
+    reflection: "J Su Kun — Reflection", vault: "J Su Kun — The Vault",
+    resonance: "J Su Kun — Resonance", stillness: "J Su Kun — Stillness",
+    sleep: "J Su Kun — Sleep", crisis: "J Su Kun — Crisis Support",
+    about: "J Su Kun — About", privacy: "J Su Kun — Privacy",
+    terms: "J Su Kun — Terms", legal: "J Su Kun — Legal",
+    moodaction: "J Su Kun — Mood Response", community: "J Su Kun — Community",
+    quietcorner: "J Su Kun — Quiet Corner", soundbath: "J Su Kun — Sound Bath",
+    mandala: "J Su Kun — Mandala Flow", seedinmud: "J Su Kun — Seed in the Mud",
+    chat: "J Su Kun — Secure Chat",
     // ─── K-Universe titles ───
-    khub:         "JSukoon — K-Universe",
-    chat_lavender:"JSukoon — Lavender Lounge",
-    chat_kpop:    "JSukoon — K-Pop Room",
-    chat_kdrama:  "JSukoon — K-Drama Lounge",
-    chat_purple:  "JSukoon — Purple Lounge",   // 💜 NEW
-    chat_blink:   "JSukoon — Blink Lounge",    // 🌸 NEW
+    khub:         "J Su Kun — K-Universe",
+    chat_lavender:"J Su Kun — Lavender Lounge",
+    chat_kpop:    "J Su Kun — K-Pop Room",
+    chat_kdrama:  "J Su Kun — K-Drama Lounge",
+    chat_purple:  "J Su Kun — Purple Lounge",   // 💜
+    chat_blink:   "J Su Kun — Blink Lounge",    // 🌸
   };
 
   const PAGE_TITLES_HI = {
-    home: "JSukoon — होम", reset: "JSukoon — रीसेट", postreset: "JSukoon — तैयार",
-    more: "JSukoon — और", vaultdoor: "JSukoon — शांत स्थान",
-    exploremore: "JSukoon — और खोजें", bench: "JSukoon — बेंच",
-    journal: "JSukoon — जर्नल", audio: "JSukoon — ऑडियो", focus: "JSukoon — फ़ोकस",
-    practice: "JSukoon — अभ्यास", warmth: "JSukoon — गर्माहट",
-    progress: "JSukoon — प्रगति", settings: "JSukoon — सेटिंग्स",
-    reflection: "JSukoon — चिंतन", vault: "JSukoon — वॉल्ट",
-    resonance: "JSukoon — अनुनाद", stillness: "JSukoon — स्थिरता",
-    sleep: "JSukoon — नींद", crisis: "JSukoon — संकट सहायता",
-    about: "JSukoon — हमारे बारे में", privacy: "JSukoon — गोपनीयता",
-    terms: "JSukoon — शर्तें", legal: "JSukoon — कानूनी",
-    moodaction: "JSukoon — मूड प्रतिक्रिया", community: "JSukoon — समुदाय",
-    quietcorner: "JSukoon — शांत कोना", soundbath: "JSukoon — ध्वनि स्नान",
-    mandala: "JSukoon — मंडला", seedinmud: "JSukoon — कीचड़ में बीज",
-    chat: "JSukoon — सुरक्षित चैट",
+    home: "J Su Kun — होम", reset: "J Su Kun — रीसेट", postreset: "J Su Kun — तैयार",
+    more: "J Su Kun — और", vaultdoor: "J Su Kun — शांत स्थान",
+    exploremore: "J Su Kun — और खोजें", bench: "J Su Kun — बेंच",
+    journal: "J Su Kun — जर्नल", audio: "J Su Kun — ऑडियो", focus: "J Su Kun — फ़ोकस",
+    practice: "J Su Kun — अभ्यास", warmth: "J Su Kun — गर्माहट",
+    progress: "J Su Kun — प्रगति", settings: "J Su Kun — सेटिंग्स",
+    reflection: "J Su Kun — चिंतन", vault: "J Su Kun — वॉल्ट",
+    resonance: "J Su Kun — अनुनाद", stillness: "J Su Kun — स्थिरता",
+    sleep: "J Su Kun — नींद", crisis: "J Su Kun — संकट सहायता",
+    about: "J Su Kun — हमारे बारे में", privacy: "J Su Kun — गोपनीयता",
+    terms: "J Su Kun — शर्तें", legal: "J Su Kun — कानूनी",
+    moodaction: "J Su Kun — मूड प्रतिक्रिया", community: "J Su Kun — समुदाय",
+    quietcorner: "J Su Kun — शांत कोना", soundbath: "J Su Kun — ध्वनि स्नान",
+    mandala: "J Su Kun — मंडला", seedinmud: "J Su Kun — कीचड़ में बीज",
+    chat: "J Su Kun — सुरक्षित चैट",
     // ─── K-Universe titles ───
-    khub:         "JSukoon — के-यूनिवर्स",
-    chat_lavender:"JSukoon — लैवेंडर लाउंज",
-    chat_kpop:    "JSukoon — के-पॉप रूम",
-    chat_kdrama:  "JSukoon — के-ड्रामा लाउंज",
-    chat_purple:  "JSukoon — पर्पल लाउंज",   // 💜 NEW
-    chat_blink:   "JSukoon — ब्लिंक लाउंज",  // 🌸 NEW
+    khub:         "J Su Kun — के-यूनिवर्स",
+    chat_lavender:"J Su Kun — लैवेंडर लाउंज",
+    chat_kpop:    "J Su Kun — के-पॉप रूम",
+    chat_kdrama:  "J Su Kun — के-ड्रामा लाउंज",
+    chat_purple:  "J Su Kun — पर्पल लाउंज",   // 💜
+    chat_blink:   "J Su Kun — ब्लिंक लाउंज",  // 🌸
   };
 
   const setPageTitle = (page) => {
     const titles = lang === "Hindi" ? PAGE_TITLES_HI : PAGE_TITLES_EN;
-    document.title = titles[page] || "JSukoon";
+    document.title = titles[page] || "J Su Kun";
   };
 
   const PROTECTED_REASONS = {
@@ -415,11 +416,9 @@ function AppContent() {
 
   // ── BYPASS ONBOARDING FOR DIRECT SANCTUARY LINKS ──
   if (!hasOnboarded) {
-    if (location.pathname === '/purple_sanctuary') {
-      // Save onboarded so they don't see it next time either
+    if (location.pathname === '/purple_sanctuary' || location.pathname === '/pink_sanctuary') {
       localStorage.setItem("jsukoon_onboarded", "true");
       setHasOnboarded(true);
-      // Fall through to render the app — route already points to sanctuary
     } else {
       return (
         <Onboarding
@@ -490,6 +489,7 @@ function AppContent() {
           <Route path="/moodaction"      element={<MoodAction      selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
           <Route path="/chat"            element={<SukoonChat      room={chatRoom} setTab={setTab} T={T} lang={lang} />} />
 
+          
           {/* ─── K-UNIVERSE ROUTES ─── */}
           <Route path="/khub"            element={<KHub                setTab={setTab} T={T} lang={lang} setChatRoom={setChatRoom} />} />
           <Route path="/chat_lavender"   element={<KLavenderLoungeChat setTab={setTab} T={T} lang={lang} />} />
@@ -498,6 +498,7 @@ function AppContent() {
           <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />  {/* 💜 NEW */}
           <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />  {/* 🌸 NEW */}
           <Route path="/horoscope" element={<Horoscope setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/pink_sanctuary" element={<PinkSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} />} />
           <Route path="/purple_sanctuary" element={<PurpleSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} fromDirect={!localStorage.getItem('jsukoon_sanctuary_visited')} />} />
           {/* ─── CATCH-ALL (must be last) ─── */}
           <Route path="*"               element={<Navigate to="/" />} />

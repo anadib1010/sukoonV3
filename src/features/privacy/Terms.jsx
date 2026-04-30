@@ -9,29 +9,29 @@ export function Terms({ setTab, goBack, T, lang }) {
       icon: "🤝",
       en: "1. Acceptance of Terms",
       hi: "1. शर्तों की स्वीकृति",
-      enD: "By accessing or using J Sukoon, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.",
-      hiD: "J Sukoon का उपयोग करके, आप इन सेवा शर्तों से सहमत होते हैं। यदि आप सहमत नहीं हैं, तो कृपया ऐप का उपयोग न करें।",
+      enD: "By accessing or using J Su Kun, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.",
+      hiD: "J Su Kun का उपयोग करके, आप इन सेवा शर्तों से सहमत होते हैं। यदि आप सहमत नहीं हैं, तो कृपया ऐप का उपयोग न करें।",
     },
     {
       icon: "🎂",
       en: "2. Age Requirements",
       hi: "2. आयु सीमा",
-      enD: "You must be at least 18 years old (or the age of legal majority in your jurisdiction) to use J Sukoon. By using this app, you confirm that you meet this requirement.",
-      hiD: "J Sukoon का उपयोग करने के लिए आपकी आयु कम से कम 18 वर्ष (या आपके अधिकार क्षेत्र में कानूनी वयस्कता की आयु) होनी चाहिए। ऐप का उपयोग करके, आप पुष्टि करते हैं कि आप इस आवश्यकता को पूरा करते हैं।",
+      enD: "You must be at least 18 years old (or the age of legal majority in your jurisdiction) to use J Su Kun. By using this app, you confirm that you meet this requirement.",
+      hiD: "J Su Kun का उपयोग करने के लिए आपकी आयु कम से कम 18 वर्ष (या आपके अधिकार क्षेत्र में कानूनी वयस्कता की आयु) होनी चाहिए। ऐप का उपयोग करके, आप पुष्टि करते हैं कि आप इस आवश्यकता को पूरा करते हैं।",
     },
     {
       icon: "📱",
       en: "3. Description of Service",
       hi: "3. सेवा का विवरण",
-      enD: "J Sukoon is a self-help and wellness application that provides journaling tools, mood tracking, AI-assisted features, and communication features. It is intended for personal use only.",
-      hiD: "J Sukoon एक सेल्फ-हेल्प और वेलनेस ऐप है, जिसमें जर्नलिंग, मूड ट्रैकिंग, एआई-सहायता प्राप्त सुविधाएं और संचार फीचर्स शामिल हैं। यह केवल व्यक्तिगत उपयोग के लिए है।",
+      enD: "J Su Kun is a self-help and wellness application that provides journaling tools, mood tracking, AI-assisted features, and communication features. It is intended for personal use only.",
+      hiD: "J Su Kun एक सेल्फ-हेल्प और वेलनेस ऐप है, जिसमें जर्नलिंग, मूड ट्रैकिंग, एआई-सहायता प्राप्त सुविधाएं और संचार फीचर्स शामिल हैं। यह केवल व्यक्तिगत उपयोग के लिए है।",
     },
     {
       icon: "⚠️",
       en: "4. Not Medical or Professional Advice",
       hi: "4. चिकित्सा या पेशेवर सलाह नहीं",
-      enD: "J Sukoon does not provide medical, psychological, or therapeutic advice. The app is not a substitute for professional care.\n\nIf you are experiencing distress or health concerns, please consult a qualified professional.",
-      hiD: "J Sukoon चिकित्सा, मनोवैज्ञानिक या चिकित्सीय सलाह प्रदान नहीं करता है। यह किसी पेशेवर उपचार का विकल्प नहीं है।\n\nयदि आप किसी परेशानी का अनुभव कर रहे हैं, तो कृपया किसी योग्य विशेषज्ञ से संपर्क करें।",
+      enD: "J Su Kun does not provide medical, psychological, or therapeutic advice. The app is not a substitute for professional care.\n\nIf you are experiencing distress or health concerns, please consult a qualified professional.",
+      hiD: "J Su Kun चिकित्सा, मनोवैज्ञानिक या चिकित्सीय सलाह प्रदान नहीं करता है। यह किसी पेशेवर उपचार का विकल्प नहीं है।\n\nयदि आप किसी परेशानी का अनुभव कर रहे हैं, तो कृपया किसी योग्य विशेषज्ञ से संपर्क करें।",
     },
     {
       icon: "👤",
@@ -79,8 +79,8 @@ export function Terms({ setTab, goBack, T, lang }) {
       icon: "⚖️",
       en: "11. Limitation of Liability",
       hi: "11. दायित्व की सीमा",
-      enD: "To the maximum extent permitted by law, J Sukoon is provided “as is”. We are not liable for any indirect, incidental, or consequential damages.",
-      hiD: "कानून द्वारा अनुमत सीमा तक, J Sukoon “जैसा है” प्रदान किया जाता है। किसी भी अप्रत्यक्ष या आकस्मिक नुकसान के लिए हम जिम्मेदार नहीं हैं।",
+      enD: "To the maximum extent permitted by law, J Su Kun is provided “as is”. We are not liable for any indirect, incidental, or consequential damages.",
+      hiD: "कानून द्वारा अनुमत सीमा तक, J Su Kun “जैसा है” प्रदान किया जाता है। किसी भी अप्रत्यक्ष या आकस्मिक नुकसान के लिए हम जिम्मेदार नहीं हैं।",
     },
     {
       icon: "🛑",
@@ -114,15 +114,15 @@ export function Terms({ setTab, goBack, T, lang }) {
       icon: "🛡️",
       en: "16. Community Conduct & Fan Wars",
       hi: "16. सामुदायिक आचरण और प्रशंसक विवाद",
-      enD: "J Sukoon is a space for peace. 'Fan wars', toxic behavior, harassment of other fans, or spreading hate regarding any artist or group is strictly prohibited. Violation will result in an immediate permanent ban.",
-      hiD: "J Sukoon शांति के लिए एक जगह है। 'फैन वॉर्स', जहरीला व्यवहार, अन्य प्रशंसकों का उत्पीड़न, या किसी भी कलाकार के प्रति नफरत फैलाना सख्त मना है। उल्लंघन करने पर तुरंत प्रतिबंध लगा दिया जाएगा।",
+      enD: "J Su Kun is a space for peace. 'Fan wars', toxic behavior, harassment of other fans, or spreading hate regarding any artist or group is strictly prohibited. Violation will result in an immediate permanent ban.",
+      hiD: "J Su Kun शांति के लिए एक जगह है। 'फैन वॉर्स', जहरीला व्यवहार, अन्य प्रशंसकों का उत्पीड़न, या किसी भी कलाकार के प्रति नफरत फैलाना सख्त मना है। उल्लंघन करने पर तुरंत प्रतिबंध लगा दिया जाएगा।",
     },
     {
       icon: "🌟",
       en: "17. Non-Affiliation",
       hi: "17. गैर-संबद्धता",
-      enD: "You acknowledge that J Sukoon is an independent fan-made application and is not a representative of the official K-pop industry or its corporate entities.",
-      hiD: "आप स्वीकार करते हैं कि J Sukoon एक स्वतंत्र प्रशंसक-निर्मित ऐप है और यह आधिकारिक K-pop उद्योग या उनकी कंपनियों का प्रतिनिधि नहीं है।",
+      enD: "You acknowledge that J Su Kun is an independent fan-made application and is not a representative of the official K-pop industry or its corporate entities.",
+      hiD: "आप स्वीकार करते हैं कि J Su Kun एक स्वतंत्र प्रशंसक-निर्मित ऐप है और यह आधिकारिक K-pop उद्योग या उनकी कंपनियों का प्रतिनिधि नहीं है।",
     },
   ];
 
@@ -178,8 +178,8 @@ export function Terms({ setTab, goBack, T, lang }) {
         <div style={s.closing}>
           <p style={s.closingText}>
             {hi
-              ? "J Sukoon का उपयोग करने के लिए धन्यवाद।"
-              : "Thank you for using J Sukoon."}
+              ? "J Su Kun का उपयोग करने के लिए धन्यवाद।"
+              : "Thank you for using J Su Kun."}
           </p>
         </div>
       </div>

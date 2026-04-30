@@ -841,3 +841,11 @@ Strike system summary — what's now working:
 ⬜ Shadow-restrict risky users
 ⬜ Per-room slow mode
 ⬜ User block list
+✅ Purple Sanctuary direct link bypass
+✅ Pink Sanctuary full build
+✅ Back buttons all → K-Hub
+✅ Star cap 80 / 24h expiry + VM cleanup
+✅ Sanctuary buttons in Purple & Lavender lounges
+✅ Pink Sanctuary button in Blink Lounge
+✅ Both sanctuaries side by side on K-Hub page
+✅ Hammer lightsticks for Blinks

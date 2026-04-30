@@ -74,7 +74,7 @@ export function About({ setTab, goBack, T, lang }) {
           {/* 1. Header (Updated Branding) */}
           <div style={s.header}>
             <div style={s.headerEmoji}>🌿</div>
-            <h1 style={s.appName}>J Sukoon</h1>
+            <h1 style={s.appName}>J Su Kun</h1>
             <p style={s.version}>Version 3.1 · Made in India</p>
             <p style={s.tagline}>sukoon — शांति</p>
           </div>
@@ -84,8 +84,8 @@ export function About({ setTab, goBack, T, lang }) {
             <h3 style={s.sectionLabel}>{hi ? "यह क्या है" : "What This Is"}</h3>
             <p style={s.sectionText}>
               {hi
-                ? "J Sukoon एक डिजिटल आश्रय है — भारत और दुनिया भर के उन लाखों प्रशंसकों के लिए बनाया गया है जो थक चुके हैं लेकिन रुक नहीं सकते। जो सब कुछ महसूस करते हैं लेकिन कुछ कह नहीं पाते। जिन्हें एक ऐसे शांत कोने की ज़रूरत है जो बदले में कुछ नहीं मांगता।"
-                : "J Sukoon is a digital sanctuary — built for the millions of fans across the globe who are exhausted but cannot stop. Who feel everything but can say nothing. Who need a quiet corner that does not demand anything back."}
+                ? "J Su Kun एक डिजिटल आश्रय है — भारत और दुनिया भर के उन लाखों प्रशंसकों के लिए बनाया गया है जो थक चुके हैं लेकिन रुक नहीं सकते। जो सब कुछ महसूस करते हैं लेकिन कुछ कह नहीं पाते। जिन्हें एक ऐसे शांत कोने की ज़रूरत है जो बदले में कुछ नहीं मांगता।"
+                : "J Su Kun is a digital sanctuary — built for the millions of fans across the globe who are exhausted but cannot stop. Who feel everything but can say nothing. Who need a quiet corner that does not demand anything back."}
             </p>
           </div>
 
@@ -94,8 +94,8 @@ export function About({ setTab, goBack, T, lang }) {
             <h3 style={s.sectionLabel}>{hi ? "प्रशंसकों के लिए एक कोना" : "A Space for Fans"}</h3>
             <p style={s.sectionText}>
               {hi
-                ? "प्रशंसक होना जुनून से भरा होता है, लेकिन यह तनावपूर्ण भी हो सकता है। J Sukoon आपको अपनी पसंदीदा दुनिया (K-Pop, K-Drama) से जुड़े रहने के साथ-साथ मानसिक शांति पाने का मौका देता है। यह सोशल मीडिया के शोर से दूर आपका सुरक्षित स्थान है।"
-                : "Being a fan is passionate, but it can be stressful. J Sukoon gives you a place to stay connected to the worlds you love (K-Pop, K-Drama) while finding mental stillness. It is your safe space away from the noise of social media."}
+                ? "प्रशंसक होना जुनून से भरा होता है, लेकिन यह तनावपूर्ण भी हो सकता है। J Su Kun आपको अपनी पसंदीदा दुनिया (K-Pop, K-Drama) से जुड़े रहने के साथ-साथ मानसिक शांति पाने का मौका देता है। यह सोशल मीडिया के शोर से दूर आपका सुरक्षित स्थान है।"
+                : "Being a fan is passionate, but it can be stressful. J Su Kun gives you a place to stay connected to the worlds you love (K-Pop, K-Drama) while finding mental stillness. It is your safe space away from the noise of social media."}
             </p>
           </div>
 
@@ -135,7 +135,7 @@ export function About({ setTab, goBack, T, lang }) {
             <p style={s.footerText}>
               {hi ? "उन लोगों के लिए 🌿 के साथ बनाया गया जिन्हें शांति की आवश्यकता है" : "Made with 🌿 for those who need quiet"}
             </p>
-            <p style={s.footerCopy}>© 2026 J Sukoon · India</p>
+            <p style={s.footerCopy}>© 2026 J Su Kun · India</p>
           </div>
 
         </div>

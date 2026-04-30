@@ -28,8 +28,9 @@ export function KHub({ setTab, T, lang, setChatRoom }) {
     } else if (roomName === 'Blink Lounge') {
       setTab('chat_blink');
     } else if (roomName === 'Purple Sanctuary') {
-      // 🌟 NEW: The secret door to our sanctuary!
       setTab('purple_sanctuary');
+    } else if (roomName === 'Pink Sanctuary') {
+      setTab('pink_sanctuary');
     } else {
       if (setChatRoom) setChatRoom(roomName);
       setTab('chat');
@@ -240,19 +241,79 @@ export function KHub({ setTab, T, lang, setChatRoom }) {
         </div>
       </button>
 
-      {/* 🌟 NEW: The Purple Sanctuary Button */}
-      <button
-        style={sanctuaryBtn}
-        onClick={() => enterRoom('Purple Sanctuary')}
-        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-      >
-        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#9B59B620', border: '1px solid #9B59B640', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🌌</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      {/* 🌌🌸 Sanctuary Row — Purple + Pink side by side */}
+      <div style={{
+        display: 'flex', gap: '10px', width: '100%', maxWidth: '360px',
+        marginTop: '12px',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.8s ease 0.4s',
+      }}>
+
+        {/* Purple Sanctuary — half width, smaller */}
+        <button
+          onClick={() => enterRoom('Purple Sanctuary')}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          style={{
+            flex: 1,
+            padding: '13px 10px',
+            borderRadius: '16px',
+            background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B622 50%, ${T.bg} 100%)`,
+            border: '1px solid #9B59B640',
+            color: T.text,
+            fontFamily: "'DM Sans', sans-serif",
+            fontWeight: 600,
+            fontSize: '13px',
+            cursor: 'pointer',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+            transition: 'transform 0.3s ease',
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>🌌</span>
           <span>{hi ? 'पर्पल सैंक्चुअरी' : 'PURPLE SANCTUARY'}</span>
-          <span style={{ fontSize: '10px', opacity: 0.4, fontWeight: 400 }}>{hi ? 'आराम करें और सांस लें' : 'A quiet place to rest and breathe'}</span>
-        </div>
-      </button>
+          <span style={{ fontSize: '9px', opacity: 0.4, fontWeight: 400 }}>
+            {hi ? 'आराम करें' : 'Rest & breathe'}
+          </span>
+        </button>
+
+        {/* Pink Sanctuary — half width, smaller */}
+        <button
+          onClick={() => enterRoom('Pink Sanctuary')}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          style={{
+            flex: 1,
+            padding: '13px 10px',
+            borderRadius: '16px',
+            background: `linear-gradient(135deg, ${T.bg} 0%, #E91E8C22 50%, ${T.bg} 100%)`,
+            border: '1px solid #E91E8C40',
+            color: T.text,
+            fontFamily: "'DM Sans', sans-serif",
+            fontWeight: 600,
+            fontSize: '13px',
+            cursor: 'pointer',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+            transition: 'transform 0.3s ease',
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>🌸</span>
+          <span>{hi ? 'पिंक सैंक्चुअरी' : 'PINK SANCTUARY'}</span>
+          <span style={{ fontSize: '9px', opacity: 0.4, fontWeight: 400 }}>
+            {hi ? 'आराम करें' : 'Rest & breathe'}
+          </span>
+        </button>
+
+      </div>
 
       <button style={s.backBtn} onClick={() => setTab('home')}>
         ← {hi ? 'वापस' : 'BACK HOME'}

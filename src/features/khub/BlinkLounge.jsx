@@ -196,6 +196,18 @@ export function BlinkLounge({ setTab, T, lang }) {
           <button style={s.rulesBtn} onClick={() => setShowRules(true)}>📋 {hi ? 'नियम' : 'Rules'}</button>
           <HeartButton spawnHeart={spawnHeart} onPress={() => setHeartCount(c => c + 1)} color={BLINK_COL} emoji={HEART_CFG.emoji} count={heartCount} />
           {userProfile && <span style={{ fontSize: '10px', opacity: 0.5, fontFamily: "'DM Sans', sans-serif" }}>{getTrustLabel(getTrustLevel(userProfile.rep_score ?? 0), hi)}</span>}
+          <button
+            onClick={() => setTab('pink_sanctuary')}
+            style={{
+              background: 'rgba(140,20,70,0.55)',
+              border: '1px solid rgba(255,120,180,0.35)',
+              borderRadius: 99, color: 'rgba(255,210,230,0.95)',
+              padding: '7px 16px', fontSize: 11, cursor: 'pointer',
+              letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            🌸 {hi ? 'पिंक सैंक्चुअरी' : 'Pink Sanctuary'}
+          </button>
         </div>
       </div>
       {bulletin && showBulletin && (
