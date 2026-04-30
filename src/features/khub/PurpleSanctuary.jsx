@@ -117,7 +117,14 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
   useEffect(() => {
     const fetchStars = async () => {
       try {
-        const { data, error } = await supabase.from('sanctuary_stars').select('*');
+        // Only fetch stars from last 24 hours, newest first, max 80
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await supabase
+          .from('sanctuary_stars')
+          .select('*')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(80);
         if (error) throw error;
         if (data) {
           userStarsRef.current = data.map(star => ({
@@ -219,6 +226,21 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       cancelAnimationFrame(animRef.current);
     };
   }, [killAudio]);
+
+  // ── INTERCEPT BROWSER / MOBILE BACK BUTTON → always go to K-Hub ──
+  useEffect(() => {
+    // Push a dummy state so the back button has something to intercept
+    window.history.pushState({ sanctuary: true }, '');
+
+    const handlePop = (e) => {
+      e.preventDefault();
+      killAudio();
+      setTab('khub');
+    };
+
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [killAudio, setTab]);
 
   // Measure sound bar height so canvas ground line always clears the buttons
   useEffect(() => {
@@ -1033,7 +1055,7 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       position:      'absolute',
       top:           16,
       left:          16,
-      zIndex:        10,
+      zIndex:        20,
       ...glassBtn,
       borderRadius:  99,
       color:         'rgba(210,180,255,0.9)',
@@ -1161,6 +1183,21 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
       transition:    'all 0.2s',
     },
 
+    khubBtn: {
+      background:    'rgba(80,20,140,0.55)',
+      border:        '1px solid rgba(180,120,255,0.35)',
+      boxShadow:     '0 0 18px rgba(120,60,220,0.25)',
+      borderRadius:  99,
+      color:         'rgba(220,190,255,0.95)',
+      padding:       '10px 28px',
+      fontSize:      12,
+      cursor:        'pointer',
+      fontFamily:    'inherit',
+      letterSpacing: '0.08em',
+      transition:    'all 0.2s',
+      marginTop:     '10px',
+    },
+
     clickHint: {
       position:      'absolute',
       bottom:        90,
@@ -1262,6 +1299,17 @@ export function PurpleSanctuary({ T, lang, setTab, goBack }) {
               {shared
                 ? (hi ? '✓ कॉपी हो गया' : '✓ copied')
                 : (hi ? 'शेयर करें' : 'share this feeling')}
+            </button>
+          </div>
+          {/* Enter K-Hub button */}
+          <div style={{ display: 'flex', justifyContent: 'center', pointerEvents: 'auto' }}>
+            <button
+              onClick={() => { killAudio(); setTab('khub'); }}
+              style={s.khubBtn}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 28px rgba(140,80,255,0.45)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 18px rgba(120,60,220,0.25)'}
+            >
+              🌸 {hi ? 'चैट रूम में जाएं' : 'Enter Chat Rooms'}
             </button>
           </div>
         </div>

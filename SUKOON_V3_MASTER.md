@@ -824,3 +824,20 @@ New files (all expected):
 4. **Cross-room heart sync** — heart counter shared across rooms
 5. **Per-room slow mode** — admin-toggled cooldown
 6. **Behavior quiz on signup** — personality-based room suggestion
+Strike system summary — what's now working:
+
+✅ Strike 1 → warning (can still chat)
+✅ Strike 2 → muted for 1 hour (ban screen shows "Muted for 1 Hour")
+✅ Strike 3 → banned for 24 hours (ban screen shows "Banned for 24 Hours")
+✅ Strike 4+ → permanently banned
+✅ Ban screen shows friendly message, expiry time, Go Back button
+✅ Expired bans auto-lift when user opens a room
+✅ Edge Function issues strike on toxic text
+✅ VM Flask app issues strike on NSFW image block
+✅ All 5 rooms check ban on load
+✅ Strike system (already built)
+✅ Night Sweep (just deployed)
+⬜ Duplicate message detection
+⬜ Shadow-restrict risky users
+⬜ Per-room slow mode
+⬜ User block list

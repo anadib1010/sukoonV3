@@ -207,6 +207,25 @@ export function PurpleLounge({ setTab, T, lang }) {
         <div style={s.headerActions}>
           <button style={s.rulesBtn} onClick={() => setShowRules(true)}>📋 {hi ? 'नियम' : 'Rules'}</button>
           <HeartButton spawnHeart={spawnHeart} onPress={handleHeart} color={PURPLE_COL} emoji={HEART_CFG.emoji} count={heartCount} />
+          {/* Go to Purple Sanctuary */}
+          <button
+            onClick={() => setTab('purple_sanctuary')}
+            style={{
+              background:    'rgba(80,20,140,0.55)',
+              border:        '1px solid rgba(180,120,255,0.35)',
+              borderRadius:  99,
+              color:         'rgba(220,190,255,0.95)',
+              padding:       '7px 16px',
+              fontSize:      11,
+              cursor:        'pointer',
+              letterSpacing: '0.06em',
+              display:       'flex',
+              alignItems:    'center',
+              gap:           6,
+            }}
+          >
+            🌌 {hi ? 'पर्पल सैंक्चुअरी' : 'Purple Sanctuary'}
+          </button>
           {userProfile && <span style={s.trustBadge}>{getTrustLabel(getTrustLevel(userProfile.rep_score ?? 0), hi)}</span>}
         </div>
       </div>

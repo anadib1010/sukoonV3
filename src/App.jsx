@@ -413,37 +413,35 @@ function AppContent() {
     );
   }
 
+  // ── BYPASS ONBOARDING FOR DIRECT SANCTUARY LINKS ──
   if (!hasOnboarded) {
-    return (
-      <Onboarding
-        onComplete={(destination) => {
-          // 1. Save the secret note in the browser safe
-          localStorage.setItem("jsukoon_onboarded", "true");
-          
-          // 2. Tell Vercel Analytics we finished onboarding
-          track('Onboarding Complete');
-          
-          // 3. Turn off the onboarding screen
-          setHasOnboarded(true);
-
-          // 4. Send them EXACTLY where they clicked!
-          // Note: In our Onboarding.jsx we named the tab 'kpop', 
-          // but your actual K-Pop route in App.jsx is called 'khub'. 
-          // We translate that right here!
-          if (destination === 'kpop') {
-            setTab('khub');
-          } else {
-            setTab(destination); // Handles 'reset', 'horoscope', and 'chat' perfectly
-          }
-        }}
-        setThemeKey={setThemeKey}
-        setLang={setLang}
-        lang={lang} // Passing lang so Onboarding knows if it should speak Hindi or English
-        T={T}
-      />
-    );
+    if (location.pathname === '/purple_sanctuary') {
+      // Save onboarded so they don't see it next time either
+      localStorage.setItem("jsukoon_onboarded", "true");
+      setHasOnboarded(true);
+      // Fall through to render the app — route already points to sanctuary
+    } else {
+      return (
+        <Onboarding
+          onComplete={(destination) => {
+            localStorage.setItem("jsukoon_onboarded", "true");
+            track('Onboarding Complete');
+            setHasOnboarded(true);
+            if (destination === 'kpop') {
+              setTab('khub');
+            } else {
+              setTab(destination);
+            }
+          }}
+          setThemeKey={setThemeKey}
+          setLang={setLang}
+          lang={lang}
+          T={T}
+        />
+      );
+    }
   }
-
+  
   return (
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
@@ -500,7 +498,7 @@ function AppContent() {
           <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />  {/* 💜 NEW */}
           <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />  {/* 🌸 NEW */}
           <Route path="/horoscope" element={<Horoscope setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/purple_sanctuary" element={<PurpleSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} />} />
+          <Route path="/purple_sanctuary" element={<PurpleSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} fromDirect={!localStorage.getItem('jsukoon_sanctuary_visited')} />} />
           {/* ─── CATCH-ALL (must be last) ─── */}
           <Route path="*"               element={<Navigate to="/" />} />
         </Routes>
