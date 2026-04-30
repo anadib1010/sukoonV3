@@ -95,7 +95,7 @@ export function About({ setTab, goBack, T, lang }) {
             <p style={s.sectionText}>
               {hi
                 ? "प्रशंसक होना जुनून से भरा होता है, लेकिन यह तनावपूर्ण भी हो सकता है। J Su Kun आपको अपनी पसंदीदा दुनिया (K-Pop, K-Drama) से जुड़े रहने के साथ-साथ मानसिक शांति पाने का मौका देता है। यह सोशल मीडिया के शोर से दूर आपका सुरक्षित स्थान है।"
-                : "Being a fan is passionate, but it can be stressful. J Su Kun gives you a place to stay connected to the worlds you love (K-Pop, K-Drama) while finding mental stillness. It is your safe space away from the noise of social media."}
+                : "Being a fan is passionate, but it can be stressful. J Su Kun gives you a place to stay connected to the worlds you love (K-Pop, K-Drama) while finding mental stillness. It is your safe space away from the noise and chaos of social media."}
             </p>
           </div>
 
