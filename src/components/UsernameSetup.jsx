@@ -38,8 +38,7 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
     // Save username
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ username: trimmed })
-      .eq('id', user.id);
+      .upsert({ id: user.id, username: trimmed }, { onConflict: 'id' });
 
     if (updateError) {
       setError(hi ? 'कुछ गलत हुआ। दोबारा कोशिश करें।' : 'Something went wrong. Please try again.');
