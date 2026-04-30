@@ -71,6 +71,12 @@ export function PurpleLounge({ setTab, T, lang }) {
 
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
+  // ─── LOGOUT ───
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setTab('home');
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !currentUser) return;
     if (muted) { showToast(hi ? `🚫 आप म्यूट हैं।` : `🚫 You are muted.`, 'error'); return; }
@@ -138,6 +144,7 @@ export function PurpleLounge({ setTab, T, lang }) {
     headerActions: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '8px' },
     rulesBtn: { background: 'none', border: `1px solid ${PURPLE_COL}35`, borderRadius: '12px', padding: '4px 12px', color: PURPLE_COL, fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
     trustBadge: { fontSize: '10px', opacity: 0.5, fontFamily: "'DM Sans', sans-serif" },
+    logoutBtn: { background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.5px', padding: '4px 8px', position: 'absolute', top: 16, right: 16 },
     chatArea: { flex: 1, overflowY: 'auto', padding: '14px 14px 8px', display: 'flex', flexDirection: 'column', gap: '10px' },
     msgRow: (isMe) => ({ display: 'flex', flexDirection: 'column', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%' }),
     senderName: { fontSize: '10px', opacity: 0.45, marginBottom: '3px', paddingLeft: '4px', fontFamily: "'DM Sans', sans-serif" },
@@ -202,6 +209,12 @@ export function PurpleLounge({ setTab, T, lang }) {
       <FloatingHearts hearts={hearts} roomType="purple" />
       <div style={s.header}>
         <button onClick={() => setTab('khub')} style={s.backBtn}>←</button>
+
+        {/* ─── LOGOUT BUTTON ─── */}
+        <button onClick={handleLogout} style={s.logoutBtn}>
+          {hi ? 'लॉग आउट' : 'Log out'}
+        </button>
+
         <h2 style={s.title}>💜 {hi ? 'पर्पल लाउंज' : 'Purple Lounge'}</h2>
         <div style={s.badge}>{hi ? '⚠️ अनधिकृत — HYBE/BTS से संबद्ध नहीं' : '⚠️ Unofficial · Not affiliated with HYBE or BTS'}</div>
         <div style={s.headerActions}>
@@ -271,7 +284,7 @@ export function PurpleLounge({ setTab, T, lang }) {
             onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
             onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
             currentUserProfile={userProfile}
-            senderLabel={!isMe ? (m.avatar_emoji || '💜') + ' ' + (m.user_email?.split('@')[0] ?? 'fan') : undefined}
+            senderLabel={!isMe ? (m.avatar_emoji || '💜') + ' ' + (m.username ?? m.user_email?.split('@')[0] ?? 'fan') : undefined}
           />
         );
         })}

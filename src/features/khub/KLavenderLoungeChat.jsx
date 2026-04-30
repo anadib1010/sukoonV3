@@ -62,6 +62,12 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
+  // ─── LOGOUT ───
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setTab('home');
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !currentUser) return;
     if (muted) { showToast(hi ? '🚫 आप म्यूट हैं।' : '🚫 You are muted.', 'error'); return; }
@@ -128,6 +134,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
     badge: { display: 'inline-block', marginTop: '5px', background: `${c}18`, border: `1px solid ${c}40`, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: c, opacity: 0.85 },
     headerActions: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '8px' },
     rulesBtn: { background: 'none', border: `1px solid ${c}35`, borderRadius: '12px', padding: '4px 12px', color: c, fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
+    logoutBtn: { background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.5px', padding: '4px 8px', position: 'absolute', top: 16, right: 16 },
     chatArea: { flex: 1, overflowY: 'auto', padding: '14px 14px 8px', display: 'flex', flexDirection: 'column', gap: '10px' },
     msgRow: (isMe) => ({ display: 'flex', flexDirection: 'column', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%' }),
     senderName: { fontSize: '10px', opacity: 0.45, marginBottom: '3px', paddingLeft: '4px', fontFamily: "'DM Sans', sans-serif" },
@@ -189,6 +196,12 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
       <FloatingHearts hearts={hearts} roomType="lavender" />
       <div style={s.header}>
         <button onClick={() => setTab('khub')} style={s.backBtn}>←</button>
+
+        {/* ─── LOGOUT BUTTON ─── */}
+        <button onClick={handleLogout} style={s.logoutBtn}>
+          {hi ? 'लॉग आउट' : 'Log out'}
+        </button>
+
         <h2 style={s.title}>🪻 {hi ? 'लैवेंडर लाउंज' : 'Lavender Lounge'}</h2>
         <div style={s.badge}>{hi ? '⚠️ अनधिकृत फैन कम्युनिटी' : '⚠️ Unofficial fan community'}</div>
         <div style={s.headerActions}>
@@ -260,7 +273,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
               onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
               onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
               currentUserProfile={userProfile}
-              senderLabel={!isMe ? (m.avatar_emoji || '🪻') + ' ' + (m.user_email?.split('@')[0] ?? 'fan') : undefined}
+              senderLabel={!isMe ? (m.avatar_emoji || '🪻') + ' ' + (m.username ?? m.user_email?.split('@')[0] ?? 'fan') : undefined}
             />
           );
         })}

@@ -48,17 +48,18 @@ import { PostReset }      from './components/PostReset';
 import { Reset }          from './components/Reset';
 import { DeepDoor }       from './components/DeepDoor';
 import SukoonChat         from './components/SukoonChat';
-import { PinkSanctuary } from './features/khub/PinkSanctuary';
+import { PinkSanctuary }  from './features/khub/PinkSanctuary';
 
 // ─── K-UNIVERSE IMPORTS ───────────────────────────────────────────────────────
 import { KHub }                from './features/khub/KHub';
 import { KLavenderLoungeChat } from './features/khub/KLavenderLoungeChat';
 import { KPopGeneralRoom }     from './features/khub/KPopGeneralRoom';
 import { KDramaRoom }          from './features/khub/KDramaRoom';
-import { PurpleLounge }        from './features/khub/PurpleLounge';   // 💜 NEW
-import { BlinkLounge }         from './features/khub/BlinkLounge';    // 🌸 NEW
-import { Horoscope } from './features/horoscope/Horoscope';
-import { PurpleSanctuary } from './features/khub/PurpleSanctuary';
+import { PurpleLounge }        from './features/khub/PurpleLounge';
+import { BlinkLounge }         from './features/khub/BlinkLounge';
+import { Horoscope }           from './features/horoscope/Horoscope';
+import { PurpleSanctuary }     from './features/khub/PurpleSanctuary';
+import { UsernameSetup }       from './components/UsernameSetup';
 
 // ─── AUTH SHEET ──────────────────────────────────────────────────────────────
 function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
@@ -224,12 +225,16 @@ function AppContent() {
     try { return localStorage.getItem("jsukoon_onboarded") === "true"; }
     catch { return false; }
   });
-  
+
   const [authSheet,      setAuthSheet]      = useState(null);
   const [pendingTab,     setPendingTab]      = useState(null);
 
   // ─── INCOMING CALL STATE ───
   const [incomingCall,   setIncomingCall]   = useState(null);
+
+  // ─── USERNAME STATE ───
+  const [needsUsername,  setNeedsUsername]  = useState(false);
+  const [username,       setUsername]       = useState(null);
 
   const [lang,        setLang]        = useLS("jsukoon_lang", "English");
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
@@ -241,6 +246,7 @@ function AppContent() {
     ? (THEMES[themeKey] || THEMES.Void)
     : (mood && THEMES[mood] ? THEMES[mood] : THEMES.Void);
 
+  // ─── THEME COLOR SYNC ───
   useEffect(() => {
     document.body.style.backgroundColor = T.bg;
     document.documentElement.style.backgroundColor = T.bg;
@@ -253,20 +259,44 @@ function AppContent() {
     metaThemeColor.setAttribute("content", T.bg);
   }, [T.bg]);
 
+  // ─── AUTH STATE WATCHER ───
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsCheckingAuth(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setIsCheckingAuth(false);
-      if (session?.user) { posthog.identify(session.user.id, { email: session.user.email }); }
-      else { posthog.reset(); }
+
+      if (session?.user) {
+        posthog.identify(session.user.id, { email: session.user.email });
+
+        // ─── USERNAME CHECK ───
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile?.username) {
+          setNeedsUsername(true);
+        } else {
+          setUsername(profile.username);
+          setNeedsUsername(false);
+        }
+      } else {
+        posthog.reset();
+        setNeedsUsername(false);
+        setUsername(null);
+      }
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
+  // ─── TRACK PAGE VIEWS ───
   useEffect(() => {
     if (hasOnboarded) track('View Feature', { featureName: location.pathname });
   }, [location, hasOnboarded]);
@@ -291,8 +321,7 @@ function AppContent() {
           });
           const ringtone = document.getElementById('global-ringtone');
           if (ringtone) ringtone.play().catch(e => console.log("Ringtone blocked"));
-        }
-        else if (data.action === 'cancel') {
+        } else if (data.action === 'cancel') {
           setIncomingCall(prev => {
             if (prev?.roomId === data.roomId) {
               const ringtone = document.getElementById('global-ringtone');
@@ -306,14 +335,15 @@ function AppContent() {
     }).subscribe();
 
     return () => { supabase.removeChannel(callRadar); };
-  }, [session?.user?.id]); // FIXED: no incomingCall dependency
+  }, [session?.user?.id]);
 
+  // ─── BROWSE CREDIT TIMER ───
   useEffect(() => {
     const browseTimer = setInterval(() => creditSession(1, true), 60000);
     return () => clearInterval(browseTimer);
   }, []);
 
-    // ─── PAGE TITLES ───
+  // ─── PAGE TITLES ───
   const PAGE_TITLES_EN = {
     home: "J Su Kun — Home", reset: "J Su Kun — Reset", postreset: "J Su Kun — Ready",
     more: "J Su Kun — More", vaultdoor: "J Su Kun — The Quieter Place",
@@ -330,13 +360,12 @@ function AppContent() {
     quietcorner: "J Su Kun — Quiet Corner", soundbath: "J Su Kun — Sound Bath",
     mandala: "J Su Kun — Mandala Flow", seedinmud: "J Su Kun — Seed in the Mud",
     chat: "J Su Kun — Secure Chat",
-    // ─── K-Universe titles ───
     khub:         "J Su Kun — K-Universe",
     chat_lavender:"J Su Kun — Lavender Lounge",
     chat_kpop:    "J Su Kun — K-Pop Room",
     chat_kdrama:  "J Su Kun — K-Drama Lounge",
-    chat_purple:  "J Su Kun — Purple Lounge",   // 💜
-    chat_blink:   "J Su Kun — Blink Lounge",    // 🌸
+    chat_purple:  "J Su Kun — Purple Lounge",
+    chat_blink:   "J Su Kun — Blink Lounge",
   };
 
   const PAGE_TITLES_HI = {
@@ -355,13 +384,12 @@ function AppContent() {
     quietcorner: "J Su Kun — शांत कोना", soundbath: "J Su Kun — ध्वनि स्नान",
     mandala: "J Su Kun — मंडला", seedinmud: "J Su Kun — कीचड़ में बीज",
     chat: "J Su Kun — सुरक्षित चैट",
-    // ─── K-Universe titles ───
     khub:         "J Su Kun — के-यूनिवर्स",
     chat_lavender:"J Su Kun — लैवेंडर लाउंज",
     chat_kpop:    "J Su Kun — के-पॉप रूम",
     chat_kdrama:  "J Su Kun — के-ड्रामा लाउंज",
-    chat_purple:  "J Su Kun — पर्पल लाउंज",   // 💜
-    chat_blink:   "J Su Kun — ब्लिंक लाउंज",  // 🌸
+    chat_purple:  "J Su Kun — पर्पल लाउंज",
+    chat_blink:   "J Su Kun — ब्लिंक लाउंज",
   };
 
   const setPageTitle = (page) => {
@@ -370,18 +398,18 @@ function AppContent() {
   };
 
   const PROTECTED_REASONS = {
-  journal:        "Save your thoughts — create a free account.",
-  progress:       "Track your journey — create a free account.",
-  wishes:         "Share and see wishes — create a free account.",
-  community:      "Join the community — create a free account.",
-  warmth:         "Save your warmth — create a free account.",
-  chat:           "Join the secure conversation — create a free account.",
-  chat_lavender:  "Join the Lavender Lounge — login with Google to chat.",
-  chat_kpop:      "Join the K-Pop Room — login with Google to chat.",
-  chat_kdrama:    "Join the K-Drama Lounge — login with Google to chat.",
-  chat_purple:    "Join the Purple Lounge — login with Google to chat. 💜",
-  chat_blink:     "Join the Blink Lounge — login with Google to chat. 🌸",
-};
+    journal:        "Save your thoughts — create a free account.",
+    progress:       "Track your journey — create a free account.",
+    wishes:         "Share and see wishes — create a free account.",
+    community:      "Join the community — create a free account.",
+    warmth:         "Save your warmth — create a free account.",
+    chat:           "Join the secure conversation — create a free account.",
+    chat_lavender:  "Join the Lavender Lounge — login with Google to chat.",
+    chat_kpop:      "Join the K-Pop Room — login with Google to chat.",
+    chat_kdrama:    "Join the K-Drama Lounge — login with Google to chat.",
+    chat_purple:    "Join the Purple Lounge — login with Google to chat. 💜",
+    chat_blink:     "Join the Blink Lounge — login with Google to chat. 🌸",
+  };
 
   const setTab = (newTab) => {
     if (!session && PROTECTED_REASONS[newTab]) {
@@ -406,6 +434,7 @@ function AppContent() {
     }
   };
 
+  // ─── LOADING SCREEN ───
   if (isCheckingAuth) {
     return (
       <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
@@ -414,7 +443,22 @@ function AppContent() {
     );
   }
 
-  // ── BYPASS ONBOARDING FOR DIRECT SANCTUARY LINKS ──
+  // ─── USERNAME SETUP SCREEN ───
+  if (needsUsername && session?.user) {
+    return (
+      <UsernameSetup
+        user={session.user}
+        T={T}
+        lang={lang}
+        onComplete={(name) => {
+          setUsername(name);
+          setNeedsUsername(false);
+        }}
+      />
+    );
+  }
+
+  // ─── ONBOARDING ───
   if (!hasOnboarded) {
     if (location.pathname === '/purple_sanctuary' || location.pathname === '/pink_sanctuary') {
       localStorage.setItem("jsukoon_onboarded", "true");
@@ -440,7 +484,8 @@ function AppContent() {
       );
     }
   }
-  
+
+  // ─── MAIN APP ───
   return (
     <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", background: "#080808", overflowX: "hidden" }}>
       <div style={{ height: "100%", width: "100%", maxWidth: 600, background: T.bg, color: T.text, transition: "background 0.8s ease, color 0.8s ease", position: "relative", boxShadow: "0 0 50px rgba(0,0,0,0.55)" }}>
@@ -489,19 +534,19 @@ function AppContent() {
           <Route path="/moodaction"      element={<MoodAction      selectedMood={selectedMood} setTab={setTab} goBack={() => navigate(-1)} lang={lang} />} />
           <Route path="/chat"            element={<SukoonChat      room={chatRoom} setTab={setTab} T={T} lang={lang} />} />
 
-          
           {/* ─── K-UNIVERSE ROUTES ─── */}
           <Route path="/khub"            element={<KHub                setTab={setTab} T={T} lang={lang} setChatRoom={setChatRoom} />} />
           <Route path="/chat_lavender"   element={<KLavenderLoungeChat setTab={setTab} T={T} lang={lang} />} />
           <Route path="/chat_kpop"       element={<KPopGeneralRoom     setTab={setTab} T={T} lang={lang} />} />
           <Route path="/chat_kdrama"     element={<KDramaRoom          setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />  {/* 💜 NEW */}
-          <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />  {/* 🌸 NEW */}
-          <Route path="/horoscope" element={<Horoscope setTab={setTab} T={T} lang={lang} />} />
-          <Route path="/pink_sanctuary" element={<PinkSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} />} />
-          <Route path="/purple_sanctuary" element={<PurpleSanctuary T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} fromDirect={!localStorage.getItem('jsukoon_sanctuary_visited')} />} />
+          <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/horoscope"       element={<Horoscope           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/pink_sanctuary"  element={<PinkSanctuary       T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} />} />
+          <Route path="/purple_sanctuary" element={<PurpleSanctuary    T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} fromDirect={!localStorage.getItem('jsukoon_sanctuary_visited')} />} />
+
           {/* ─── CATCH-ALL (must be last) ─── */}
-          <Route path="*"               element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
 
         {/* ─── INCOMING CALL OVERLAY ─── */}

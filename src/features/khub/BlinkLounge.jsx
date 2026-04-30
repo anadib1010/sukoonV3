@@ -26,7 +26,6 @@ export function BlinkLounge({ setTab, T, lang }) {
   const [heartCount, setHeartCount] = useState(0);
   const scrollRef = useRef(null);
   const { hearts, spawnHeart } = useHearts();
-  // ADD after existing useState declarations:
   const [slowMode, setSlowMode] = useState({ enabled: false, cooldown_seconds: 30 });
   const [slowModeTimer, setSlowModeTimer] = useState(0);
   const lastSentRef = useRef(0);
@@ -60,9 +59,16 @@ export function BlinkLounge({ setTab, T, lang }) {
       ).subscribe();
     return () => { supabase.removeChannel(sub); supabase.removeChannel(slowSub); };
   }, []);
+
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
+
+  // ─── LOGOUT ───
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setTab('home');
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || !currentUser) return;
@@ -128,6 +134,7 @@ export function BlinkLounge({ setTab, T, lang }) {
     badge: { display: 'inline-block', marginTop: '5px', background: `${BLINK_COL}15`, border: `1px solid ${BLINK_COL}40`, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: BLINK_COL, opacity: 0.85 },
     headerActions: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '8px' },
     rulesBtn: { background: 'none', border: `1px solid ${BLINK_COL}35`, borderRadius: '12px', padding: '4px 12px', color: BLINK_COL, fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
+    logoutBtn: { background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.5px', padding: '4px 8px', position: 'absolute', top: 16, right: 16 },
     chatArea: { flex: 1, overflowY: 'auto', padding: '14px 14px 8px', display: 'flex', flexDirection: 'column', gap: '10px' },
     msgRow: (isMe) => ({ display: 'flex', flexDirection: 'column', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%' }),
     senderName: { fontSize: '10px', opacity: 0.45, marginBottom: '3px', paddingLeft: '4px', fontFamily: "'DM Sans', sans-serif" },
@@ -168,6 +175,7 @@ export function BlinkLounge({ setTab, T, lang }) {
   ];
 
   const reportReasons = hi ? ['घृणास्पद भाषा', 'Spam', 'NSFW', 'Fandom Attack', 'Piracy link', 'अन्य'] : ['Hate speech', 'Spam', 'NSFW content', 'Fandom attack', 'Piracy link', 'Other'];
+
   if (banInfo) {
     const isPermanent = banInfo.status === 'ban_permanent'; const isMuted = banInfo.status === 'mute_1h'; const is24h = banInfo.status === 'ban_24h'; const expiresAt = banInfo.expires_at ? new Date(banInfo.expires_at).toLocaleString() : null; const statusLabel = isPermanent ? 'Permanently Banned' : isMuted ? 'Muted for 1 Hour' : is24h ? 'Banned for 24 Hours' : 'Restricted';
     return (
@@ -184,12 +192,19 @@ export function BlinkLounge({ setTab, T, lang }) {
       </div>
     );
   }
+
   return (
     <RulesGate lang={hi ? 'hi' : 'en'} T={T} accent="#E91E8C">
     <div style={s.container}>
       <FloatingHearts hearts={hearts} roomType="blink" />
       <div style={s.header}>
         <button onClick={() => setTab('khub')} style={s.backBtn}>←</button>
+
+        {/* ─── LOGOUT BUTTON ─── */}
+        <button onClick={handleLogout} style={s.logoutBtn}>
+          {hi ? 'लॉग आउट' : 'Log out'}
+        </button>
+
         <h2 style={s.title}>🌸 {hi ? 'ब्लिंक लाउंज' : 'Blink Lounge'}</h2>
         <div style={s.badge}>{hi ? '⚠️ अनधिकृत — YG/BLACKPINK से संबद्ध नहीं' : '⚠️ Unofficial · Not affiliated with YG or BLACKPINK'}</div>
         <div style={s.headerActions}>
@@ -210,6 +225,7 @@ export function BlinkLounge({ setTab, T, lang }) {
           </button>
         </div>
       </div>
+
       {bulletin && showBulletin && (
         <div style={{ background: '#ffffff08', borderBottom: '1px solid #ffffff15', padding: '8px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
           onClick={() => setShowBulletin(false)}>
@@ -219,6 +235,7 @@ export function BlinkLounge({ setTab, T, lang }) {
           <span style={{ fontSize: 11, opacity: 0.4, marginLeft: 8, whiteSpace: 'nowrap' }}>📌 tap to close</span>
         </div>
       )}
+
       <div style={s.chatArea}>
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'Blink Lounge में आपका स्वागत है! 🌸' : 'Welcome to the Blink Lounge! 🌸'}</div>}
         {messages.filter(m => !blockedIds.includes(m.user_id)).map(m => {
@@ -240,23 +257,24 @@ export function BlinkLounge({ setTab, T, lang }) {
             );
           }
           return (
-          <MessageBubble
-            key={m.id}
-            msg={m}
-            accent={BLINK_COL}
-            T={T}
-            lang={hi ? 'hi' : 'en'}
-            isMine={isMe}
-            onReport={!isMe ? () => setShowReport(m) : undefined}
-            onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
-            onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
-            currentUserProfile={userProfile}
-            senderLabel={!isMe ? (m.avatar_emoji || '🌸') + ' ' + (m.user_email?.split('@')[0] ?? 'fan') : undefined}
-          />
-        );
+            <MessageBubble
+              key={m.id}
+              msg={m}
+              accent={BLINK_COL}
+              T={T}
+              lang={hi ? 'hi' : 'en'}
+              isMine={isMe}
+              onReport={!isMe ? () => setShowReport(m) : undefined}
+              onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
+              onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+              currentUserProfile={userProfile}
+              senderLabel={!isMe ? (m.avatar_emoji || '🌸') + ' ' + (m.username ?? m.user_email?.split('@')[0] ?? 'fan') : undefined}
+            />
+          );
         })}
         <div ref={scrollRef} />
       </div>
+
       <div style={s.inputArea}>
         <input style={s.inputField} placeholder={hi ? 'Blink Lounge में share करें... 🌸' : 'Share your Blink energy... 🌸'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} maxLength={500} disabled={muted} />
         <MemeUploader
@@ -272,7 +290,9 @@ export function BlinkLounge({ setTab, T, lang }) {
         />
         <button style={s.sendBtn} onClick={sendMessage}>🌸</button>
       </div>
+
       {toast && <div style={s.toast(toast.type)}>{toast.text}</div>}
+
       {showRules && (
         <div style={s.overlay} onClick={() => setShowRules(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
@@ -283,6 +303,7 @@ export function BlinkLounge({ setTab, T, lang }) {
           </div>
         </div>
       )}
+
       {showReport && (
         <div style={s.overlay} onClick={() => setShowReport(null)}>
           <div style={{ ...s.modal, padding: '22px 22px 36px' }} onClick={e => e.stopPropagation()}>
