@@ -347,8 +347,8 @@ export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'Englis
             {isHi ? "गोपनीयता नीति" : "Privacy Policy"}
           </span>
           {isHi 
-            ? <> से सहमत हैं। <span style={{whiteSpace:"nowrap"}}>J Sukoon</span> एक स्व-सहायता उपकरण है, कोई चिकित्सा सेवा नहीं।</> 
-            : <><span style={{whiteSpace:"nowrap"}}>. J Sukoon</span> is a self-help tool, not a medical service.</>}
+            ? <> से सहमत हैं। <span style={{whiteSpace:"nowrap"}}>J Su Kun</span> एक स्व-सहायता उपकरण है, कोई चिकित्सा सेवा नहीं।</> 
+            : <><span style={{whiteSpace:"nowrap"}}>. J Su Kun</span> is a self-help tool, not a medical service.</>}
         </p>
       </div>
     </div>

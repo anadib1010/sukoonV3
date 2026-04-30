@@ -308,7 +308,7 @@ export function Login({ onLogin, T, lang, embedded = false }) {
 
           {/* Title */}
           <div style={s.titleWrap}>
-            <h1 style={s.title}>JSukoon</h1>
+            <h1 style={s.title}>J Su Kun</h1>
             <p style={s.subtitle}>
               {hi ? "आपका निजी सुरक्षित स्थान।" : "Your private sanctuary."}
             </p>
@@ -413,8 +413,8 @@ export function Login({ onLogin, T, lang, embedded = false }) {
                 {hi ? "गोपनीयता नीति" : "Privacy Policy"}
               </span>
               {hi 
-                ? " से सहमत होते हैं और समझते हैं कि JSukoon एक सेल्फ-हेल्प टूल है, कोई चिकित्सा या पेशेवर सेवा नहीं।" 
-                : " and understand that JSukoon is a self-help tool and not a medical or professional service."}
+                ? " से सहमत होते हैं और समझते हैं कि J Su Kun एक सेल्फ-हेल्प टूल है, कोई चिकित्सा या पेशेवर सेवा नहीं।" 
+                : " and understand that J Su Kun is a self-help tool and not a medical or professional service."}
             </div>
           </form>
 
