@@ -20,18 +20,21 @@ export const fireGrandConfetti = () => {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+  },
+});
 
 // ─── ATOMIC CREDIT INCREMENT ───
-// Uses a Postgres RPC to avoid read-modify-write race conditions.
-// Run supabase/migrations.sql once in your Supabase SQL Editor first.
 export const addCredits = async (amount) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { error } = await supabase.rpc('increment_credits', { uid: user.id, amount });
     if (error) throw error;
-  } catch (err) {
-    // Silently fail — credits are a reward, not a critical path
-  }
+  } catch (err) {}
 };

@@ -216,6 +216,7 @@ function IncomingCallOverlay({ T, lang, callerEmail, callType, onAccept, onDecli
 // ─── APP CONTENT ─────────────────────────────────────────────────────────────
 function AppContent() {
   const navigate  = useNavigate();
+  
   const location  = useLocation();
   const [chatRoom, setChatRoom] = useState('General');
 
@@ -240,7 +241,7 @@ function AppContent() {
   const [themeSource, setThemeSource] = useLS("jsukoon_theme_source", "auto");
   const [themeKey,    setThemeKey]    = useLS("jsukoon_theme", "Void");
   const [mood,        setMood]        = useState(null);
-  const [selectedMood,setSelectedMood]= useState(null);
+  const [selectedMood,setSelectedMood] = useState(null);
 
   const T = themeSource === "manual"
     ? (THEMES[themeKey] || THEMES.Void)
@@ -261,32 +262,68 @@ function AppContent() {
 
   // ─── AUTH STATE WATCHER ───
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setIsCheckingAuth(false);
+      
+      if (session?.user) {
+        // Check localStorage first — if we already know the username, use it
+        const cachedUsername = localStorage.getItem(`jsukoon_username_${session.user.id}`);
+        if (cachedUsername) {
+          setUsername(cachedUsername);
+          setNeedsUsername(false);
+          return;
+        }
+        
+        // First time: fetch from database
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.username) {
+          localStorage.setItem(`jsukoon_username_${session.user.id}`, profile.username);
+          setUsername(profile.username);
+          setNeedsUsername(false);
+        } else {
+          setNeedsUsername(true);
+        }
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setIsCheckingAuth(false);
 
       if (session?.user) {
         posthog.identify(session.user.id, { email: session.user.email });
 
-        // ─── USERNAME CHECK ───
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', session.user.id)
-          .single();
+        // Only check username on first sign-in (NEVER on token refresh)
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          const cachedUsername = localStorage.getItem(`jsukoon_username_${session.user.id}`);
+          if (cachedUsername) {
+            setUsername(cachedUsername);
+            setNeedsUsername(false);
+            return;
+          }
 
-        if (!profile?.username) {
-          setNeedsUsername(true);
-        } else {
-          setUsername(profile.username);
-          setNeedsUsername(false);
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile?.username) {
+            localStorage.setItem(`jsukoon_username_${session.user.id}`, profile.username);
+            setUsername(profile.username);
+            setNeedsUsername(false);
+          } else {
+            setNeedsUsername(true);
+          }
         }
       } else {
+        // User signed out
         posthog.reset();
         setNeedsUsername(false);
         setUsername(null);
@@ -295,6 +332,33 @@ function AppContent() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // ─── SESSION REFRESH — keeps token alive every 10 minutes ───
+  //useEffect(() => {
+    //if (!session) return;  // Don't try to refresh if we don't have a session yet
+
+    //const refreshSession = async () => {
+      // Check if session still exists before trying to refresh
+      //const { data: { session: current } } = await supabase.auth.getSession();
+      //if (!current) return;  // No session to refresh, skip silently
+
+      //const { data, error } = await supabase.auth.refreshSession();
+      //if (error) {
+        //console.warn('Session refresh failed:', error.message);
+      //} else if (data?.session) {
+        //setSession(data.session);
+      //}
+    //};
+    //const interval = setInterval(refreshSession, 10 * 60 * 1000);
+    //const handleVisibility = () => {
+      //if (document.visibilityState === 'visible') refreshSession();
+    //};
+    //document.addEventListener('visibilitychange', handleVisibility);
+    //return () => {
+      //clearInterval(interval);
+      //document.removeEventListener('visibilitychange', handleVisibility);
+    //};
+  //}, [session?.user?.id]);  // Re-run when user changes
 
   // ─── TRACK PAGE VIEWS ───
   useEffect(() => {

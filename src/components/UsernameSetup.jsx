@@ -35,16 +35,21 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
       return;
     }
 
-    // Save username
+    // Save username via upsert
     const { error: updateError } = await supabase
       .from('profiles')
       .upsert({ id: user.id, username: trimmed }, { onConflict: 'id' });
 
     if (updateError) {
-      setError(hi ? 'कुछ गलत हुआ। दोबारा कोशिश करें।' : 'Something went wrong. Please try again.');
+      setError(`Error: ${updateError.message}`);
       setLoading(false);
       return;
     }
+
+    // Cache in localStorage so we never re-prompt
+    try {
+      localStorage.setItem(`jsukoon_username_${user.id}`, trimmed);
+    } catch {}
 
     onComplete(trimmed);
   };
@@ -62,11 +67,7 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         gap: '24px', textAlign: 'center',
       }}>
-
-        {/* Icon */}
         <div style={{ fontSize: '48px' }}>💜</div>
-
-        {/* Title */}
         <div>
           <h1 style={{
             fontFamily: "'Cormorant Garamond', serif",
@@ -86,7 +87,6 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
           </p>
         </div>
 
-        {/* Input */}
         <div style={{ width: '100%' }}>
           <input
             type="text"
@@ -106,7 +106,6 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
               letterSpacing: '0.5px',
             }}
           />
-          {/* Character count */}
           <div style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: '11px', color: 'rgba(255,255,255,0.3)',
@@ -116,7 +115,6 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div style={{
             padding: '10px 16px', borderRadius: '12px',
@@ -130,7 +128,6 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
           </div>
         )}
 
-        {/* Rules hint */}
         <p style={{
           fontFamily: "'DM Sans', sans-serif",
           fontSize: '12px', color: 'rgba(255,255,255,0.3)',
@@ -141,7 +138,6 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
             : '3–20 characters. Letters, numbers, _ only.'}
         </p>
 
-        {/* Submit button */}
         <button
           onClick={handleSubmit}
           disabled={loading || !username.trim()}
@@ -162,7 +158,6 @@ export function UsernameSetup({ user, T, lang, onComplete }) {
             ? (hi ? 'जाँच रहे हैं...' : 'Checking...')
             : (hi ? 'आगे बढ़ें 💜' : 'Enter the Sanctuary 💜')}
         </button>
-
       </div>
     </div>
   );

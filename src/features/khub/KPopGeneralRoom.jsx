@@ -67,7 +67,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   // ─── LOGOUT ───
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    setTab('home');
   };
 
   const sendMessage = async () => {
@@ -93,12 +93,15 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
 
     // Send via Edge Function (server re-checks toxicity, rate limit, length)
     try {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
       const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? (await supabase.auth.refreshSession()).data.session?.access_token;
+      if (!accessToken) { showToast('Session expired. Please log in again.', 'error'); return; }
       const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-message-check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           room: 'kpop',
@@ -131,7 +134,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   const c = POP_COL;
   const s = {
     container: { height: '100dvh', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, position: 'relative', overflow: 'hidden' },
-    header: { padding: '52px 20px 14px', background: `linear-gradient(180deg, ${c}18 0%, transparent 100%)`, borderBottom: `1px solid ${c}28`, textAlign: 'center', position: 'relative' },
+    header: { padding: '52px 20px 14px', background: `linear-gradient(180deg, ${c}18 0%, transparent 100%)`, borderBottom: `1px solid ${c}28`, textAlign: 'center' },
     title: { fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 700, color: c, letterSpacing: '1px', margin: 0 },
     badge: { display: 'inline-block', marginTop: '5px', background: `${c}18`, border: `1px solid ${c}40`, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: c, opacity: 0.85 },
     headerActions: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '8px' },

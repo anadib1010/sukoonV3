@@ -99,12 +99,15 @@ export function PurpleLounge({ setTab, T, lang }) {
     const textToSend = input.trim(); setInput('');
 
     try {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
       const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? (await supabase.auth.refreshSession()).data.session?.access_token;
+      if (!accessToken) { showToast('Session expired. Please log in again.', 'error'); return; }
       const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-message-check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           room: 'purple',
