@@ -286,10 +286,10 @@ export const REP_POINTS = {
   GOOD_MESSAGE:    +1,
   VALID_REPORT:    +5,
   DAILY_ACTIVE:    +2,
-  TOXIC_MESSAGE:  -10,
-  REPORTED:        -5,
-  SPAM_WARNED:    -3,
-  NSFW_BLOCKED:   -20,   // NEW — for blocked NSFW image uploads
+  TOXIC_MESSAGE:   -2,   // Gentle — 5 warnings before -10 total
+  REPORTED:        -2,   // Gentle — repeated reports needed to hurt
+  SPAM_WARNED:     -1,   // Very gentle — spam is common new user behavior
+  NSFW_BLOCKED:   -10,   // Still strict — NSFW images are serious
 };
 
 export function getTrustLevel(score) {
