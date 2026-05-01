@@ -218,7 +218,7 @@ export function PinkSanctuary({ T, lang, setTab, goBack }) {
 
   // ── AUTO-PLAY SANCTUARY SONG — fires on first interaction ──
   useEffect(() => {
-    const song = new Audio('/sanctuary-song.mp3');
+    const song = new Audio('/Pink_Sanctuary.mp3');
     song.loop   = true;
     song.volume = 0.5;
     sanctuaryAudioRef.current = song;
