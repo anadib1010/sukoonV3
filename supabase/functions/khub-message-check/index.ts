@@ -112,6 +112,19 @@ async function verifyVmSignature(
   return timingSafeEqual(expected, signature);
 }
 
+// --- Fetch username from profiles ----------------------------------------
+async function fetchUsername(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("profiles")
+    .select("username")
+    .eq("id", userId)
+    .single();
+  return data?.username ?? null;
+}
+
 // --- Main handler ---------------------------------------------------------
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -156,7 +169,10 @@ serve(async (req) => {
     return json(429, { error: "rate_limited", message: "Slow down — 5 messages per 10 seconds." });
   }
 
-  // 4. TEXT branch
+  // 4. Fetch username (used in both TEXT and IMAGE branches)
+  const username = await fetchUsername(admin, user.id);
+
+  // 5. TEXT branch
   if (msgType === "text") {
     if (!text || text.trim().length === 0) return json(400, { error: "empty_text" });
     if (text.length > MAX_TEXT_LEN)         return json(400, { error: "text_too_long" });
@@ -177,14 +193,15 @@ serve(async (req) => {
     }
 
     const { error: insErr } = await admin.from("khub_messages").insert({
-      room_name: resolvedRoomName,
-      user_id: user.id,
-      user_email: user.email ?? null,
+      room_name:    resolvedRoomName,
+      user_id:      user.id,
+      user_email:   user.email ?? null,
+      username:     username,
       text,
-      msg_type: "text",
-      status: "visible",
+      msg_type:     "text",
+      status:       "visible",
       avatar_emoji: avatarEmoji,
-      nsfw_state: "safe",
+      nsfw_state:   "safe",
     });
     if (insErr) return json(500, { error: "insert_failed", detail: insErr.message });
 
@@ -192,7 +209,7 @@ serve(async (req) => {
     return json(200, { ok: true, nsfw_state: "safe" });
   }
 
-  // 5. IMAGE branch — verify the VM's HMAC token
+  // 6. IMAGE branch — verify the VM's HMAC token
   const fileId: string = String(body?.file_id ?? "");
   const objectPath: string = String(body?.object_path ?? "");
   const nsfwState: string = body?.nsfw_state === "blurred" ? "blurred" : "safe";
@@ -212,8 +229,7 @@ serve(async (req) => {
   const valid = await verifyVmSignature(fileId, user.id, nsfwState, ts, signature);
   if (!valid) return json(403, { error: "invalid_signature" });
 
-  // (No need to re-check 15-min new account here — the VM already enforces.
-  //  Belt-and-suspenders: do it anyway in case VM drifts.)
+  // Belt-and-suspenders new account check
   const { data: tooNew } = await admin.rpc("khub_is_new_account", { p_user_id: user.id });
   if (tooNew === true) {
     return json(403, { error: "new_account_no_images" });
@@ -226,17 +242,18 @@ serve(async (req) => {
   }
 
   const { error: insErr } = await admin.from("khub_messages").insert({
-    room_name: resolvedRoomName,
-    user_id: user.id,
-    user_email: user.email ?? null,
-    text: text || null,
-    msg_type: "image",
-    status: "visible",
+    room_name:    resolvedRoomName,
+    user_id:      user.id,
+    user_email:   user.email ?? null,
+    username:     username,
+    text:         text || null,
+    msg_type:     "image",
+    status:       "visible",
     avatar_emoji: avatarEmoji,
-    file_id: fileId,
-    object_path: objectPath,
-    nsfw_score: nsfwScore,
-    nsfw_state: nsfwState,
+    file_id:      fileId,
+    object_path:  objectPath,
+    nsfw_score:   nsfwScore,
+    nsfw_state:   nsfwState,
   });
   if (insErr) return json(500, { error: "insert_failed", detail: insErr.message });
 
