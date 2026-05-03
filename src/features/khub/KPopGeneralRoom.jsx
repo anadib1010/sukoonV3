@@ -5,6 +5,7 @@ import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, Shad
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
+import PinnedMessage from './PinnedMessage';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
 
 const ROOM_NAME = "General K-Pop";
@@ -34,6 +35,7 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   const [blockedIds, setBlockedIds] = useState([]);
   const [bulletin, setBulletin] = useState(null);
   const [showBulletin, setShowBulletin] = useState(true);
+  const [pinnedMessage, setPinnedMessage] = useState(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -50,61 +52,31 @@ export function KPopGeneralRoom({ setTab, T, lang }) {
   }, []);
 
   useEffect(() => {
-      let isCancelled = false;
-
-      const fetchMessages = async () => {
-        const { data } = await supabase.from('khub_messages').select('*')
-          .eq('room_name', ROOM_NAME).eq('status', 'visible')
-          .order('created_at', { ascending: false }).limit(100);
-        if (!isCancelled && data) {
-          setMessages(prev => {
-            const existingIds = new Set(prev.map(m => m.id));
-            const newOnes = data.filter(m => !existingIds.has(m.id));
-            if (newOnes.length === 0) return prev;
-            return [...prev, ...newOnes].sort((a, b) =>
-              new Date(a.created_at) - new Date(b.created_at)
-            );
-          });
-        }
-      };
-
-      supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible')
-        .order('created_at', { ascending: false }).limit(100)
-        .then(({ data }) => { if (!isCancelled && data) setMessages([...data].reverse()); });
-
-      const pollInterval = setInterval(fetchMessages, 15000);
-// Trigger one immediate fetch after 1 second to catch latest messages
-setTimeout(fetchMessages, 1000);
-
-      const sub = supabase.channel('kpop_general_live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'khub_messages', filter: `room_name=eq.${ROOM_NAME}` }, (payload) => {
-        if (payload.new.status === 'visible') {
-          setMessages(prev => {
-            if (prev.some(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
-          });
-        }
-      }).subscribe();
-      fetchSlowMode(ROOM_NAME).then(setSlowMode);
-      supabase.from('khub_bulletins').select('content').eq('room_name', ROOM_NAME).eq('is_active', true).single().then(({ data }) => { if (data) setBulletin(data.content); });
-      const slowSub = supabase
-        .channel('slow_mode_kpop')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'khub_slow_mode', filter: `room_name=eq.${ROOM_NAME}` },
-          (p) => setSlowMode({ enabled: p.new.enabled, cooldown_seconds: p.new.cooldown_seconds })
-        ).subscribe();
-      return () => {
-        isCancelled = true;
-        clearInterval(pollInterval);
-        supabase.removeChannel(sub);
-        supabase.removeChannel(slowSub);
-      };
-    }, []);
-  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'instant' }); }, [messages]);
+    supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible').order('created_at', { ascending: true }).limit(100).then(({ data }) => { if (data) setMessages(data); });
+    const sub = supabase.channel('kpop_general_live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'khub_messages', filter: `room_name=eq.${ROOM_NAME}` }, (p) => { if (p.new.status === 'visible') setMessages(prev => [...prev, p.new]); }).subscribe();
+    fetchSlowMode(ROOM_NAME).then(setSlowMode);
+    supabase.from('khub_bulletins').select('content').eq('room_name', ROOM_NAME).eq('is_active', true).single().then(({ data }) => { if (data) setBulletin(data.content); });
+    supabase.from('khub_pinned_messages').select('message_text').eq('room_name', ROOM_NAME).maybeSingle().then(({ data }) => { if (data) setPinnedMessage(data.message_text); });
+    const slowSub = supabase
+      .channel('slow_mode_blink')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'khub_slow_mode', filter: `room_name=eq.${ROOM_NAME}` },
+        (p) => setSlowMode({ enabled: p.new.enabled, cooldown_seconds: p.new.cooldown_seconds })
+      ).subscribe();
+    return () => { supabase.removeChannel(sub); supabase.removeChannel(slowSub); };
+  }, []);
+  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
   // ─── LOGOUT ───
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setTab('home');
+  };
+
+  const handlePin = async (text) => {
+    const { error } = await supabase.from('khub_pinned_messages')
+      .upsert({ room_name: ROOM_NAME, message_text: text, pinned_by: currentUser?.id }, { onConflict: 'room_name' });
+    if (!error) setPinnedMessage(text);
   };
 
   const sendMessage = async () => {
@@ -261,6 +233,7 @@ setTimeout(fetchMessages, 1000);
           <span style={{ fontSize: 11, opacity: 0.4, marginLeft: 8, whiteSpace: 'nowrap' }}>📌 tap to close</span>
         </div>
       )}
+      <PinnedMessage text={pinnedMessage} accent={POP_COL} T={T} />
       <div style={s.chatArea}>
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'K-Pop Room में आपका स्वागत है! 🎤' : 'Welcome to the K-Pop Room! 🎤'}</div>}
         {messages.filter(m => !blockedIds.includes(m.user_id)).map(m => {
@@ -296,6 +269,7 @@ setTimeout(fetchMessages, 1000);
               onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
               onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
               currentUserProfile={userProfile}
+              onPin={userProfile?.is_admin ? handlePin : undefined}
               senderLabel={!isMe ? (m.avatar_emoji || '🎤') + ' ' + (m.username ?? m.user_email?.split('@')[0] ?? 'fan') : undefined}
             />
           );

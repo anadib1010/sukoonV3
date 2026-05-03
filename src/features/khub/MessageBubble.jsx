@@ -105,6 +105,7 @@ export default function MessageBubble({
   customRowStyle,      // optional: override the row wrapper style
   senderLabel,         // optional: override the sender name display
   onBlock,             // optional: callback to block this message's sender
+  onPin,               // optional: admin-only callback to pin this message
 }) {
   const t = COPY[lang] ?? COPY.en;
   const [revealed,       setRevealed]       = useState(false);
@@ -266,6 +267,13 @@ export default function MessageBubble({
                 style={{ padding: "4px 10px", background: "#c0392b", color: "#fff", border: "none", borderRadius: 999, fontSize: 12, cursor: "pointer" }}>
                 {isMine ? t.delete : isAdmin ? t.deleteAdmin : t.deleteMod}
               </button>
+              {isAdmin && onPin && msg.msg_type === "text" && (
+                <button type="button"
+                  onClick={() => { onPin(msg.text); setShowMenu(false); }}
+                  style={{ padding: "4px 10px", background: "#7F77DD", color: "#fff", border: "none", borderRadius: 999, fontSize: 12, cursor: "pointer" }}>
+                  📌 Pin
+                </button>
+              )}
               <button type="button" onClick={() => setShowMenu(false)}
                 style={{ padding: "4px 10px", background: "transparent", color: text, border: `1px solid ${text}33`, borderRadius: 999, fontSize: 12, cursor: "pointer" }}>
                 {t.cancel}

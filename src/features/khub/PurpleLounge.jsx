@@ -4,6 +4,7 @@ import { checkToxicity, SpamLimiter, DuplicateDetector, isShadowRestricted, Shad
 import MemeUploader from './MemeUploader';
 import MessageBubble from './MessageBubble';
 import RulesGate from './RulesGate';
+import PinnedMessage from './PinnedMessage';
 import { FloatingHearts, HeartButton, useHearts, HEART_CONFIGS } from './FloatingHearts';
 
 const ROOM_NAME  = 'Purple Lounge';
@@ -34,6 +35,7 @@ export function PurpleLounge({ setTab, T, lang }) {
   const [blockedIds, setBlockedIds] = useState([]);
   const [bulletin, setBulletin] = useState(null);
   const [showBulletin, setShowBulletin] = useState(true);
+  const [pinnedMessage, setPinnedMessage] = useState(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -93,6 +95,7 @@ setTimeout(fetchMessages, 1000);
       .subscribe();
     fetchSlowMode(ROOM_NAME).then(setSlowMode);
     supabase.from('khub_bulletins').select('content').eq('room_name', ROOM_NAME).eq('is_active', true).single().then(({ data }) => { if (data) setBulletin(data.content); });
+    supabase.from('khub_pinned_messages').select('message_text').eq('room_name', ROOM_NAME).maybeSingle().then(({ data }) => { if (data) setPinnedMessage(data.message_text); });
     const slowSub = supabase
       .channel('slow_mode_purple')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'khub_slow_mode', filter: `room_name=eq.${ROOM_NAME}` },
@@ -113,6 +116,12 @@ setTimeout(fetchMessages, 1000);
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+
+  const handlePin = async (text) => {
+    const { error } = await supabase.from('khub_pinned_messages')
+      .upsert({ room_name: ROOM_NAME, message_text: text, pinned_by: currentUser?.id }, { onConflict: 'room_name' });
+    if (!error) setPinnedMessage(text);
   };
 
   const sendMessage = async () => {
@@ -293,6 +302,7 @@ setTimeout(fetchMessages, 1000);
           <span style={{ fontSize: 11, opacity: 0.4, marginLeft: 8, whiteSpace: 'nowrap' }}>📌 tap to close</span>
         </div>
       )}
+      <PinnedMessage text={pinnedMessage} accent={PURPLE_COL} T={T} />
       <div style={s.chatArea}>
         {messages.length === 0 && <div style={{ textAlign: 'center', opacity: 0.3, marginTop: '40px', fontSize: '13px' }}>{hi ? 'Purple Lounge में आपका स्वागत है! 💜' : 'Welcome to the Purple Lounge! 💜'}</div>}
         {messages.filter(m => !blockedIds.includes(m.user_id)).map(m => {
@@ -310,6 +320,7 @@ setTimeout(fetchMessages, 1000);
                 onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
                 onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
                 currentUserProfile={userProfile}
+                onPin={userProfile?.is_admin ? handlePin : undefined}
               />
             );
           }
@@ -325,6 +336,7 @@ setTimeout(fetchMessages, 1000);
             onBlock={!isMe ? (uid) => { blockUser(currentUser.id, uid); setBlockedIds(prev => [...prev, uid]); } : undefined}
             onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
             currentUserProfile={userProfile}
+            onPin={userProfile?.is_admin ? handlePin : undefined}
             senderLabel={!isMe ? (m.avatar_emoji || '💜') + ' ' + (m.username ?? m.user_email?.split('@')[0] ?? 'fan') : undefined}
           />
         );
