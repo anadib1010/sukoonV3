@@ -70,7 +70,7 @@ export function BlinkLounge({ setTab, T, lang }) {
 
       supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible')
         .order('created_at', { ascending: true }).limit(100)
-        .then(({ data }) => { if (!isCancelled && data) setMessages([...data].reverse()); });
+        .then(({ data }) => { if (!isCancelled && data) setMessages(data); });
 
       const pollInterval = setInterval(fetchMessages, 15000);
 // Trigger one immediate fetch after 1 second to catch latest messages

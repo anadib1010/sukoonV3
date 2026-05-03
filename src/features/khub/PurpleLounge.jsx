@@ -75,7 +75,7 @@ export function PurpleLounge({ setTab, T, lang }) {
     // Initial fetch
     supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible')
       .order('created_at', { ascending: true }).limit(100)
-      .then(({ data }) => { if (!isCancelled && data) setMessages([...data].reverse()); });
+      .then(({ data }) => { if (!isCancelled && data) setMessages(data); });
 
     // Polling fallback every 15s — catches messages dropped during WebSocket hiccups
     const pollInterval = setInterval(fetchMessages, 15000);
@@ -108,7 +108,7 @@ setTimeout(fetchMessages, 1000);
       supabase.removeChannel(slowSub);
     };
   }, []);
-  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'instant' }); }, [messages]);
+  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'instant'  }); }, [messages]);
 
   const showToast = (text, type = 'warn') => { setToast({ text, type }); setTimeout(() => setToast(null), 3500); };
 
