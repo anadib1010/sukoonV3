@@ -849,3 +849,9 @@ Strike system summary — what's now working:
 ✅ Pink Sanctuary button in Blink Lounge
 ✅ Both sanctuaries side by side on K-Hub page
 ✅ Hammer lightsticks for Blinks
+✅ jsukoon-api.service — active (running)
+✅ caddy.service — active (running)
+✅ No restart required warning anymore
+✅ Both services came back up automatically after reboot
+✅ Memory usage healthy at 46%
+✅ Disk usage only 13.5% — plenty of room

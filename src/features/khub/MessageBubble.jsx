@@ -10,6 +10,71 @@ import { supabase } from "../../supabase";
 
 const FN_DELETE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/khub-delete-message`;
 
+// ── Meme reactions ───────────────────────────────────────────────────────────
+const REACTIONS = [
+  { key: "heart", label: "heart" },
+  { key: "fire",  emoji: "🔥"   },
+  { key: "star",  emoji: "⭐"   },
+  { key: "thumbs",emoji: "👍"   },
+];
+
+function heartEmoji(accent) {
+  if (!accent) return "💜";
+  const a = accent.toLowerCase();
+  if (a.includes("e91e8c") || a.includes("d4537e") || a.includes("ff69b4") || a.includes("e91") || a.includes("d45")) return "🩷";
+  if (a.includes("e74c3c") || a.includes("c0392b") || a.includes("ff4") || a.includes("fad0")) return "❤️";
+  return "💜";
+}
+
+function useMemoLikes(msgId, isImage) {
+  const [counts,  setCounts ] = useState({});
+  const [myLikes, setMyLikes] = useState({});
+
+  useEffect(() => {
+    if (!isImage || !msgId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data } = await supabase
+          .from("khub_meme_likes")
+          .select("reaction, user_id")
+          .eq("message_id", msgId);
+        if (cancelled || !data) return;
+        const c = {}, m = {};
+        data.forEach(row => {
+          c[row.reaction] = (c[row.reaction] || 0) + 1;
+          if (user && row.user_id === user.id) m[row.reaction] = true;
+        });
+        setCounts(c);
+        setMyLikes(m);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [msgId, isImage]);
+
+  async function toggle(reaction) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const liked = !!myLikes[reaction];
+    setCounts(prev => ({ ...prev, [reaction]: Math.max(0, (prev[reaction] || 0) + (liked ? -1 : 1)) }));
+    setMyLikes(prev => ({ ...prev, [reaction]: !liked }));
+    try {
+      if (liked) {
+        await supabase.from("khub_meme_likes").delete()
+          .eq("message_id", msgId).eq("user_id", user.id).eq("reaction", reaction);
+      } else {
+        await supabase.from("khub_meme_likes").insert({ message_id: msgId, user_id: user.id, reaction });
+      }
+    } catch {
+      setCounts(prev => ({ ...prev, [reaction]: Math.max(0, (prev[reaction] || 0) + (liked ? 1 : -1)) }));
+      setMyLikes(prev => ({ ...prev, [reaction]: liked }));
+    }
+  }
+
+  return { counts, myLikes, toggle };
+}
+
 const COPY = {
   en: {
     nsfwHidden:   "Possibly sensitive",
@@ -121,6 +186,7 @@ export default function MessageBubble({
   const isImage = msg.msg_type === "image" && msg.object_path;
   const blurred = msg.nsfw_state === "blurred";
   const blocked = msg.nsfw_state === "blocked";
+  const { counts, myLikes, toggle } = useMemoLikes(msg.id, isImage);
 
   const isAdmin    = currentUserProfile?.is_admin === true;
   const isEliteMod = (currentUserProfile?.trust_level ?? 0) >= 3;
@@ -209,6 +275,32 @@ export default function MessageBubble({
                   {t.hide}
                 </button>
               )}
+            </div>
+          )}
+
+          {isImage && !blocked && (
+            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }} onClick={e => e.stopPropagation()}>
+              {REACTIONS.map(r => {
+                const emoji = r.key === "heart" ? heartEmoji(accent) : r.emoji;
+                const count = counts[r.key] || 0;
+                const liked = !!myLikes[r.key];
+                return (
+                  <button key={r.key} type="button"
+                    onClick={() => toggle(r.key)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "3px 9px", borderRadius: 999, fontSize: 13,
+                      background: liked ? `${accent}33` : "rgba(255,255,255,0.07)",
+                      border: `1px solid ${liked ? accent : "rgba(255,255,255,0.15)"}`,
+                      color: liked ? accent : `${text}99`,
+                      cursor: "pointer", transition: "all 0.15s ease",
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}>
+                    <span style={{ fontSize: 14 }}>{emoji}</span>
+                    {count > 0 && <span style={{ fontSize: 11, fontWeight: 600 }}>{count}</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
 
