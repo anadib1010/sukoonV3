@@ -12,7 +12,7 @@ const COPY = {
     cancel:      "Cancel",
     send:        "Send meme",
     captionPh:   "Caption (optional)",
-    tooLarge:    "Image too large. Max 4 MB.",
+    tooLarge:    "Image too large. Max 5 MB.",
     notImage:    "Please pick an image file.",
     blocked:     "This image was blocked as NSFW. -20 reputation.",
     blurred:     "Image was flagged. It will be sent blurred.",
@@ -27,7 +27,7 @@ const COPY = {
     cancel:      "रद्द करें",
     send:        "मीम भेजें",
     captionPh:   "कैप्शन (वैकल्पिक)",
-    tooLarge:    "इमेज बहुत बड़ी है। अधिकतम 4 MB।",
+    tooLarge:    "इमेज बहुत बड़ी है। अधिकतम 5 MB।",
     notImage:    "कृपया एक इमेज फ़ाइल चुनें।",
     blocked:     "यह इमेज NSFW के रूप में ब्लॉक की गई। -20 प्रतिष्ठा।",
     blurred:     "इमेज को फ़्लैग किया गया। यह धुंधली भेजी जाएगी।",
@@ -38,7 +38,7 @@ const COPY = {
   },
 };
 
-const MAX_BYTES = 4 * 1024 * 1024;
+const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_DIM = 1280;
 const JPEG_QUALITY = 0.82;
 
