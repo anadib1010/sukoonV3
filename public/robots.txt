@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sukun.vercel.app/sitemap.xml
