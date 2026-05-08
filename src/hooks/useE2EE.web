@@ -1,0 +1,265 @@
+/**
+ * useE2EE.web.js — PWA version of useE2EE
+ *
+ * IDENTICAL encryption to the Android app:
+ *   - nacl.box (Curve25519) for messages
+ *   - PBKDF2 + AES-GCM for PIN backup (same as Android)
+ *   - Same Supabase columns: public_key, encrypted_private_key, key_salt
+ *   - Same localStorage key: sukoon_e2ee_keys
+ *
+ * Install deps in your PWA:
+ *   npm install tweetnacl tweetnacl-util
+ *
+ * Usage in your PWA chat component:
+ *   import { useE2EE } from './useE2EE.web';
+ *   const { encryptMessage, decryptMessage, isReady, ... } = useE2EE(userId, userEmail);
+ */
+
+import { useState, useEffect } from 'react';
+import nacl from 'tweetnacl';
+import util from 'tweetnacl-util';
+import { supabase } from '../supabase'; // adjust path to your supabase client
+
+// ── PIN BACKUP CONSTANTS (must match Android) ─────────────────────────────────
+const PBKDF2_ITERATIONS = 300_000;
+const SALT_BYTES = 16;
+const STORAGE_KEY = 'sukoon_e2ee_keys'; // same key as Android AsyncStorage
+
+// ── PBKDF2 KEY DERIVATION (same as Android useE2EE.js) ───────────────────────
+async function deriveKeyFromPin(pin, saltBase64) {
+  const enc = new TextEncoder();
+  const salt = util.decodeBase64(saltBase64);
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(pin), { name: 'PBKDF2' }, false, ['deriveBits', 'deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+async function lockKeyWithPin(secretKeyBase64, pin) {
+  const saltBytes = nacl.randomBytes(SALT_BYTES);
+  const saltBase64 = util.encodeBase64(saltBytes);
+  const aesKey = await deriveKeyFromPin(pin, saltBase64);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encodedData = new TextEncoder().encode(secretKeyBase64);
+  const encryptedBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, encodedData);
+  const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encryptedBuffer), iv.length);
+  return {
+    encrypted: btoa(String.fromCharCode(...combined)),
+    salt: saltBase64,
+  };
+}
+
+async function unlockKeyWithPin(lockedDataStr, pin, saltBase64) {
+  const aesKey = await deriveKeyFromPin(pin, saltBase64);
+  const combined = new Uint8Array(atob(lockedDataStr).split('').map(c => c.charCodeAt(0)));
+  const iv = combined.slice(0, 12);
+  const data = combined.slice(12);
+  const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, data);
+  return new TextDecoder().decode(decryptedBuffer);
+}
+
+// ── MAIN HOOK ─────────────────────────────────────────────────────────────────
+export function useE2EE(currentUserId, userEmail) {
+  const [keyPair, setKeyPair] = useState(null);
+  const [needsPinSetup, setNeedsPinSetup] = useState(false);
+  const [needsPinRestore, setNeedsPinRestore] = useState(false);
+  const [legacyMasterKey, setLegacyMasterKey] = useState(null);
+
+  // Load legacy secretbox key if present (for reading old PWA messages)
+  useEffect(() => {
+    const k = localStorage.getItem('sukoon_legacy_master_key');
+    if (k) setLegacyMasterKey(k);
+  }, []);
+
+  useEffect(() => {
+    const loadOrGenerateKeys = async () => {
+      try {
+        // Step 1 — Check localStorage (same key name as Android AsyncStorage)
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const keys = JSON.parse(stored);
+          setKeyPair(keys);
+          if (currentUserId) {
+            supabase.from('profiles')
+              .update({ public_key: keys.publicKey })
+              .eq('id', currentUserId)
+              .then();
+          }
+          return;
+        }
+
+        // Step 2 — Check Supabase backup
+        if (currentUserId) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('encrypted_private_key, key_salt')
+            .eq('id', currentUserId)
+            .single();
+
+          if (profile?.encrypted_private_key && profile?.key_salt) {
+            console.log('[E2EE Web] Backup found — need PIN to restore');
+            setNeedsPinRestore(true);
+            return;
+          }
+
+          // Any backup without salt = legacy. Show restore modal, never overwrite.
+          if (profile?.encrypted_private_key && !profile?.key_salt) {
+            console.log('[E2EE Web] Legacy backup — showing restore modal');
+            setNeedsPinRestore(true);
+            return;
+          }
+        }
+
+        // Step 3 — No backup anywhere: generate fresh nacl key pair
+        const newKeys = nacl.box.keyPair();
+        const encodedKeys = {
+          publicKey: util.encodeBase64(newKeys.publicKey),
+          secretKey: util.encodeBase64(newKeys.secretKey),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(encodedKeys));
+        setKeyPair(encodedKeys);
+        if (currentUserId) {
+          await supabase.from('profiles')
+            .update({ public_key: encodedKeys.publicKey })
+            .eq('id', currentUserId);
+        }
+        setNeedsPinSetup(true);
+        console.log('[E2EE Web] New nacl key pair generated');
+      } catch (e) {
+        console.error('[E2EE Web] Key error:', e);
+      }
+    };
+
+    if (currentUserId) loadOrGenerateKeys();
+  }, [currentUserId]);
+
+  // ── BACKUP / RESTORE ───────────────────────────────────────────────────────
+  const backupKeyWithPin = async (pin) => {
+    if (!keyPair || !currentUserId) return false;
+    if (!pin || pin.length < 6) return false;
+    try {
+      const { encrypted, salt } = await lockKeyWithPin(keyPair.secretKey, pin);
+      await supabase.from('profiles')
+        .update({ encrypted_private_key: encrypted, key_salt: salt })
+        .eq('id', currentUserId);
+      setNeedsPinSetup(false);
+      console.log('[E2EE Web] Key backed up');
+      return true;
+    } catch (e) {
+      console.error('[E2EE Web] Backup failed:', e);
+      return false;
+    }
+  };
+
+  const restoreKeyWithPin = async (pin) => {
+    if (!currentUserId) return false;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('encrypted_private_key, key_salt, public_key')
+        .eq('id', currentUserId)
+        .single();
+
+      if (!profile?.encrypted_private_key || !profile?.key_salt) return false;
+
+      const secretKey = await unlockKeyWithPin(profile.encrypted_private_key, pin, profile.key_salt);
+      const encodedKeys = { publicKey: profile.public_key, secretKey };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(encodedKeys));
+      setKeyPair(encodedKeys);
+      setNeedsPinRestore(false);
+      console.log('[E2EE Web] Key restored');
+      return true;
+    } catch (e) {
+      console.error('[E2EE Web] Restore failed — wrong PIN?', e);
+      return false;
+    }
+  };
+
+  const generateFreshKeys = async () => {
+    const newKeys = nacl.box.keyPair();
+    const encodedKeys = {
+      publicKey: util.encodeBase64(newKeys.publicKey),
+      secretKey: util.encodeBase64(newKeys.secretKey),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(encodedKeys));
+    setKeyPair(encodedKeys);
+    setNeedsPinRestore(false);
+    if (currentUserId) {
+      await supabase.from('profiles')
+        .update({ public_key: encodedKeys.publicKey, encrypted_private_key: null, key_salt: null })
+        .eq('id', currentUserId);
+    }
+    setNeedsPinSetup(true);
+    console.log('[E2EE Web] Fresh keys generated');
+  };
+
+  const skipBackup = () => setNeedsPinSetup(false);
+
+  // ── MESSAGE ENCRYPTION / DECRYPTION (identical to Android) ────────────────
+  // Messages stored as: content = encryptedText (base64), nonce = nonce (base64)
+  const encryptMessage = (text, friendPublicKeyBase64) => {
+    if (!keyPair) return null;
+    const nonce = nacl.randomBytes(nacl.box.nonceLength);
+    const messageUint8 = util.decodeUTF8(text);
+    const mySecretKey = util.decodeBase64(keyPair.secretKey);
+    const friendPublicKey = util.decodeBase64(friendPublicKeyBase64);
+    const encryptedBox = nacl.box(messageUint8, nonce, friendPublicKey, mySecretKey);
+    return {
+      encryptedText: util.encodeBase64(encryptedBox),
+      nonce: util.encodeBase64(nonce),
+    };
+  };
+
+  const decryptMessage = (encryptedTextBase64, nonceBase64, friendPublicKeyBase64) => {
+    if (!keyPair) return null;
+    try {
+      const encryptedBox = util.decodeBase64(encryptedTextBase64);
+      const nonce = util.decodeBase64(nonceBase64);
+      const mySecretKey = util.decodeBase64(keyPair.secretKey);
+      const friendPublicKey = util.decodeBase64(friendPublicKeyBase64);
+      const decryptedUint8 = nacl.box.open(encryptedBox, nonce, friendPublicKey, mySecretKey);
+      if (!decryptedUint8) return null;
+      return util.encodeUTF8(decryptedUint8);
+    } catch { return null; }
+  };
+
+  // Legacy decrypt for old PWA messages (nacl.secretbox with Sukoon_master_key)
+  const decryptLegacyMessage = (encryptedContent, nonce) => {
+    if (!legacyMasterKey) return null;
+    try {
+      const pad = s => s + '='.repeat((4 - s.length % 4) % 4);
+      const box        = util.decodeBase64(encryptedContent);
+      const nonceBytes = util.decodeBase64(nonce);
+      const keyBytes   = util.decodeBase64(pad(legacyMasterKey));
+      const decrypted  = nacl.secretbox.open(box, nonceBytes, keyBytes);
+      if (!decrypted) return null;
+      return util.encodeUTF8(decrypted);
+    } catch { return null; }
+  };
+
+  const importLegacyKey = (masterKeyBase64) => {
+    const trimmed = masterKeyBase64.trim();
+    localStorage.setItem('sukoon_legacy_master_key', trimmed);
+    setLegacyMasterKey(trimmed);
+  };
+
+  return {
+    myPublicKey: keyPair?.publicKey,
+    encryptMessage,
+    decryptMessage,
+    decryptLegacyMessage,
+    importLegacyKey,
+    isReady: !!keyPair,
+    needsPinSetup,
+    needsPinRestore,
+    backupKeyWithPin,
+    restoreKeyWithPin,
+    skipBackup,
+    generateFreshKeys,
+  };
+}

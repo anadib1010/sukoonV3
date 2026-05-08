@@ -855,3 +855,9 @@ Strike system summary — what's now working:
 ✅ Both services came back up automatically after reboot
 ✅ Memory usage healthy at 46%
 ✅ Disk usage only 13.5% — plenty of room
+`src/hooks/useE2EE.js` — Android
+`src/hooks/useChatEngine.ts` — Android
+`src/settings/Settings.tsx` — Android
+`src/hooks/useE2EE.web.js` — PWA (new file)
+src/hooks/useE2EE.web.js` — PWA (new file)
+`src/components/SukoonChat.jsx` — PWA

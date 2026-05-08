@@ -279,10 +279,9 @@ export default function SukoonChat({ T, lang, setTab }) {
             
             // Save them to your React ref so the Chat Engine can use it
             myMasterKeyRef.current = privateKey;
-            
-            // Tell the database we are online with our public key
-            await supabase.from('profiles').update({ public_key: savedPubKey }).eq('id', user.id);
-            console.log("Loaded existing keys from the drawer!");
+            // NOTE: public_key in Supabase is now managed by useE2EE.web.js (nacl)
+            // Do NOT overwrite it here with the old P-256 key
+            console.log("Loaded existing P-256 keys (legacy, for old message reading only)");
 
           } else {
             // Step 3 (NO): No keys found. We must be a brand new user. 
@@ -297,10 +296,9 @@ export default function SukoonChat({ T, lang, setTab }) {
             
             // Save them to your React ref
             myMasterKeyRef.current = keyPair.privateKey;
-            
-            // Tell the database our brand new public key
-            await supabase.from('profiles').update({ public_key: pubString }).eq('id', user.id);
-            console.log("Generated brand new keys and saved them!");
+            // NOTE: public_key in Supabase is now managed by useE2EE.web.js (nacl)
+            // Do NOT overwrite it here with the P-256 key
+            console.log("Generated new P-256 keys locally (legacy only)");
           }
         } catch (error) {
           console.error("Error setting up security keys:", error);
