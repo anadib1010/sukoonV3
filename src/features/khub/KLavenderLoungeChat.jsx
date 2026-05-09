@@ -35,6 +35,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
   const [bulletin, setBulletin] = useState(null);
   const [showBulletin, setShowBulletin] = useState(true);
   const [pinnedMessage, setPinnedMessage] = useState(null);
+  const [commentCounts, setCommentCounts] = useState({});
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -50,7 +51,24 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
   }, []);
 
   useEffect(() => {
-    supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible').order('created_at', { ascending: true }).limit(100).then(({ data }) => { if (data) setMessages(data); });
+    supabase.from('khub_messages').select('*').eq('room_name', ROOM_NAME).eq('status', 'visible').order('created_at', { ascending: false }).limit(100).then(({ data }) => {
+      if (data) {
+        setMessages([...data].reverse());
+        // Fetch comment counts for all messages in one query
+        const ids = data.map(m => m.id);
+        if (ids.length > 0) {
+          supabase.from('khub_comments')
+            .select('message_id')
+            .in('message_id', ids)
+            .then(({ data: cData }) => {
+              if (!cData) return;
+              const counts = {};
+              cData.forEach(c => { counts[c.message_id] = (counts[c.message_id] || 0) + 1; });
+              setCommentCounts(counts);
+            });
+        }
+      }
+    });
     const sub = supabase.channel('lavender_live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'khub_messages', filter: `room_name=eq.${ROOM_NAME}` }, (p) => { if (p.new.status === 'visible') setMessages(prev => [...prev, p.new]); }).subscribe();
     fetchSlowMode(ROOM_NAME).then(setSlowMode);
     supabase.from('khub_bulletins').select('content').eq('room_name', ROOM_NAME).eq('is_active', true).single().then(({ data }) => { if (data) setBulletin(data.content); });
@@ -287,6 +305,7 @@ export function KLavenderLoungeChat({ setTab, T, lang }) {
               onDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
               currentUserProfile={userProfile}
               onPin={userProfile?.is_admin ? handlePin : undefined}
+              commentCount={commentCounts[m.id] ?? 0}
               senderLabel={!isMe ? (m.avatar_emoji || '🪻') + ' ' + (m.username ?? m.user_email?.split('@')[0] ?? 'fan') : undefined}
             />
           );

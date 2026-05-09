@@ -75,6 +75,73 @@ function useMemoLikes(msgId, isImage) {
   return { counts, myLikes, toggle };
 }
 
+// ── Comments hook ─────────────────────────────────────────────────────────────
+function useComments(msgId, initialCount = 0) {
+  const [comments,     setComments]     = useState([]);
+  const [commentCount, setCommentCount] = useState(initialCount);
+  const [showThread,   setShowThread]   = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [posting,      setPosting]      = useState(false);
+  const [currentUser,  setCurrentUser]  = useState(null);
+  const [username,     setUsername]     = useState('fan');
+
+  // Sync initialCount when it changes (room finishes loading counts)
+  useEffect(() => {
+    setCommentCount(initialCount);
+  }, [initialCount]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      setCurrentUser(user);
+      const cached = localStorage.getItem(`jsukoon_username_${user.id}`);
+      if (cached) { setUsername(cached); return; }
+      supabase.from('profiles').select('username').eq('id', user.id).single()
+        .then(({ data }) => { if (data?.username) setUsername(data.username); });
+    });
+  }, []);
+
+  // Fetch full comments when thread is opened
+  useEffect(() => {
+    if (!showThread || !msgId) return;
+    let cancelled = false;
+    supabase.from('khub_comments').select('*').eq('message_id', msgId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled && data) {
+          setComments(data);
+          setCommentCount(data.length);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [showThread, msgId]);
+
+  async function postComment() {
+    if (!commentInput.trim() || !currentUser || posting) return;
+    setPosting(true);
+    const newComment = {
+      message_id: msgId,
+      user_id: currentUser.id,
+      username,
+      text: commentInput.trim(),
+    };
+    const temp = { ...newComment, id: `temp_${Date.now()}`, created_at: new Date().toISOString() };
+    setComments(prev => [...prev, temp]);
+    setCommentCount(prev => (prev ?? 0) + 1);
+    setCommentInput('');
+    const { data, error } = await supabase.from('khub_comments').insert(newComment).select().single();
+    if (!error && data) {
+      setComments(prev => prev.map(c => c.id === temp.id ? data : c));
+    } else {
+      setComments(prev => prev.filter(c => c.id !== temp.id));
+      setCommentCount(prev => Math.max(0, (prev ?? 1) - 1));
+    }
+    setPosting(false);
+  }
+
+  return { comments, commentCount, showThread, setShowThread, commentInput, setCommentInput, postComment, posting };
+}
+
 const COPY = {
   en: {
     nsfwHidden:   "Possibly sensitive",
@@ -171,6 +238,7 @@ export default function MessageBubble({
   senderLabel,         // optional: override the sender name display
   onBlock,             // optional: callback to block this message's sender
   onPin,               // optional: admin-only callback to pin this message
+  commentCount: commentCountProp = 0, // comment count passed from room (avoids per-message DB calls)
 }) {
   const t = COPY[lang] ?? COPY.en;
   const [revealed,       setRevealed]       = useState(false);
@@ -187,6 +255,7 @@ export default function MessageBubble({
   const blurred = msg.nsfw_state === "blurred";
   const blocked = msg.nsfw_state === "blocked";
   const { counts, myLikes, toggle } = useMemoLikes(msg.id, isImage);
+  const { comments, commentCount, showThread, setShowThread, commentInput, setCommentInput, postComment, posting } = useComments(msg.id, commentCountProp);
 
   const isAdmin    = currentUserProfile?.is_admin === true;
   const isEliteMod = (currentUserProfile?.trust_level ?? 0) >= 3;
@@ -430,6 +499,88 @@ export default function MessageBubble({
           </button>
         </div>
       )}
+
+      {/* ── Comment thread ─────────────────────────────────────────── */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start", marginBottom: 8, marginTop: -2 }}>
+        {/* Toggle button */}
+        <button
+          type="button"
+          onClick={() => setShowThread(prev => !prev)}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 11, color: `${text}55`, padding: "2px 8px",
+            fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3px",
+            display: "flex", alignItems: "center", gap: 4,
+          }}
+        >
+          💬 {commentCount !== null && commentCount > 0 ? `${commentCount} comment${commentCount > 1 ? 's' : ''}` : 'Comment'}
+          <span style={{ fontSize: 9, opacity: 0.6 }}>{showThread ? '▲' : '▼'}</span>
+        </button>
+
+        {/* Thread panel */}
+        {showThread && (
+          <div style={{
+            width: "min(320px, 85vw)",
+            background: `${text}06`,
+            border: `1px solid ${accent}20`,
+            borderRadius: 12,
+            padding: "10px 12px",
+            marginTop: 4,
+          }}>
+            {/* Comments list */}
+            {comments.length === 0 && (
+              <div style={{ fontSize: 12, color: `${text}44`, textAlign: "center", padding: "8px 0", fontFamily: "'DM Sans', sans-serif" }}>
+                No comments yet — be the first 💜
+              </div>
+            )}
+            {comments.map(c => (
+              <div key={c.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${text}10` }}>
+                <div style={{ fontSize: 10, color: accent, fontWeight: 600, marginBottom: 2, fontFamily: "'DM Sans', sans-serif" }}>
+                  {c.username ?? 'fan'}
+                </div>
+                <div style={{ fontSize: 13, color: text, lineHeight: 1.4, fontFamily: "'DM Sans', sans-serif" }}>
+                  {c.text}
+                </div>
+              </div>
+            ))}
+
+            {/* Comment input */}
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <input
+                type="text"
+                placeholder="Add a comment…"
+                value={commentInput}
+                onChange={e => setCommentInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && postComment()}
+                maxLength={300}
+                style={{
+                  flex: 1, padding: "7px 12px", borderRadius: 20,
+                  background: `${text}08`, border: `1px solid ${accent}30`,
+                  color: text, fontSize: 13, outline: "none",
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+                onClick={e => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); postComment(); }}
+                disabled={!commentInput.trim() || posting}
+                style={{
+                  padding: "7px 12px", borderRadius: 20,
+                  background: commentInput.trim() ? accent : `${text}15`,
+                  color: commentInput.trim() ? "#fff" : `${text}44`,
+                  border: "none", cursor: commentInput.trim() ? "pointer" : "not-allowed",
+                  fontSize: 12, fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.2s",
+                }}
+              >
+                {posting ? "…" : "Post"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

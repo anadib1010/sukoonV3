@@ -861,3 +861,7 @@ Strike system summary — what's now working:
 `src/hooks/useE2EE.web.js` — PWA (new file)
 src/hooks/useE2EE.web.js` — PWA (new file)
 `src/components/SukoonChat.jsx` — PWA
+Comments persist after hard refresh ✅
+Comment count shows correctly (💬 3 comments) ✅
+Works on both text and image messages ✅
+Works across all 5 rooms ✅
