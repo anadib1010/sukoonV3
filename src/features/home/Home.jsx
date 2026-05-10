@@ -106,11 +106,19 @@ export function Home({ setTab, T, lang }) {
     },
     resetBtn: {
       width: "100%", maxWidth: "340px", 
-      // 👇 CHANGE THESE TWO LINES TO MATCH 18px and 14px 👇
       padding: "18px 0",
       fontSize: "14px", 
       letterSpacing: "2px",
-      marginBottom: "2px",
+      marginBottom: "16px",
+    },
+    kHubSmallBtn: {
+      width: "calc(50% - 6px)", padding: "18px 0", backgroundColor: "transparent",
+      color: "#FF69B4", border: `1px solid #FF69B460`, borderRadius: "12px",
+      cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
+      fontWeight: 700, letterSpacing: "1.5px",
+      transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px #FF69B420`,
+      animation: "kpopSuperPulse 3s ease-in-out infinite",
     },
     bottomContainer: {
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -198,23 +206,17 @@ export function Home({ setTab, T, lang }) {
       {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
 
-        {/* 💖 THE K-HUB PORTAL (Top) */}
+        {/* 🧘 1-MINUTE RESET (Top) */}
         <button
           {...pressable}
-          onClick={() => setTab('khub')}
-          style={s.kUniverseBtn}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = `linear-gradient(135deg, #FF69B415 0%, #FF69B450 50%, #FF69B415 100%)`;
-            e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #FF69B440`;
-            // Removed manual transform so the breathing animation stays perfectly smooth!
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, #FF69B420 50%, ${T.bg} 100%)`;
-            e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 12px #FF69B430`;
-            // Removed manual transform
-          }}
+          onClick={() => setTab('reset')}
+          style={{ ...s.buttonBase, ...s.resetBtn }}
+          onMouseEnter={(e) => handleHover(e, true)}
+          onMouseLeave={(e) => handleHover(e, false)}
         >
-          {hi ? "के-पॉप और के-ड्रामा हब" : "K-POP & K-DRAMA HUB"}
+          {hi
+            ? <><span style={{fontFamily:"'DM Sans',sans-serif"}}>1</span> - मिनट। साफ़ दिमाग।</>
+            : "1 - MINUTE. CLEAR HEAD."}
         </button>
 
         {/* 🔮 THE HOROSCOPE PORTAL — Vedic reading via Gemini AI */}
@@ -236,21 +238,6 @@ export function Home({ setTab, T, lang }) {
           🔮 {hi ? "आज का राशिफल" : "DAILY HOROSCOPE"}
         </button>
 
-        <p style={s.instruction}>
-          {hi ? "एक मिनट। साफ़ दिमाग।" : "ONE MINUTE. CLEAR HEAD."}
-        </p>
-
-        <button
-          {...pressable}
-          onClick={() => setTab('reset')}
-          style={{ ...s.buttonBase, ...s.resetBtn }}
-          onMouseEnter={(e) => handleHover(e, true)}
-          onMouseLeave={(e) => handleHover(e, false)}
-        >
-          {hi
-            ? <><span style={{fontFamily:"'DM Sans',sans-serif"}}>1</span>-मिनट का रीसेट लें</>
-            : <><span style={{fontFamily:"'DM Sans',sans-serif"}}>1</span>-MINUTE RESET</>}
-        </button>
       </div>
 
       {/* 3. BOTTOM SECTION */}
@@ -277,23 +264,42 @@ export function Home({ setTab, T, lang }) {
             </button>
           </div>
           
-          <button
-            {...pressable}
-            onClick={() => setTab('chat')}
-            style={s.chatBtn}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${T.accent}20`;
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px ${T.accent}40`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.transform = "translateY(0px)";
-              e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`;
-            }}
-          >
-            {hi ? "टीम चैट" : "TEAM CHAT"}
-          </button>
+          <div style={s.row}>
+            {/* 💖 K-HUB BUTTON (small, left of Team Chat) */}
+            <button
+              {...pressable}
+              onClick={() => setTab('khub')}
+              style={s.kHubSmallBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `linear-gradient(135deg, #FF69B415 0%, #FF69B450 50%, #FF69B415 100%)`;
+                e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px #FF69B440`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px #FF69B420`;
+              }}
+            >
+              {hi ? "के-हब" : "K-HUB"}
+            </button>
+
+            <button
+              {...pressable}
+              onClick={() => setTab('chat')}
+              style={s.chatBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${T.accent}20`;
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.4), 0 0 18px ${T.accent}40`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.transform = "translateY(0px)";
+                e.currentTarget.style.boxShadow = `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`;
+              }}
+            >
+              {hi ? "टीम चैट" : "TEAM CHAT"}
+            </button>
+          </div>
         </div>
 
         {/* 4. FOOTER (Every line restored) */}
