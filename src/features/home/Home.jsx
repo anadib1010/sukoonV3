@@ -16,7 +16,7 @@ export function Home({ setTab, T, lang }) {
   const hours = new Date().getHours();
   const greeting = hi
     ? (hours < 12 ? "सुप्रभात" : hours < 17 ? "शुभ दोपहर" : "शुभ संध्या")
-    : (hours < 12 ? "Good morning" : hours < 17 ? "Good afternoon" : "Good evening");
+    : (hours < 12 ? "Good Morning" : hours < 17 ? "Good Afternoon" : "Good Evening");
 
   // ─── THE RULE OF T: EVERY LINE RESTORED ───
   const s = {
@@ -110,6 +110,7 @@ export function Home({ setTab, T, lang }) {
       fontSize: "14px", 
       letterSpacing: "2px",
       marginBottom: "16px",
+      animation: "resetBreathe 3s ease-in-out infinite",
     },
     kHubSmallBtn: {
       width: "calc(50% - 6px)", padding: "18px 0", backgroundColor: "transparent",
@@ -191,6 +192,10 @@ export function Home({ setTab, T, lang }) {
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), 0 0 25px #FF69B480;
             border-color: #FF69B4; 
           }
+        }
+        @keyframes resetBreathe {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-2px); }
         }
       `}</style>
       {/* 👆 ------------------- 👆 */}
