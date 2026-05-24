@@ -865,3 +865,34 @@ Comments persist after hard refresh ✅
 Comment count shows correctly (💬 3 comments) ✅
 Works on both text and image messages ✅
 Works across all 5 rooms ✅
+## Vedic Horoscope Feature (PWA + Backend)
+
+### Backend (Oracle VM ~/horoscope/)
+- Flask + gunicorn on port 5001, proxied via Caddy at jsukoon-api.duckdns.org/horoscope/
+- Swiss Ephemeris (pyswisseph) with Lahiri ayanamsha for sidereal positions
+- Ephemeris files at ~/horoscope/ephe/ (sepl_18.se1, semo_18.se1, seas_18.se1)
+- Whole-sign house system (asc_sign_start used as house boundary)
+- Vimshottari Dasha + Antardasha + Pratyantara Dasha calculation
+- D1, D9 Navamsha, D10 Dashamsha divisional charts
+- Planet status flags: retrograde, combust, exalted, debilitated, vargottama
+- Rahu/Ketu always marked retrograde
+- Model: claude-sonnet-4-20250514 (API key pending)
+- systemd service: horoscope.service (auto-starts on reboot)
+
+### Frontend (src/features/horoscope/Horoscope.jsx)
+- Fixed white/ochre theme (#FFFDF8 bg, #C17B2B accent) regardless of app theme
+- North Indian diamond chart (diagonals + midpoint diamond, correct geometry)
+- South Indian chart with empty 2x2 center square
+- 6 chart views: D1/D9/D10 in both North and South Indian styles
+- Sign numbers 1-12 (Aries=1 to Pisces=12) instead of text abbreviations
+- Planet symbols in chart: ↑ Exalted · ↓ Debilitated · ᴿ Retrograde · ☌ Combust · □ Vargottama
+- Planetary positions table with degrees, minutes, nakshatra, nakshatra lord
+- Dasha accordion: click MD → shows AD → click AD → shows PD
+- City autocomplete using Nominatim (OpenStreetMap)
+- Verified accuracy against AstroSage (within arcminutes)
+
+### Pending
+- Anthropic API key → AI narrative reading (Sonnet 4.6)
+- Test antardasha/pratyantara dasha date accuracy
+- Hindi nakshatra/dasha names
+- Premium tier with Opus 4.6 (later)
