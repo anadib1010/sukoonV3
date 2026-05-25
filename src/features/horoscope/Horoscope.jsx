@@ -190,7 +190,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [error,     setError]     = useState('');
   const [form,      setForm]      = useState({
     name:'', day:'', month:'', year:'',
-    hour:'12', minute:'0', city:'', tz:'5.5',
+    hour:'12', minute:'0', city:'', tz:'5.5', tz_name:'', tz_label:'',
   });
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [selectedMD, setSelectedMD] = useState(null);
@@ -265,7 +265,7 @@ if (form._lat && form._lon) {
         body: JSON.stringify({
           year: +form.year, month: +form.month, day: +form.day,
           hour: +form.hour, minute: +form.minute,
-          lat, lon, tz_offset: +form.tz,
+          lat, lon, tz_offset: +form.tz, tz_name: form.tz_name,
         }),
       });
       const data = await res.json();
@@ -386,9 +386,25 @@ return (
     <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#FFFDF8', border:`1px solid #C17B2B60`, borderRadius:'10px', zIndex:999, overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,0.12)' }}>
       {citySuggestions.map((c, i) => (
         <div key={i}
-          onMouseDown={() => {
-            setForm(f => ({ ...f, city: c.label, _lat: c.lat, _lon: c.lon }));
+          onMouseDown={async () => {
+            setForm(f => ({ ...f, city: c.label, _lat: c.lat, _lon: c.lon, tz_label: 'Detecting timezone...', tz_name: '' }));
             setCitySuggestions([]);
+            try {
+              const tzRes = await fetch(`https://timeapi.io/api/timezone/coordinate?latitude=${c.lat}&longitude=${c.lon}`);
+              const tzData = await tzRes.json();
+              if (tzData.timeZone) {
+                const offsetHours = tzData.currentUtcOffset?.hours || 0;
+                const offsetMins  = tzData.currentUtcOffset?.minutes || 0;
+                const totalOffset = offsetHours + offsetMins / 60;
+                const sign = totalOffset >= 0 ? '+' : '-';
+                const absH = Math.abs(offsetHours);
+                const absM = Math.abs(offsetMins);
+                const label = `${tzData.timeZone} (UTC ${sign}${String(absH).padStart(2,'0')}:${String(absM).padStart(2,'0')})`;
+                setForm(f => ({ ...f, tz: String(totalOffset), tz_name: tzData.timeZone, tz_label: label }));
+              }
+            } catch {
+              setForm(f => ({ ...f, tz_label: 'Could not detect — please select manually' }));
+            }
           }}
           style={{ padding:'10px 14px', fontSize:'13px', fontFamily:"'DM Sans',sans-serif", color:'#1A1A1A', cursor:'pointer', borderBottom: i < citySuggestions.length-1 ? '1px solid #C17B2B20' : 'none' }}
           onMouseEnter={e => e.currentTarget.style.background='#F5EDE0'}
@@ -403,18 +419,24 @@ return (
 
             <div style={{ marginBottom:'22px' }}>
               <label style={s.label}>{hi ? 'समय क्षेत्र' : 'Timezone'}</label>
-              <select style={{ ...s.select, flex:'unset', width:'100%' }} value={form.tz} onChange={set('tz')}>
-                <option value="5.5">IST +5:30 (India, Sri Lanka)</option>
-                <option value="0">UTC +0:00 (UK, Ghana)</option>
-                <option value="1">CET +1:00 (Germany, France)</option>
-                <option value="3">AST +3:00 (Saudi Arabia)</option>
-                <option value="5">PKT +5:00 (Pakistan)</option>
-                <option value="6">BST +6:00 (Bangladesh)</option>
-                <option value="7">ICT +7:00 (Thailand, Vietnam)</option>
-                <option value="8">CST +8:00 (China, Singapore)</option>
-                <option value="-5">EST -5:00 (USA Eastern)</option>
-                <option value="-8">PST -8:00 (USA Pacific)</option>
-              </select>
+              {form.tz_label ? (
+                <div style={{ padding:'12px', borderRadius:'10px', border:'1px solid #C17B2B40', background:'#FDF6EC', color:'#2C1810', fontFamily:"'DM Sans',sans-serif", fontSize:'13px' }}>
+                  🌍 {form.tz_label}
+                </div>
+              ) : (
+                <select style={{ ...s.select, flex:'unset', width:'100%' }} value={form.tz} onChange={set('tz')}>
+                  <option value="5.5">IST +5:30 (India, Sri Lanka)</option>
+                  <option value="0">UTC +0:00 (UK, Ghana)</option>
+                  <option value="1">CET +1:00 (Germany, France)</option>
+                  <option value="3">AST +3:00 (Saudi Arabia)</option>
+                  <option value="5">PKT +5:00 (Pakistan)</option>
+                  <option value="6">BST +6:00 (Bangladesh)</option>
+                  <option value="7">ICT +7:00 (Thailand, Vietnam)</option>
+                  <option value="8">CST +8:00 (China, Singapore)</option>
+                  <option value="-5">EST -5:00 (USA Eastern)</option>
+                  <option value="-8">PST -8:00 (USA Pacific)</option>
+                </select>
+              )}
             </div>
 
             {error && <p style={s.error}>{error}</p>}
