@@ -244,6 +244,9 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     }
     setError('');
     setStep('loading');
+    const chartHash = btoa(
+        `${form.day}-${form.month}-${form.year}-${form.hour}-${form.minute}-${form.city.toLowerCase().trim()}`
+      );
     try {
       let lat, lon;
 if (form._lat && form._lon) {
