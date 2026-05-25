@@ -196,7 +196,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [selectedMD, setSelectedMD] = useState(null);
   const [selectedAD, setSelectedAD] = useState(null);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const [reportLang, setReportLang] = useState('English');
+  const [reportLang, setReportLang] = useState(lang === 'Hindi' ? 'Hindi' : 'English');
   const [report,        setReport]        = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError,   setReportError]   = useState('');
