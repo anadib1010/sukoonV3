@@ -196,6 +196,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [selectedMD, setSelectedMD] = useState(null);
   const [selectedAD, setSelectedAD] = useState(null);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [reportLang, setReportLang] = useState('English');
   const [report,        setReport]        = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError,   setReportError]   = useState('');
@@ -223,7 +224,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       const res = await fetch(`${API}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chart }),
+        body: JSON.stringify({ chart, language: reportLang }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Report generation failed');
@@ -420,6 +421,26 @@ return (
             <button style={s.submitBtn} onClick={submit}>
               {hi ? '🔮 कुंडली बनाएं' : '🔮 CALCULATE MY CHART'}
             </button>
+            <div style={{ marginBottom:'14px' }}>
+              <label style={s.label}>Report Language</label>
+              <select style={{ ...s.select, flex:'unset', width:'100%' }}
+                value={reportLang} onChange={e => setReportLang(e.target.value)}>
+                <option value="English">English</option>
+                <option value="Hindi">हिंदी (Hindi)</option>
+                <option value="Tamil">தமிழ் (Tamil)</option>
+                <option value="Telugu">తెలుగు (Telugu)</option>
+                <option value="Bengali">বাংলা (Bengali)</option>
+                <option value="Marathi">मराठी (Marathi)</option>
+                <option value="Gujarati">ગુજરાતી (Gujarati)</option>
+                <option value="Punjabi">ਪੰਜਾਬੀ (Punjabi)</option>
+                <option value="Spanish">Español (Spanish)</option>
+                <option value="French">Français (French)</option>
+                <option value="German">Deutsch (German)</option>
+                <option value="Portuguese">Português (Portuguese)</option>
+                <option value="Russian">Русский (Russian)</option>
+                <option value="Italian">Italiano (Italian)</option>
+              </select>
+            </div>
             <p style={s.disclaimer}>
               {hi ? 'Swiss Ephemeris द्वारा गणना · केवल आध्यात्मिक अन्वेषण के लिए' : 'Calculated using Swiss Ephemeris · For spiritual exploration only'}
             </p>
