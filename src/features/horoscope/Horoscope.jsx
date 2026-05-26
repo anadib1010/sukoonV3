@@ -218,6 +218,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     return result;
   };
   const generateReport = async () => {
+    if (!chart) { setReportError('Please calculate a chart first.'); return; }
     setReportLoading(true);
     setReportError('');
     try {
@@ -226,12 +227,14 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, language: reportLang }),
       });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Report generation failed');
       setReport(data.report);
       setMainView('report');
+      window.scrollTo(0, 0);
     } catch (e) {
-      setReportError(e.message);
+      setReportError(`Report failed: ${e.message}`);
     }
     setReportLoading(false);
   };
@@ -331,7 +334,17 @@ return (
       </div>
 
       <div style={s.scroll}>
-
+        {step === 'loading' && (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'80vh', gap:'24px', background:'#FFFDF8' }}>
+            <div style={{ width:56, height:56, border:'3px solid #C17B2B30', borderTop:'3px solid #C17B2B', borderRadius:'50%', animation:'spin 1s linear infinite' }} />
+            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'22px', fontStyle:'italic', color:'#2C1810', opacity:0.8, animation:'gentlePulse 2.5s ease-in-out infinite', textAlign:'center', maxWidth:280, lineHeight:1.5, margin:0 }}>
+              {hi ? 'ग्रहों की स्थिति की गणना हो रही है...' : 'Reading the positions of the planets...'}
+            </p>
+            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.4, color:'#8B5E3C', letterSpacing:'1.5px', textTransform:'uppercase' }}>
+              Swiss Ephemeris · Lahiri Ayanamsha
+            </p>
+          </div>
+        )}
         {step === 'form' && (
           <div>
             <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontStyle:'italic', opacity:0.7, textAlign:'center', marginBottom:'24px', color:T.text, lineHeight:1.45 }}>
