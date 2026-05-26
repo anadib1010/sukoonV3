@@ -243,7 +243,10 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       return;
     }
     setError('');
-    setStep('loading');
+      setStep('loading');
+      setMainView('chart');
+      setReport(null);
+      window.scrollTo(0, 0);
     const chartHash = btoa(
         `${form.day}-${form.month}-${form.year}-${form.hour}-${form.minute}-${form.city.toLowerCase().trim()}`
       );
@@ -310,7 +313,12 @@ return (
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes gentlePulse { 0%,100%{opacity:0.65} 50%{opacity:1} }
-        select option { background: #fdf6ec; color: #2c1810; }
+        select option { background: #FDF6EC; color: #2C1810; }
+        @media print {
+          @page { size: A4; margin-top:20mm; margin-bottom:20mm; margin-left:25mm; margin-right:15mm; }
+          body { font-family: 'Cormorant Garamond', serif; font-size:12pt; color:#2C1810; }
+          button, .no-print { display: none !important; }
+        }
       `}</style>
 
       <div style={s.header}>
@@ -472,32 +480,27 @@ return (
           </div>
         )}
 
-        {step === 'loading' && (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', gap:'24px' }}>
-            <div style={{ width:50, height:50, border:'3px solid #C17B2B30', borderTop:'3px solid #C17B2B', borderRadius:'50%', animation:'spin 1s linear infinite' }} />
-            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'21px', fontStyle:'italic', color:T.text, opacity:0.75, animation:'gentlePulse 2.5s ease-in-out infinite', textAlign:'center', maxWidth:260, lineHeight:1.4 }}>
-              {hi ? 'ग्रहों की स्थिति की गणना हो रही है...' : 'Calculating planetary positions...'}
-            </p>
-            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.38, color:T.text, letterSpacing:'1px' }}>
-              Swiss Ephemeris · Vimshottari Dasha
-            </p>
-          </div>
-        )}
-
         {step === 'result' && chart && (
           <div>
+            {mainView === 'report' && report && (
+              <button
+                onClick={() => window.print()}
+                style={{ width:'100%', padding:'12px', borderRadius:'12px', border:'2px solid #C17B2B', background:'transparent', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', marginBottom:'12px' }}>
+                ⬇️ {hi ? 'रिपोर्ट डाउनलोड करें' : 'DOWNLOAD FULL REPORT'}
+              </button>
+            )}
             <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
-  <button
-    onClick={() => setMainView('chart')}
-    style={{ flex:1, padding:'12px', borderRadius:'12px', border:`1px solid #C17B2B${mainView==='chart'?'':'40'}`, background: mainView==='chart' ? '#C17B2B22' : 'transparent', color: mainView==='chart' ? '#C17B2B' : '#1A1A1A', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer' }}>
-    🔮 Chart View
-  </button>
-  <button
-    onClick={() => report ? setMainView('report') : generateReport()}
-    style={{ flex:1, padding:'12px', borderRadius:'12px', border:'none', background: reportLoading ? '#A0622A' : mainView==='report' ? '#A0622A' : '#C17B2B', color:'#FFFFFF', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', boxShadow:'0 4px 16px rgba(193,123,43,0.4)', letterSpacing:'0.5px' }}>
-    {reportLoading ? '⏳ Generating...' : report ? '📜 Prediction Report' : '📜 Generate Report'}
-  </button>
-</div>
+              <button
+                onClick={() => setMainView('chart')}
+                style={{ flex:1, padding:'12px', borderRadius:'12px', border:`1px solid #C17B2B${mainView==='chart'?'':'40'}`, background: mainView==='chart' ? '#C17B2B22' : 'transparent', color: mainView==='chart' ? '#C17B2B' : '#1A1A1A', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer' }}>
+                🔮 Chart View
+              </button>
+              <button
+              onClick={() => report ? setMainView('report') : generateReport()}
+              style={{ flex:1, padding:'12px', borderRadius:'12px', border:'none', background: reportLoading ? '#A0622A' : mainView==='report' ? '#A0622A' : '#C17B2B', color:'#FFFFFF', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', boxShadow:'0 4px 16px rgba(193,123,43,0.4)', letterSpacing:'0.5px' }}>
+              {reportLoading ? '⏳ Generating...' : report ? '📜 Prediction Report' : '📜 Generate Report'}
+            </button>
+          </div>
 <div style={{ textAlign:'center', marginTop:'8px', marginBottom:'4px' }}>
   <span
     onClick={() => setShowDisclaimer(d => !d)}
@@ -516,9 +519,16 @@ return (
               <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'24px', fontWeight:600, color:T.text, margin:'0 0 4px' }}>
                 {form.name ? `${form.name}${hi ? ' की कुंडली' : "'s Chart"}` : (hi ? 'आपकी जन्म कुंडली' : 'Your Birth Chart')}
               </p>
-              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.45, color:T.text, margin:'0 0 8px' }}>
-                {form.day} {MONTHS[+form.month-1]} {form.year} · {form.city}
-              </p>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', marginBottom:'8px' }}>
+                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.45, color:T.text, margin:0 }}>
+                  {form.day} {MONTHS[+form.month-1]} {form.year} · {form.city}
+                </p>
+                <button
+                  onClick={() => { setStep('form'); setChart(null); setReport(null); setMainView('chart'); window.scrollTo(0,0); }}
+                  style={{ background:'none', border:`1px solid #C17B2B50`, borderRadius:'6px', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:600, cursor:'pointer', padding:'2px 8px', letterSpacing:'0.5px' }}>
+                  ✏️ Edit
+                </button>
+              </div>
               <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'13px', color:ACCENT, fontWeight:700 }}>
                 {hi ? 'लग्न:' : 'Lagna:'} {chart.ascendant.sign} · {chart.ascendant.nakshatra} Nakshatra Pada {chart.ascendant.pada}
               </p>
@@ -735,6 +745,11 @@ return (
             <button onClick={() => { setStep('form'); setChart(null); setError(''); }}
               style={{ ...s.submitBtn, background:`${ACCENT}20`, color:ACCENT, marginTop:'4px' }}>
               {hi ? '↩ नई कुंडली बनाएं' : '↩ CALCULATE ANOTHER CHART'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              style={{ ...s.submitBtn, background:'transparent', color:'#C17B2B', border:'2px solid #C17B2B', marginBottom:'8px' }}>
+              ⬇️ {hi ? 'चार्ट डाउनलोड करें' : 'DOWNLOAD CHART'}
             </button>
             <p style={s.disclaimer}>
               {hi ? 'यह ज्योतिष केवल आध्यात्मिक अन्वेषण के लिए है।' : 'For spiritual exploration only. Not a substitute for professional advice.'}
