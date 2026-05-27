@@ -337,10 +337,8 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
         });
       } catch (_) {}
     }
-    // Save email to Supabase if provided
     if (email && email.includes('@')) {
       try {
-        const { supabase } = await import('../../../lib/supabaseClient'); // adjust path
         await supabase.from('report_requests').insert({
           email:          email.trim(),
           name:           form.name || null,
