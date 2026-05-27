@@ -337,16 +337,6 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
         });
       } catch (_) {}
     }
-    if (email && email.includes('@')) {
-      try {
-        await supabase.from('report_requests').insert({
-          email:          email.trim(),
-          name:           form.name || null,
-          language:       hi ? 'Hindi' : 'English',
-          ascendant_sign: chart?.ascendant?.sign || null,
-        });
-      } catch (_) {}
-    }
     let msgIdx = 0;
     let prog = 5;
     const interval = setInterval(() => {
@@ -354,13 +344,17 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       prog = Math.min(prog + 5 + Math.random() * 7, 88);
       setReportMsg(hi ? REPORT_MESSAGES_HI[msgIdx] : REPORT_MESSAGES[msgIdx]);
       setReportProgress(prog);
-    }, 4000);
+    }, 15000);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 190000);
       const res = await fetch(`${API}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, language: reportLang }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       clearInterval(interval);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
@@ -921,7 +915,7 @@ return (
                   </div>
                 )}
                 <div className="report-tab-bar" style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'16px' }}>
-                  {SEC.ICON} {HI ? SEC.TITLE_Hi : sec.title}
+                  {REPORT_SECTIONS.map(sec => (
                     <button key={sec.id}
                       onClick={() => setActiveSection(sec.id)}
                       style={{ padding:'6px 12px', borderRadius:'20px', border:`1px solid ${activeSection===sec.id ? '#C17B2B' : '#C17B2B33'}`, background: activeSection===sec.id ? '#C17B2B22' : 'transparent', color: activeSection===sec.id ? '#C17B2B' : '#6B5B45', fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:600, cursor:'pointer' }}>

@@ -896,3 +896,65 @@ Works across all 5 rooms ✅
 - Test antardasha/pratyantara dasha date accuracy
 - Hindi nakshatra/dasha names
 - Premium tier with Opus 4.6 (later)
+## Vedic Horoscope Feature — Current State (May 2026)
+
+### Backend (Oracle VM ~/horoscope/app.py)
+- Swiss Ephemeris (pyswisseph) with Lahiri ayanamsha
+- Whole-sign house system, North + South Indian charts
+- D1, D9 (Navamsha), D10 (Dashamsha) divisional charts
+- Vimshottari Dasha with Antardasha and Pratyantara
+- House lordships calculated and passed explicitly to Claude
+- `/chart` endpoint — claude-haiku-4-5-20251001, max_tokens 1000
+- `/report` endpoint — claude-sonnet-4-6, max_tokens 8000
+- `/send-report` endpoint — Gmail SMTP via App Password
+- Report cost logging: prints input/output tokens + USD/INR cost per request
+- Pre-birth dasha fix: dashas shown as ages not calendar years
+- Truncation fix: last incomplete sentence cleaned from both haiku and report
+- Gunicorn timeout: 180s | Caddy response_header_timeout: 120s
+- Report counter saved to ~/horoscope/report_count.txt
+- prediction_rules.md at ~/horoscope/prediction_rules.md (24 rules)
+
+### Frontend (src/features/horoscope/Horoscope.jsx)
+- Birth chart form: name, date, time, city (Nominatim autocomplete), timezone
+- Chart view: North/South Indian toggle, D1/D9/D10 views
+- 2x2 chart grid showing D1, D9, D10, Chandra Lagna simultaneously
+- Chandra Lagna: same planets, Moon sign as House 1
+- Planetary positions table: Hindi names when lang=Hindi
+- Vimshottari Dasha accordion: MD → AD → Pratyantara
+- Haiku reading (auto-generated, shown in chosen language)
+- Progress bar + cycling messages when generating full report
+- Generate Report button → email modal popup (optional email entry)
+- Email saved to Supabase table report_requests on report generation
+- Report emailed via /send-report if email provided
+- Full Hindi UI when lang=Hindi: signs, nakshatras, planet names,
+  dasha lords, section titles, badges, legend, progress messages
+- PDF download via html2pdf.js (A4, static import to avoid CSP issues)
+- Separate handleChartDownload and handleDownload functions
+- Report sections: overview, career, wealth, health, family, spirituality, dasha
+- UPI QR donation section (hidden in print/PDF)
+
+### Supabase Table
+- report_requests: id, email, name, language, ascendant_sign, created_at
+- Project: khpxgfadnnwycdhnyxye (sukoonV3 PWA)
+- RLS: insert open, select blocked (admin only)
+
+### Known Working
+- Report generates in ~30-45 seconds
+- Cost per report: ~₹6 (Sonnet) + ~₹0.20 (Haiku)
+- Hindi and English both tested and working
+- PDF downloads correctly on desktop and mobile
+
+### Next Features Planned
+- Horary (Prashna) astrology — /horary endpoint
+- Sade Sati calculator
+- Yogas detection
+- Premium report (₹501) with full dasha timeline + D9/D10 analysis
+- Razorpay integration (₹251 standard, ₹501 premium)
+- Date/time/place labels in Hindi
+- Fully translated sign and nakshatra names in chart SVGs
+Gunicorn timeout — bumped to 360s via nano
+Caddy timeouts — all three (response_header, read, write) bumped to 360s
+requests.post timeout — was hardcoded at 120s, bumped to 350s (this was the main culprit cutting off Claude mid-response)
+max_tokens — kept at 8000, enough for full reports
+Broken tab bar — removed orphaned {SEC.ICON} line and fixed missing .map( opener
+clean_content function — was stripping all content because Hindi uses । not . as sentence endings, removed it entirely
