@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import html2pdf from 'html2pdf.js';
+import { supabase } from '../../supabase';
 
 const ACCENT = '#9B59B6';
 const API    = 'https://jsukoon-api.duckdns.org/horoscope';
@@ -10,15 +12,53 @@ const PH     = {Sun:'सूर्य',Moon:'चंद्र',Mars:'मंगल'
 const DH     = {Ketu:'केतु',Venus:'शुक्र',Sun:'सूर्य',Moon:'चंद्र',Mars:'मंगल',Rahu:'राहु',Jupiter:'गुरु',Saturn:'शनि',Mercury:'बुध'};
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DASHA_ORDER = ['Ketu','Venus','Sun','Moon','Mars','Rahu','Jupiter','Saturn','Mercury'];
+const SIGNS_HI = ['मेष','वृष','मिथुन','कर्क','सिंह','कन्या','तुला','वृश्चिक','धनु','मकर','कुंभ','मीन'];
+const NAKSHATRA_HI = {
+  'Ashwini':'अश्विनी','Bharani':'भरणी','Krittika':'कृत्तिका','Rohini':'रोहिणी',
+  'Mrigashira':'मृगशिरा','Ardra':'आर्द्रा','Punarvasu':'पुनर्वसु','Pushya':'पुष्य',
+  'Ashlesha':'आश्लेषा','Magha':'मघा','Purva Phalguni':'पूर्व फाल्गुनी',
+  'Uttara Phalguni':'उत्तर फाल्गुनी','Hasta':'हस्त','Chitra':'चित्रा','Swati':'स्वाती',
+  'Vishakha':'विशाखा','Anuradha':'अनुराधा','Jyeshtha':'ज्येष्ठा','Mula':'मूल',
+  'Purva Ashadha':'पूर्व आषाढ़','Uttara Ashadha':'उत्तर आषाढ़','Shravana':'श्रवण',
+  'Dhanishta':'धनिष्ठा','Shatabhisha':'शतभिषा','Purva Bhadrapada':'पूर्व भाद्रपद',
+  'Uttara Bhadrapada':'उत्तर भाद्रपद','Revati':'रेवती',
+};
+const REPORT_SECTIONS_HI = {
+  overview:     'कुंडली सार',
+  career:       'करियर और व्यवसाय',
+  wealth:       'धन और वित्त',
+  health:       'स्वास्थ्य और शक्ति',
+  family:       'परिवार और रिश्ते',
+  spirituality: 'आध्यात्मिक मार्ग',
+  dasha:        'वर्तमान दशा काल',
+};
+const BADGE_HI = {
+  'Strongly Indicated': 'अत्यंत शुभ',
+  'Favourable':         'अनुकूल',
+  'Mixed':              'मिश्रित',
+  'Challenging':        'चुनौतीपूर्ण',
+  'Needs Vigilance':    'सावधानी आवश्यक',
+  'Irregular':          'अनियमित',
+  'Complex':            'जटिल',
+  'Transformative':     'परिवर्तनकारी',
+};
+const REPORT_MESSAGES_HI = [
+  'जन्म कुंडली पढ़ी जा रही है…',
+  'नवग्रहों को संरेखित किया जा रहा है…',
+  'नक्षत्रों से परामर्श हो रहा है…',
+  'दशा काल की गणना हो रही है…',
+  'ग्रह योगों की गणना हो रही है…',
+  'आपकी ब्रह्मांडीय कहानी लिखी जा रही है…',
+];
 const DASHA_YEARS = {Ketu:7,Venus:20,Sun:6,Moon:10,Mars:7,Rahu:18,Jupiter:16,Saturn:19,Mercury:17};
 const REPORT_SECTIONS = [
-  { id:'overview',     icon:'☉', title:'Chart Overview'        },
-  { id:'career',       icon:'♃', title:'Career & Profession'   },
-  { id:'wealth',       icon:'₹', title:'Wealth & Finances'     },
-  { id:'health',       icon:'♄', title:'Health & Vitality'     },
-  { id:'family',       icon:'☽', title:'Family & Relationships'},
-  { id:'spirituality', icon:'☊', title:'Spiritual Path'        },
-  { id:'dasha',        icon:'⏳', title:'Current Dasha Period'  },
+  { id:'overview',     icon:'☉', title:'Chart Overview',         title_hi:'कुंडली सार'          },
+  { id:'career',       icon:'♃', title:'Career & Profession',    title_hi:'करियर और व्यवसाय'   },
+  { id:'wealth',       icon:'₹', title:'Wealth & Finances',      title_hi:'धन और वित्त'         },
+  { id:'health',       icon:'♄', title:'Health & Vitality',      title_hi:'स्वास्थ्य और शक्ति' },
+  { id:'family',       icon:'☽', title:'Family & Relationships', title_hi:'परिवार और रिश्ते'    },
+  { id:'spirituality', icon:'☊', title:'Spiritual Path',         title_hi:'आध्यात्मिक मार्ग'   },
+  { id:'dasha',        icon:'⏳', title:'Current Dasha Period',   title_hi:'वर्तमान दशा काल'    },
 ];
 
 const BADGE_COLORS = {
@@ -31,6 +71,15 @@ const BADGE_COLORS = {
   'Complex':            '#7C5CBF',
   'Transformative':     '#7C5CBF',
 };
+const REPORT_MESSAGES = [
+  'Reading your birth chart…',
+  'Aligning the navagrahas…',
+  'Consulting the nakshatras…',
+  'Mapping your dasha periods…',
+  'Calculating planetary yogas…',
+  'Writing your cosmic story…',
+];
+
 const NI     = [null,[0,1],[0,2],[0,3],[1,3],[2,3],[3,3],[3,2],[3,1],[3,0],[2,0],[1,0],[0,0]];
 const SI     = [[11,0,1,2],[10,-1,-1,3],[9,-1,-1,4],[8,7,6,5]];
 
@@ -181,11 +230,57 @@ function SouthChart({ chart }) {
     </svg>
   );
 }
+function buildChandraChart(chart) {
+  const moonSign = chart.planets['Moon']?.sign || chart.ascendant.sign;
+  const moonIdx  = SIGNS.indexOf(moonSign);
+  const newPlanets = {};
+  Object.entries(chart.planets).forEach(([name, p]) => {
+    const pSignIdx  = SIGNS.indexOf(p.sign);
+    const houseOffset = ((pSignIdx - moonIdx) + 12) % 12 + 1;
+    newPlanets[name] = { ...p, house: houseOffset };
+  });
+  return {
+    ascendant: { ...chart.ascendant, sign: moonSign },
+    planets:   newPlanets,
+  };
+}
+
+function FourChartGrid({ chart, style = 'north', hi = false }) {
+  const chandraChart = buildChandraChart(chart);
+  const ChartComp    = style === 'north' ? NorthChart : SouthChart;
+  const labels = [
+    { key: 'D1',  label: hi ? 'D1 · लग्न कुंडली'    : 'D1 · Lagna',          data: chart             },
+    { key: 'D9',  label: hi ? 'D9 · नवांश'           : 'D9 · Navamsha',       data: chart.navamsa     },
+    { key: 'D10', label: hi ? 'D10 · दशांश'          : 'D10 · Dashamsha',     data: chart.dashamsha   },
+    { key: 'CL',  label: hi ? 'चंद्र लग्न'           : 'Chandra Lagna',       data: chandraChart      },
+  ];
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', letterSpacing:'1.5px', textTransform:'uppercase', color:'#8B5E3C', textAlign:'center', margin:'0 0 12px', opacity:0.7 }}>
+        {style === 'north' ? (hi ? 'उत्तर भारतीय शैली' : 'North Indian Style') : (hi ? 'दक्षिण भारतीय शैली' : 'South Indian Style')}
+      </p>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+        {labels.map(({ key, label, data }) => (
+          <div key={key} style={{ background:'#FFFDF8', border:'1px solid #C17B2B25', borderRadius:'12px', padding:'8px 6px 6px', boxShadow:'0 2px 8px rgba(193,123,43,0.08)' }}>
+            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, color:'#C17B2B', textAlign:'center', margin:'0 0 6px', letterSpacing:'0.5px' }}>
+              {label}
+            </p>
+            {data ? <ChartComp chart={data} /> : (
+              <p style={{ textAlign:'center', fontSize:'11px', color:'#8B5E3C', padding:'20px 0' }}>—</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const hi = lang === 'Hindi';
   const T = { bg: '#FFFDF8', text: '#2C1810', accent: '#C17B2B', textSoft: '#8B5E3C' };
   const [step,      setStep]      = useState('form');
-  const [chartView, setChartView] = useState('north');
+  const [chartView,  setChartView]  = useState('north');
+  const [chartStyle, setChartStyle] = useState('north');
   const [chart,     setChart]     = useState(null);
   const [error,     setError]     = useState('');
   const [form,      setForm]      = useState({
@@ -202,6 +297,14 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [reportError,   setReportError]   = useState('');
   const [activeSection, setActiveSection] = useState('overview');
   const [mainView,      setMainView]      = useState('chart');
+  const [isPrinting,    setIsPrinting]    = useState(false);
+  const [email,         setEmail]         = useState('');
+  const [emailSent,     setEmailSent]     = useState(false);
+  const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+  const [reportProgress,setReportProgress]= useState(0);
+  const [reportMsg,     setReportMsg]     = useState('');
+  const reportRef = useRef(null);
+  
   const calcPratyantara = (adStart, adEnd, adLord) => {
     const adMs = new Date(adEnd) - new Date(adStart);
     const adYears = adMs / (365.25 * 24 * 60 * 60 * 1000);
@@ -221,23 +324,128 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     if (!chart) { setReportError('Please calculate a chart first.'); return; }
     setReportLoading(true);
     setReportError('');
+    setReportProgress(5);
+    setReportMsg(hi ? REPORT_MESSAGES_HI[0] : REPORT_MESSAGES[0]);
+    setEmailSent(false);
+    if (email && email.includes('@')) {
+      try {
+        await supabase.from('report_requests').insert({
+          email:          email.trim(),
+          name:           form.name || null,
+          language:       hi ? 'Hindi' : 'English',
+          ascendant_sign: chart?.ascendant?.sign || null,
+        });
+      } catch (_) {}
+    }
+    // Save email to Supabase if provided
+    if (email && email.includes('@')) {
+      try {
+        const { supabase } = await import('../../../lib/supabaseClient'); // adjust path
+        await supabase.from('report_requests').insert({
+          email:          email.trim(),
+          name:           form.name || null,
+          language:       hi ? 'Hindi' : 'English',
+          ascendant_sign: chart?.ascendant?.sign || null,
+        });
+      } catch (_) {}
+    }
+    let msgIdx = 0;
+    let prog = 5;
+    const interval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % REPORT_MESSAGES.length;
+      prog = Math.min(prog + 5 + Math.random() * 7, 88);
+      setReportMsg(hi ? REPORT_MESSAGES_HI[msgIdx] : REPORT_MESSAGES[msgIdx]);
+      setReportProgress(prog);
+    }, 4000);
     try {
       const res = await fetch(`${API}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, language: reportLang }),
       });
+      clearInterval(interval);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Report generation failed');
+      setReportProgress(100);
+      setReportMsg('Your report is ready ✨');
       setReport(data.report);
       setMainView('report');
       window.scrollTo(0, 0);
+      if (email && email.includes('@')) {
+        try {
+          await fetch(`${API}/send-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, report: data.report, name: form.name || 'Seeker' }),
+          });
+          setEmailSent(true);
+        } catch (_) {}
+      }
     } catch (e) {
+      clearInterval(interval);
+      setReportProgress(0);
+      setReportMsg('');
       setReportError(`Report failed: ${e.message}`);
     }
     setReportLoading(false);
   };
+  const handlePrint = () => {
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsPrinting(false), 1500);
+    }, 400);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const element = document.getElementById('horoscope-report');
+      if (!element) { window.print(); return; }
+      setIsPrinting(true);
+      // Clone element to avoid React DOM issues
+      const clone = element.cloneNode(true);
+      clone.style.background = '#FFFDF8';
+      clone.style.padding = '20px';
+      const worker = html2pdf().set({
+        margin:      [12, 10, 12, 15],
+        filename:    `jsu-kun-${(form.name || 'horoscope').replace(/\s+/g,'-')}-report.pdf`,
+        image:       { type: 'jpeg', quality: 0.97 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFDF8', logging: false },
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(clone);
+      await worker.save();
+      setIsPrinting(false);
+    } catch (e) {
+      console.error('PDF error:', e);
+      setIsPrinting(false);
+      window.print();
+    }
+  };
+
+  const handleChartDownload = async () => {
+    try {
+      const element = document.getElementById('horoscope-chart');
+      if (!element) { window.print(); return; }
+      setIsPrinting(true);
+      const clone = element.cloneNode(true);
+      clone.style.background = '#FFFDF8';
+      clone.style.padding = '20px';
+      await html2pdf().set({
+        margin:      [12, 10, 12, 15],
+        filename:    `jsu-kun-${(form.name || 'chart').replace(/\s+/g,'-')}-chart.pdf`,
+        image:       { type: 'jpeg', quality: 0.97 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFDF8', logging: false },
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(clone).save();
+      setIsPrinting(false);
+    } catch (e) {
+      console.error('Chart PDF error:', e);
+      setIsPrinting(false);
+      window.print();
+    }
+  };
+
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const submit = async () => {
@@ -275,6 +483,7 @@ if (form._lat && form._lon) {
           year: +form.year, month: +form.month, day: +form.day,
           hour: +form.hour, minute: +form.minute,
           lat, lon, tz_offset: +form.tz, tz_name: form.tz_name,
+          language: hi ? 'hindi' : 'english',
         }),
       });
       const data = await res.json();
@@ -318,9 +527,18 @@ return (
         @keyframes gentlePulse { 0%,100%{opacity:0.65} 50%{opacity:1} }
         select option { background: #FDF6EC; color: #2C1810; }
         @media print {
-          @page { size: A4; margin-top:20mm; margin-bottom:20mm; margin-left:25mm; margin-right:15mm; }
-          body { font-family: 'Cormorant Garamond', serif; font-size:12pt; color:#2C1810; }
+          @page { size: A4; margin: 18mm 15mm 18mm 20mm; }
+          body { font-family: 'Cormorant Garamond', serif; font-size: 12pt; color: #2C1810; background: #fff !important; }
           button, .no-print { display: none !important; }
+          * { overflow: visible !important; max-height: none !important; }
+          .print-scroll { overflow: visible !important; height: auto !important; padding-bottom: 0 !important; }
+          .print-section { display: block !important; }
+          .print-page-break { page-break-before: always; }
+          .print-avoid-break { page-break-inside: avoid; }
+          .dasha-ad-list { display: block !important; }
+          .report-tab-bar { display: none !important; }
+          img { max-width: 140px !important; }
+          .no-print-qr { display: none !important; }
         }
       `}</style>
 
@@ -333,7 +551,7 @@ return (
         <div style={{ width:50 }} />
       </div>
 
-      <div style={s.scroll}>
+      <div style={s.scroll} classname="print-scroll">
         {step === 'loading' && (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'80vh', gap:'24px', background:'#FFFDF8' }}>
             <div style={{ width:56, height:56, border:'3px solid #C17B2B30', borderTop:'3px solid #C17B2B', borderRadius:'50%', animation:'spin 1s linear infinite' }} />
@@ -495,25 +713,42 @@ return (
 
         {step === 'result' && chart && (
           <div>
-            {mainView === 'report' && report && (
+            {(mainView === 'report' || isPrinting) && report && (
               <button
-                onClick={() => window.print()}
+                onClick={handleDownload}
                 style={{ width:'100%', padding:'12px', borderRadius:'12px', border:'2px solid #C17B2B', background:'transparent', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', marginBottom:'12px' }}>
                 ⬇️ {hi ? 'रिपोर्ट डाउनलोड करें' : 'DOWNLOAD FULL REPORT'}
               </button>
             )}
-            <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
+            
+            {emailSent && (
+              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#4A9B6F', textAlign:'center', marginBottom:'8px' }}>
+                ✅ Report sent to {email}
+              </p>
+            )}
+            <div style={{ display:'flex', gap:'8px', marginBottom: reportLoading ? '8px' : '20px' }}>
               <button
                 onClick={() => setMainView('chart')}
                 style={{ flex:1, padding:'12px', borderRadius:'12px', border:`1px solid #C17B2B${mainView==='chart'?'':'40'}`, background: mainView==='chart' ? '#C17B2B22' : 'transparent', color: mainView==='chart' ? '#C17B2B' : '#1A1A1A', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer' }}>
                 🔮 Chart View
               </button>
               <button
-              onClick={() => report ? setMainView('report') : generateReport()}
-              style={{ flex:1, padding:'12px', borderRadius:'12px', border:'none', background: reportLoading ? '#A0622A' : mainView==='report' ? '#A0622A' : '#C17B2B', color:'#FFFFFF', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', boxShadow:'0 4px 16px rgba(193,123,43,0.4)', letterSpacing:'0.5px' }}>
-              {reportLoading ? '⏳ Generating...' : report ? '📜 Prediction Report' : '📜 Generate Report'}
-            </button>
-          </div>
+                onClick={() => report ? setMainView('report') : setShowEmailPrompt(true)}
+                disabled={reportLoading}
+                style={{ flex:1, padding:'12px', borderRadius:'12px', border:'none', background: reportLoading ? '#A0622A' : mainView==='report' ? '#A0622A' : '#C17B2B', color:'#FFFFFF', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor: reportLoading ? 'not-allowed' : 'pointer', boxShadow:'0 4px 16px rgba(193,123,43,0.4)', letterSpacing:'0.5px', opacity: reportLoading ? 0.7 : 1, pointerEvents: reportLoading ? 'none' : 'auto' }}>
+                {reportLoading ? '⏳ ' + reportMsg : report ? '📜 Prediction Report' : '📜 Generate Report'}
+              </button>
+            </div>
+            {reportLoading && (
+              <div style={{ marginBottom:'16px' }}>
+                <div style={{ height:'5px', background:'#C17B2B20', borderRadius:'3px', overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${reportProgress}%`, background:'linear-gradient(90deg, #C17B2B, #9B59B6)', borderRadius:'3px', transition:'width 1s ease' }} />
+                </div>
+                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', textAlign:'center', margin:'6px 0 0', opacity:0.7 }}>
+                  This takes about 30–45 seconds · please don't close the page
+                </p>
+              </div>
+            )}
 <div style={{ textAlign:'center', marginTop:'8px', marginBottom:'4px' }}>
   <span
     onClick={() => setShowDisclaimer(d => !d)}
@@ -527,7 +762,7 @@ return (
   )}
 </div>
 {reportError && <p style={{ color:'#C0544A', fontSize:'12px', textAlign:'center', marginBottom:'12px', fontFamily:"'DM Sans',sans-serif" }}>{reportError}</p>}
-            {mainView === 'chart' && <>
+            {mainView === 'chart' && <div id="horoscope-chart">
             <div style={{ textAlign:'center', marginBottom:'20px' }}>
               <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'24px', fontWeight:600, color:T.text, margin:'0 0 4px' }}>
                 {form.name ? `${form.name}${hi ? ' की कुंडली' : "'s Chart"}` : (hi ? 'आपकी जन्म कुंडली' : 'Your Birth Chart')}
@@ -583,17 +818,17 @@ return (
               {chartView === 'south_d10' && <SouthChart chart={chart.dashamsha} />}
             </div>
             <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', color:'#7A4A1A', opacity:0.7, textAlign:'center', marginBottom:'16px', lineHeight:1.8 }}>
-              ↑ Exalted · ↓ Debilitated · ᴿ Retrograde · ☌ Combust · □ Vargottama
+              {hi ? '↑ उच्च · ↓ नीच · ᴿ वक्री · ☌ अस्त · □ वर्गोत्तम' : '↑ Exalted · ↓ Debilitated · ᴿ Retrograde · ☌ Combust · □ Vargottama'}
             </p>
             <div style={s.card}>
               <p style={s.cardTitle}>🌟 {hi ? 'ग्रह स्थिति' : 'Planetary Positions'}</p>
-              {[['Ascendant',{ sign:chart.ascendant.sign, nakshatra:chart.ascendant.nakshatra, nakshatra_lord:chart.ascendant.nakshatra_lord, house:1, degrees_in_sign:chart.ascendant.degrees }], ...Object.entries(chart.planets)].map(([name, p]) => (
+              {[[hi ? 'लग्न' : 'Ascendant',{ sign:chart.ascendant.sign, nakshatra:chart.ascendant.nakshatra, nakshatra_lord:chart.ascendant.nakshatra_lord, house:1, degrees_in_sign:chart.ascendant.degrees }], ...Object.entries(chart.planets)].map(([name, p]) => (
                 <div key={name} style={s.planetRow}>
                   <span style={{ color:ACCENT, fontWeight:700, minWidth:70 }}>{hi ? (PH[name] || name) : name}</span>
                   <span style={{ opacity:0.75, flex:1 }}>
-  {p.sign}{p.house ? ` · H${p.house}` : ''} · {Math.floor(p.degrees_in_sign)}°{Math.floor((p.degrees_in_sign % 1) * 60)}′
+  {hi ? (SIGNS_HI[SIGNS.indexOf(p.sign)] || p.sign) : p.sign}{p.house ? ` · ${hi ? 'भाव' : 'H'}${p.house}` : ''} · {Math.floor(p.degrees_in_sign)}°{Math.floor((p.degrees_in_sign % 1) * 60)}′
 </span>
-                  <span style={{ opacity:0.45, fontSize:'11px', textAlign:'right' }}>{p.nakshatra || ''}{p.nakshatra_lord ? ` · ${p.nakshatra_lord}` : ''}</span>
+                  <span style={{ opacity:0.45, fontSize:'11px', textAlign:'right' }}>{hi ? (NAKSHATRA_HI[p.nakshatra] || p.nakshatra || '') : (p.nakshatra || '')}{p.nakshatra_lord ? ` · ${hi ? (PH[p.nakshatra_lord] || p.nakshatra_lord) : p.nakshatra_lord}` : ''}</span>
                 </div>
               ))}
             </div>
@@ -646,7 +881,7 @@ return (
                                     {ad.start} → {ad.end} {isADSel ? '▲' : '▼'}
                                   </span>
                                 </div>
-                                {isADSel && (
+                                {(isADSel || isPrinting) && (
                                   <div style={{ marginLeft:'12px', marginTop:'3px', display:'flex', flexDirection:'column', gap:'2px' }}>
                                     {pds.map(pd => {
                                       const pdActive = new Date(pd.start) <= today && today <= new Date(pd.end);
@@ -673,9 +908,9 @@ return (
                 })}
             </div>
             </div>
-            </>}
-            {mainView === 'report' && report && (
-              <div>
+            </div>}
+            {(mainView === 'report' || isPrinting) && report && (
+              <div ref={reportRef} id="horoscope-report">
                 {report.highlights && report.highlights.length > 0 && (
                   <div style={{ background:'linear-gradient(135deg, #F0FDF4, #DCFCE7)', border:'1px solid #4A9B6F40', borderRadius:'14px', padding:'18px', marginBottom:'20px' }}>
                     <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:700, letterSpacing:'1px', textTransform:'uppercase', color:'#4A9B6F', margin:'0 0 12px' }}>✨ Chart Highlights</p>
@@ -687,8 +922,8 @@ return (
                     ))}
                   </div>
                 )}
-                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'16px' }}>
-                  {REPORT_SECTIONS.map(sec => (
+                <div className="report-tab-bar" style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'16px' }}>
+                  {SEC.ICON} {HI ? SEC.TITLE_Hi : sec.title}
                     <button key={sec.id}
                       onClick={() => setActiveSection(sec.id)}
                       style={{ padding:'6px 12px', borderRadius:'20px', border:`1px solid ${activeSection===sec.id ? '#C17B2B' : '#C17B2B33'}`, background: activeSection===sec.id ? '#C17B2B22' : 'transparent', color: activeSection===sec.id ? '#C17B2B' : '#6B5B45', fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:600, cursor:'pointer' }}>
@@ -705,7 +940,7 @@ return (
                       <div style={{ padding:'14px 18px', borderBottom:'1px solid #C17B2B15', display:'flex', alignItems:'center', gap:'12px', background:'#FDF8F0' }}>
                         <span style={{ fontSize:'20px' }}>{sec.icon}</span>
                         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontWeight:600, color:'#1A1A1A', flex:1 }}>{sec.title}</span>
-                        <span style={{ padding:'3px 10px', borderRadius:'20px', background:`${badgeColor}18`, border:`1px solid ${badgeColor}55`, color:badgeColor, fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{data.badge}</span>
+                        <span style={{ padding:'3px 10px', borderRadius:'20px', background:`${badgeColor}18`, border:`1px solid ${badgeColor}55`, color:badgeColor, fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{hi ? (BADGE_HI[data.badge] || data.badge) : data.badge}</span>
                       </div>
                       <div style={{ padding:'18px' }}>
                         {data.content.split('\n\n').map((para, pi) => (
@@ -728,11 +963,24 @@ return (
                   <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', margin:'0 0 16px', lineHeight:1.6 }}>
                     If this reading resonated with you, consider offering a small dakshina to support this work. Scan with any UPI app.
                   </p>
-                  <img src="/upi-qr.png" alt="UPI QR Code" style={{ width:180, height:180, borderRadius:'12px', border:'2px solid #C17B2B30' }} />
+                  <img src="/upi-qr.png" alt="UPI QR Code" className="no-print-qr" style={{ width:180, height:180, borderRadius:'12px', border:'2px solid #C17B2B30' }} />
                   <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', marginTop:'10px', opacity:0.7 }}>anadib1010-2@okicici</p>
                 </div>
               </div>
             )}    
+            <div style={s.card}>
+              <p style={s.cardTitle}>🔮 {hi ? 'चार कुंडलियाँ' : 'Four Charts'}</p>
+              <div style={{ display:'flex', gap:'8px', justifyContent:'center', marginBottom:'12px' }}>
+                {['north','south'].map(v => (
+                  <button key={v} onClick={() => setChartStyle(v)}
+                    style={{ padding:'5px 14px', borderRadius:'20px', border:`1px solid #C17B2B${chartStyle===v?'':'30'}`, background: chartStyle===v ? '#C17B2B' : 'transparent', color: chartStyle===v ? '#fff' : '#C17B2B', fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:700, cursor:'pointer', letterSpacing:'0.5px' }}>
+                    {v === 'north' ? (hi ? 'उत्तर' : 'North') : (hi ? 'दक्षिण' : 'South')}
+                  </button>
+                ))}
+              </div>
+              <FourChartGrid chart={chart} style={chartStyle} hi={hi} />
+            </div>
+
             {chart.reading ? (
               <div style={s.card}>
                 <p style={s.cardTitle}>✨ {hi ? 'आपका व्यक्तिगत विश्लेषण' : 'Your Personal Reading'}</p>
@@ -751,23 +999,56 @@ return (
                 <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', margin:'0 0 16px', lineHeight:1.6 }}>
                   If this reading resonated with you, consider offering a small dakshina to support this work. Scan with any UPI app.
                 </p>
-                <img src="/upi-qr.png" alt="UPI QR Code" style={{ width:180, height:180, borderRadius:'12px', border:'2px solid #C17B2B30' }} />
+                <img src="/upi-qr.png" alt="UPI QR Code" className="no-print-qr" style={{ width:180, height:180, borderRadius:'12px', border:'2px solid #C17B2B30' }} />
                 <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', marginTop:'10px', opacity:0.7 }}>anadib1010-2@okicici</p>
               </div>
             )}
+            
             <button onClick={() => { setStep('form'); setChart(null); setError(''); }}
               style={{ ...s.submitBtn, background:`${ACCENT}20`, color:ACCENT, marginTop:'4px' }}>
               {hi ? '↩ नई कुंडली बनाएं' : '↩ CALCULATE ANOTHER CHART'}
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={handleChartDownload}
               style={{ ...s.submitBtn, background:'transparent', color:'#C17B2B', border:'2px solid #C17B2B', marginBottom:'8px' }}>
               ⬇️ {hi ? 'चार्ट डाउनलोड करें' : 'DOWNLOAD CHART'}
             </button>
             <p style={s.disclaimer}>
               {hi ? 'यह ज्योतिष केवल आध्यात्मिक अन्वेषण के लिए है।' : 'For spiritual exploration only. Not a substitute for professional advice.'}
             </p>
-          </div>
+
+            {showEmailPrompt && (
+              <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
+                onClick={() => setShowEmailPrompt(false)}>
+                <div style={{ background:'#FFFDF8', borderRadius:'20px', padding:'28px 24px', maxWidth:'360px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+                  onClick={e => e.stopPropagation()}>
+                  <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'22px', color:'#2C1810', margin:'0 0 6px', fontWeight:600, textAlign:'center' }}>
+                    📜 {hi ? 'पूर्ण रिपोर्ट' : 'Full Report'}
+                  </p>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', textAlign:'center', margin:'0 0 20px', lineHeight:1.6 }}>
+                    {hi ? 'रिपोर्ट ईमेल पर भेजें (वैकल्पिक)' : 'Get the report sent to your email (optional)'}
+                  </p>
+                  <input
+                    type="email"
+                    placeholder={hi ? '✉️ आपका ईमेल' : '✉️ your@email.com'}
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    style={{ width:'100%', padding:'12px 14px', borderRadius:'10px', border:'1px solid #C17B2B40', background:'#FFF8F0', fontFamily:"'DM Sans',sans-serif", fontSize:'14px', color:'#3A2A1A', outline:'none', boxSizing:'border-box', marginBottom:'16px' }}
+                  />
+                  <button
+                    onClick={() => { setShowEmailPrompt(false); generateReport(); }}
+                    style={{ width:'100%', padding:'14px', borderRadius:'12px', border:'none', background:'#C17B2B', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'14px', cursor:'pointer', marginBottom:'10px' }}>
+                    {hi ? '🔮 रिपोर्ट बनाएं' : '🔮 Generate Report'}
+                  </button>
+                  <button
+                    onClick={() => { setShowEmailPrompt(false); generateReport(); }}
+                    style={{ width:'100%', padding:'10px', borderRadius:'12px', border:'none', background:'transparent', color:'#8B5E3C', fontFamily:"'DM Sans',sans-serif", fontSize:'12px', cursor:'pointer' }}>
+                    {hi ? 'बिना ईमेल के जारी रखें' : 'Continue without email'}
+                  </button>
+                </div>
+              </div>
+            )}
+        </div>
         )}
 
       </div>

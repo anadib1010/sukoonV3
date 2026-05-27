@@ -2,355 +2,274 @@ import React, { useState, useEffect } from 'react';
 import { Privacy } from '../privacy/Privacy';
 import { Terms } from '../privacy/Terms';
 
-// 🌟 STEP 2: The Data List
-// This holds all the info for our four shiny buttons.
-const CHOICES = [
-  {
-    id:      'kpop',
-    emoji:   '🎵',
-    en:      'K-Pop &\nK-Drama',
-    hi:      'K-Pop और\nK-Drama',
-    sub_en:  'BTS · BLACKPINK · Fans',
-    sub_hi:  'BTS · BLACKPINK · Fans',
-    color:   '#FF6B9D',
-    welcome_en: 'Welcome to the fandom 💜',
-    welcome_hi: 'फैनडम में आपका स्वागत 💜',
-    tab:     'kpop',
-  },
-  {
-    id:      'mindfulness',
-    emoji:   '🧘',
-    en:      'Clear my\nmind',
-    hi:      'मन शांत\nकरें',
-    sub_en:  '1-Minute Reset · Sanctuary',
-    sub_hi:  '१-मिनट रीसेट · अभयारण्य',
-    color:   '#7B9075',
-    welcome_en: "One minute. That's all we need. 🌿",
-    welcome_hi: 'एक मिनट। बस इतना काफी है। 🌿',
-    tab:     'reset',
-  },
-  {
-    id:      'horoscope',
-    emoji:   '🔮',
-    en:      'My\nHoroscope',
-    hi:      'मेरा\nराशिफल',
-    sub_en:  'Vedic · Daily · Weekly',
-    sub_hi:  'वैदिक · दैनिक · साप्ताहिक',
-    color:   '#9B59B6',
-    welcome_en: 'The stars have been waiting for you ✨',
-    welcome_hi: 'तारे आपका इंतजार कर रहे थे ✨',
-    tab:     'horoscope',
-  },
-  {
-    id:      'private',
-    emoji:   '🔒',
-    en:      'Private\nSpace',
-    hi:      'निजी\nस्थान',
-    sub_en:  'Encrypted · Secure · Safe',
-    sub_hi:  'एन्क्रिप्टेड · सुरक्षित',
-    color:   '#5D93C4',
-    welcome_en: 'Your secrets are safe here 🔒',
-    welcome_hi: 'आपके राज यहाँ सुरक्षित हैं 🔒',
-    tab:     'chat',
-  },
-];
-
 export function Onboarding({ onComplete, setThemeKey, setLang, T, lang = 'English' }) {
-  // 🌟 STEP 1: The Screen States
-  const [screen, setScreen] = useState('choice'); // Can be 'choice' or 'welcome'
-  const [selected, setSelected] = useState(null); // Holds the option the user clicked
-  const [legalView, setLegalView] = useState(null); // 'terms', 'privacy', or null
-  const [visible, setVisible] = useState(false);
-  
-  const isHi = lang === 'Hindi';
+  const [visible,   setVisible]   = useState(false);
+  const [leaving,   setLeaving]   = useState(false);
+  const [legalView, setLegalView] = useState(null);
 
-  // A tiny timer to fade the screen in smoothly when the app loads
   useEffect(() => {
-    if (setLang) setLang("English");
     const t = setTimeout(() => setVisible(true), 80);
     return () => clearTimeout(t);
-  }, [setLang]);
+  }, []);
 
-  // Keep the background super dark for the onboarding experience,
-  // unless they are reading the legal pages!
   useEffect(() => {
     if (legalView) return;
     const prev = document.body.style.background;
-    document.body.style.background = "#050505";
+    document.body.style.background = '#050505';
     return () => { document.body.style.background = prev; };
   }, [legalView]);
 
-  // 🌟 STEP 3: The "Click" Magic
-  const handleChoice = async (choice) => {
-    setSelected(choice);
-    setScreen('welcome');
-    if (setThemeKey) setThemeKey("Void"); // Keep the app dark going in
-
-    // Securely save that they finished onboarding
-    try { 
-      localStorage.setItem('onboarded', 'true'); 
-    } catch (error) {
-      console.error("Storage error - unable to save onboarding state.");
-    }
-
-    // Wait exactly 2 seconds, then enter the app
-    setTimeout(() => {
-      onComplete(choice.tab);
-    }, 2000);
+  const handleLanguage = (chosenLang) => {
+    if (leaving) return;
+    setLeaving(true);
+    if (setLang) setLang(chosenLang);
+    if (setThemeKey) setThemeKey('Void');
+    try { localStorage.setItem('onboarded', 'true'); } catch (_) {}
+    setTimeout(() => onComplete('horoscope'), 600);
   };
 
-  // 🌟 STEP 4: Styling
-  // All styles live inside so we can safely use the T object for legal pages!
-  const st = {
-    page: {
-      position: "fixed", inset: 0, zIndex: 99998,
-      background: "#050505",
-      display: "flex", flexDirection: "column",
-      alignItems: "center",
-      padding: "10vh 20px 4vh 20px",
-      boxSizing: "border-box",
-      opacity: visible ? 1 : 0,
-      transition: "opacity 0.8s ease",
-      overflowY: "auto",
-    },
-    header: {
-      display: "flex", flexDirection: "column",
-      alignItems: "center", gap: 12,
-      marginBottom: "6vh",
-    },
-    brand: {
-      fontFamily: "'Cormorant Garamond', serif",
-      fontSize: "28px", fontWeight: 300, letterSpacing: "4px",
-      color: "rgba(255,255,255,0.5)",
-      margin: 0,
-      animation: "pulse 4s infinite ease-in-out",
-    },
-    headline: {
-      fontFamily: "'Cormorant Garamond', serif",
-      fontSize: "clamp(24px, 6vw, 28px)",
-      fontWeight: 300, fontStyle: "italic",
-      color: "rgba(255,255,255,0.88)",
-      letterSpacing: "0.5px", margin: 0,
-      textAlign: "center",
-    },
-    subheadline: {
-      fontFamily: "'DM Sans', sans-serif",
-      fontSize: "11px", letterSpacing: "2px",
-      textTransform: "uppercase",
-      color: "rgba(255,255,255,0.3)",
-      margin: 0,
-    },
-    grid: {
-      display: "flex", flexWrap: "wrap",
-      justifyContent: "center", gap: "12px",
-      maxWidth: "500px", width: "100%",
-      marginBottom: "4vh",
-    },
-    card: (color) => ({
-      width: "calc(50% - 6px)", // Splits exactly into two columns with the gap
-      background: `${color}12`, // Adding '12' makes it super transparent (hex opacity)
-      border: `1px solid ${color}55`,
-      borderRadius: "20px",
-      padding: "24px 16px",
-      display: "flex", flexDirection: "column",
-      alignItems: "center", gap: "8px",
-      cursor: "pointer",
-      boxSizing: "border-box",
-      transition: "transform 0.2s ease, background 0.2s ease",
-    }),
-    cardEmoji: {
-      fontSize: "36px", margin: 0, lineHeight: 1,
-    },
-    cardTitle: (color) => ({
-      fontFamily: "'DM Sans', sans-serif",
-      fontSize: "16px", fontWeight: 700,
-      color: color, textAlign: "center",
-      whiteSpace: "pre-line", // Respects the \n in our text
-      margin: 0, lineHeight: 1.4,
-    }),
-    cardSub: (color) => ({
-      fontFamily: "'DM Sans', sans-serif",
-      fontSize: "10px", color: color,
-      opacity: 0.7, textAlign: "center",
-      letterSpacing: "0.5px", margin: 0,
-    }),
-    legalWrapper: {
-      marginTop: "auto",
-      paddingTop: "20px",
-    },
-    legalText: {
-      fontFamily: "'DM Sans', sans-serif",
-      fontSize: "12px",                      // Up from 10px — readable on mobile
-      color: "rgba(255,255,255,0.65)",       // Up from 0.25 — legally visible
-      textAlign: "center",
-      maxWidth: "340px",
-      lineHeight: 1.6,
-      margin: 0,
-    },
-    link: {
-      textDecoration: "underline",
-      cursor: "pointer",
-      color: "rgba(255,255,255,0.9)",        // Up from 0.5 — links must be clearly tappable
-    },
-    // Welcome Screen Styles
-    welcomePage: (color) => ({
-      position: "fixed", inset: 0, zIndex: 99998,
-      background: `#050505`, // Dark base
-      backgroundColor: `${color}15`, // Gentle color overlay
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      animation: "fadeIn 0.6s ease forwards",
-    }),
-    welcomeContent: {
-      display: "flex", flexDirection: "column",
-      alignItems: "center", gap: "20px",
-    },
-    welcomeEmoji: {
-      fontSize: "72px", margin: 0,
-    },
-    welcomeText: {
-      fontFamily: "'Cormorant Garamond', serif",
-      fontSize: "24px", fontWeight: 300, fontStyle: "italic",
-      color: "#ffffff", textAlign: "center",
-      padding: "0 40px", letterSpacing: "0.5px", margin: 0,
-    },
-    welcomeDot: (color) => ({
-      width: "8px", height: "8px",
-      borderRadius: "50%", background: color,
-      marginTop: "8px",
-    }),
-    // Legal Frame Styles
-    legalOverlay: {
-      position: 'fixed', inset: 0, zIndex: 99999, 
-      background: "#080808", 
-      display: "flex", justifyContent: "center"
-    },
-    legalFrame: {
-      width: "100%", maxWidth: "600px", height: "100%", 
-      background: T.bg, // We can safely use T here!
-      boxShadow: "0 0 50px rgba(0,0,0,0.55)",
-      position: "relative"
-    }
-  };
-
-  // --------------------------------------------------------
-  // SCREEN RENDERERS
-  // --------------------------------------------------------
-
-  // 1. If looking at legal pages, show the 600px frame
+  // ── Legal overlays ────────────────────────────────────────
   if (legalView === 'terms') {
     return (
       <div style={st.legalOverlay}>
-        <div style={st.legalFrame}>
+        <div style={{ ...st.legalFrame, background: T.bg }}>
           <Terms goBack={() => setLegalView(null)} T={T} lang={lang} setTab={() => {}} />
         </div>
       </div>
     );
   }
-
   if (legalView === 'privacy') {
     return (
       <div style={st.legalOverlay}>
-        <div style={st.legalFrame}>
+        <div style={{ ...st.legalFrame, background: T.bg }}>
           <Privacy goBack={() => setLegalView(null)} T={T} lang={lang} setTab={() => {}} />
         </div>
       </div>
     );
   }
 
-  // 2. If a choice was clicked, show the Welcome screen
-  if (screen === 'welcome' && selected) {
-    return (
-      <div style={st.welcomePage(selected.color)}>
-        <style>{`
-          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        `}</style>
-        <div style={st.welcomeContent}>
-          <p style={st.welcomeEmoji}>{selected.emoji}</p>
-          <p style={st.welcomeText}>{isHi ? selected.welcome_hi : selected.welcome_en}</p>
-          <div style={st.welcomeDot(selected.color)} />
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Otherwise, show the normal Choices screen
+  // ── Main screen ───────────────────────────────────────────
   return (
-    <div style={st.page}>
+    <div style={{
+      ...st.page,
+      opacity:   visible && !leaving ? 1 : 0,
+      transform: leaving ? 'scale(1.04)' : 'scale(1)',
+    }}>
       <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50%      { transform: scale(1.04); }
+        @keyframes floatUp {
+          from { opacity: 0; transform: translateY(22px); }
+          to   { opacity: 1; transform: translateY(0);    }
         }
-        @keyframes kpopBreathe {
-          0%, 100% { box-shadow: 0 0 0px #FF6B9D00, 0 0 8px #FF6B9D40; border-color: #FF6B9D55; }
-          50%      { box-shadow: 0 0 10px #FF6B9D90, 0 0 20px #FF6B9D50; border-color: #FF6B9DCC; }
+        @keyframes shimmer {
+          0%,100% { opacity: 0.5; }
+          50%      { opacity: 1;   }
         }
+        .lang-btn:active { transform: scale(0.96) !important; }
       `}</style>
 
-      {/* Top Text */}
-      <div style={st.header}>
-        <h1 style={st.brand}>J Sukoon</h1>
-        <h2 style={st.headline}>
-          {isHi ? 'आज क्या मन है?' : "What's calling you today?"}
-        </h2>
-        <p style={st.subheadline}>
-          {isHi ? 'अपनी यात्रा चुनें' : 'Choose your journey'}
-        </p>
-      </div>
-
-      {/* The 4 Buttons Grid */}
-      <div style={st.grid}>
-        {CHOICES.map((choice) => (
-          <div 
-            key={choice.id} 
-            role="button"
-            tabIndex={0}
-            style={{
-              ...st.card(choice.color),
-              ...(choice.id === 'kpop' && {
-                animation: "kpopBreathe 2s ease-in-out infinite",
-                borderWidth: "2px",
-              }),
-            }}
-            onClick={() => handleChoice(choice)}
-            onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
-            onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
-            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
-            onTouchStart={(e) => e.currentTarget.style.transform = "scale(0.95)"}
-            onTouchEnd={(e) => e.currentTarget.style.transform = "scale(1)"}
-          >
-            <p style={st.cardEmoji}>{choice.emoji}</p>
-            <p style={st.cardTitle(choice.color)}>{isHi ? choice.hi : choice.en}</p>
-            <p style={st.cardSub(choice.color)}>{isHi ? choice.sub_hi : choice.sub_en}</p>
-          </div>
+      {/* ── Stars / ambient dots ── */}
+      <div style={st.stars} aria-hidden>
+        {DOTS.map((d, i) => (
+          <div key={i} style={{
+            position: 'absolute', borderRadius: '50%',
+            width: d.s, height: d.s,
+            top: d.t, left: d.l,
+            background: d.c,
+            animation: `shimmer ${d.dur}s ${d.delay}s ease-in-out infinite`,
+          }} />
         ))}
       </div>
 
-      {/* Legal Text at the Bottom */}
-      <div style={st.legalWrapper}>
+      {/* ── Branding ── */}
+      <div style={st.brand} aria-label="J Su Kun">
+        <p style={st.appName}>J Su Kun</p>
+        <p style={st.tagline}>आपकी अपनी जगह · Your own space</p>
+      </div>
+
+      {/* ── Central glow orb ── */}
+      <div style={st.orb} aria-hidden />
+
+      {/* ── Language prompt ── */}
+      <div style={st.prompt}>
+        <p style={st.promptLine1}>Choose your language</p>
+        <p style={st.promptLine2}>अपनी भाषा चुनें</p>
+      </div>
+
+      {/* ── Language buttons ── */}
+      <div style={st.btnRow}>
+        <button
+          className="lang-btn"
+          onClick={() => handleLanguage('English')}
+          style={{ ...st.btn, ...st.btnEn }}
+        >
+          <span style={st.btnEmoji}>🇬🇧</span>
+          <span style={st.btnLabel}>English</span>
+          <span style={st.btnSub}>Continue in English</span>
+        </button>
+
+        <button
+          className="lang-btn"
+          onClick={() => handleLanguage('Hindi')}
+          style={{ ...st.btn, ...st.btnHi }}
+        >
+          <span style={st.btnEmoji}>🇮🇳</span>
+          <span style={st.btnLabel}>हिंदी</span>
+          <span style={st.btnSub}>हिंदी में जारी रखें</span>
+        </button>
+      </div>
+
+      {/* ── Legal ── */}
+      <div style={st.legal}>
         <p style={st.legalText}>
-          {isHi 
-            ? "जारी रखने पर आप " 
-            : "By continuing you agree to our "}
-          <span 
-            style={st.link} 
-            onClick={() => setLegalView('terms')}
-          >
-            {isHi ? "सेवा शर्तों" : "Terms"}
-          </span>
-          {isHi ? " और " : " & "}
-          <span 
-            style={st.link} 
-            onClick={() => setLegalView('privacy')}
-          >
-            {isHi ? "गोपनीयता नीति" : "Privacy Policy"}
-          </span>
-          {isHi 
-            ? <> से सहमत हैं। <span style={{whiteSpace:"nowrap"}}>J Su Kun</span> एक स्व-सहायता उपकरण है, कोई चिकित्सा सेवा नहीं।</> 
-            : <><span style={{whiteSpace:"nowrap"}}>. J Su Kun</span> is a self-help tool, not a medical service.</>}
+          By continuing you agree to our{' '}
+          <span style={st.legalLink} onClick={() => setLegalView('terms')}>Terms</span>
+          {' & '}
+          <span style={st.legalLink} onClick={() => setLegalView('privacy')}>Privacy Policy</span>
+          {'. '}
+          <span style={{ whiteSpace: 'nowrap' }}>J Su Kun</span> is a self-help tool, not a medical service.
         </p>
       </div>
     </div>
   );
 }
+
+// ── Ambient dots data ────────────────────────────────────────
+const DOTS = [
+  { s:'2px', t:'12%', l:'18%', c:'#9B59B6', dur:3.2, delay:0   },
+  { s:'3px', t:'22%', l:'75%', c:'#C17B2B', dur:4.1, delay:0.5 },
+  { s:'2px', t:'60%', l:'8%',  c:'#FF6B9D', dur:2.8, delay:1   },
+  { s:'2px', t:'75%', l:'88%', c:'#9B59B6', dur:3.7, delay:0.2 },
+  { s:'3px', t:'40%', l:'92%', c:'#5D93C4', dur:4.5, delay:1.5 },
+  { s:'2px', t:'85%', l:'30%', c:'#7B9075', dur:3.0, delay:0.8 },
+  { s:'2px', t:'10%', l:'55%', c:'#C17B2B', dur:5.0, delay:2.0 },
+  { s:'3px', t:'50%', l:'48%', c:'#9B59B6', dur:3.5, delay:0.3 },
+];
+
+// ── Styles ───────────────────────────────────────────────────
+const st = {
+  page: {
+    position: 'fixed', inset: 0, zIndex: 99998,
+    background: '#050505',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    padding: '24px 24px 20px',
+    boxSizing: 'border-box',
+    transition: 'opacity 0.6s ease, transform 0.6s ease',
+    overflowY: 'auto',
+    gap: '0px',
+  },
+  stars: {
+    position: 'absolute', inset: 0,
+    pointerEvents: 'none', overflow: 'hidden',
+  },
+  brand: {
+    textAlign: 'center', marginBottom: '32px',
+    animation: 'floatUp 0.9s 0.1s both ease-out',
+  },
+  appName: {
+    fontFamily: "'Cormorant Garamond', serif",
+    fontSize: 'clamp(32px, 8vw, 42px)',
+    fontWeight: 300, letterSpacing: '6px',
+    color: 'rgba(255,255,255,0.88)',
+    margin: '0 0 8px',
+  },
+  tagline: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '11px', letterSpacing: '1.5px',
+    color: 'rgba(255,255,255,0.28)',
+    margin: 0, textTransform: 'uppercase',
+  },
+  orb: {
+    width: '180px', height: '180px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, #9B59B620 0%, #C17B2B10 50%, transparent 70%)',
+    filter: 'blur(30px)',
+    marginBottom: '32px',
+    animation: 'floatUp 1s 0.3s both ease-out',
+    pointerEvents: 'none',
+    flexShrink: 0,
+  },
+  prompt: {
+    textAlign: 'center', marginBottom: '28px',
+    animation: 'floatUp 0.9s 0.4s both ease-out',
+  },
+  promptLine1: {
+    fontFamily: "'Cormorant Garamond', serif",
+    fontSize: 'clamp(20px, 5vw, 24px)',
+    fontWeight: 300, fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.75)',
+    margin: '0 0 6px', letterSpacing: '0.5px',
+  },
+  promptLine2: {
+    fontFamily: "'Cormorant Garamond', serif",
+    fontSize: 'clamp(16px, 4vw, 19px)',
+    fontWeight: 300, fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.35)',
+    margin: 0,
+  },
+  btnRow: {
+    display: 'flex', gap: '14px',
+    width: '100%', maxWidth: '420px',
+    marginBottom: '32px',
+    animation: 'floatUp 0.9s 0.55s both ease-out',
+  },
+  btn: {
+    flex: 1,
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: '6px',
+    padding: '22px 16px',
+    borderRadius: '20px',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    boxSizing: 'border-box',
+  },
+  btnEn: {
+    background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+    border: '1px solid rgba(93,147,196,0.4)',
+    boxShadow: '0 4px 24px rgba(93,147,196,0.15)',
+  },
+  btnHi: {
+    background: 'linear-gradient(135deg, #1a1208, #2a1f0a)',
+    border: '1px solid rgba(193,123,43,0.4)',
+    boxShadow: '0 4px 24px rgba(193,123,43,0.15)',
+  },
+  btnEmoji: {
+    fontSize: '28px', lineHeight: 1,
+  },
+  btnLabel: {
+    fontFamily: "'Cormorant Garamond', serif",
+    fontSize: '22px', fontWeight: 500,
+    color: 'rgba(255,255,255,0.88)',
+    letterSpacing: '1px',
+  },
+  btnSub: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '10px', letterSpacing: '0.5px',
+    color: 'rgba(255,255,255,0.35)',
+  },
+  legal: {
+    animation: 'floatUp 0.9s 0.7s both ease-out',
+    maxWidth: '340px', textAlign: 'center',
+  },
+  legalText: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '11px', lineHeight: 1.7,
+    color: 'rgba(255,255,255,0.4)',
+    margin: 0,
+  },
+  legalLink: {
+    color: 'rgba(255,255,255,0.7)',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+  },
+  legalOverlay: {
+    position: 'fixed', inset: 0, zIndex: 99999,
+    background: '#080808',
+    display: 'flex', justifyContent: 'center',
+  },
+  legalFrame: {
+    width: '100%', maxWidth: '600px', height: '100%',
+    position: 'relative',
+  },
+};
