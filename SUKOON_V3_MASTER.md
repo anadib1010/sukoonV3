@@ -958,3 +958,29 @@ requests.post timeout — was hardcoded at 120s, bumped to 350s (this was the ma
 max_tokens — kept at 8000, enough for full reports
 Broken tab bar — removed orphaned {SEC.ICON} line and fixed missing .map( opener
 clean_content function — was stripping all content because Hindi uses । not . as sentence endings, removed it entirely
+## Horoscope Report — Fixes (May 27 2026)
+
+### Timeout Chain (all must be > report generation time)
+- Gunicorn: --timeout 360
+- Caddy: response_header_timeout 360s, read_timeout 360s, write_timeout 360s  
+- Frontend fetch: AbortController at 350000ms
+- Anthropic API call: timeout=350 in requests.post
+
+### Content Issues Fixed
+- clean_content function removed entirely — was stripping Hindi content
+  because Hindi uses । not . as sentence endings
+- max_tokens kept at 8000 — sufficient for full 7-section reports
+
+### JSX Fix
+- Orphaned {SEC.ICON} line removed
+- Missing .map( opener fixed in report tab bar
+
+### Cost per Report
+- ~₹6 (Sonnet 4.6) + ~₹0.20 (Haiku) = ~₹6.20 total per session
+- At ₹251 selling price = ₹244.80 margin (97%)
+
+### Email Flow
+- Email modal appears when Generate Report clicked
+- Email saved to Supabase report_requests table
+- Report emailed via Gmail SMTP after generation
+- Supabase project: khpxgfadnnwycdhnyxye

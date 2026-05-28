@@ -60,6 +60,7 @@ import { BlinkLounge }         from './features/khub/BlinkLounge';
 import { Horoscope }           from './features/horoscope/Horoscope';
 import { PurpleSanctuary }     from './features/khub/PurpleSanctuary';
 import { UsernameSetup }       from './components/UsernameSetup';
+import { Horary } from './features/horoscope/Horary';
 
 // ─── AUTH SHEET ──────────────────────────────────────────────────────────────
 function AuthSheet({ T, lang, onLogin, onDismiss, reason }) {
@@ -501,11 +502,17 @@ function AppContent() {
   // ─── LOADING SCREEN ───
   if (isCheckingAuth) {
     return (
-      <div style={{ height: "100dvh", width: "100vw", display: "flex", justifyContent: "center", alignItems: "center", background: T.bg, color: T.accent, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px" }}>
-        {lang === "Hindi" ? "सुकून खुल रहा है..." : "Opening Sukoon...."}
+      <div style={{ height:"100dvh", width:"100vw", display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", background:"#000" }}>
+        <img
+          src="/jsukunlogo.jpg"
+          alt="J Su Kun"
+          style={{ width:220, height:220, borderRadius:'50%', objectFit:'cover', animation:'pulse 2s ease-in-out infinite' }}
+        />
+        <style>{`@keyframes pulse { 0%,100%{opacity:0.85;transform:scale(1)} 50%{opacity:1;transform:scale(1.04)} }`}</style>
       </div>
     );
   }
+  
 
   // ─── USERNAME SETUP SCREEN ───
   if (needsUsername && session?.user) {
@@ -606,6 +613,7 @@ function AppContent() {
           <Route path="/chat_purple"     element={<PurpleLounge        setTab={setTab} T={T} lang={lang} />} />
           <Route path="/chat_blink"      element={<BlinkLounge         setTab={setTab} T={T} lang={lang} />} />
           <Route path="/horoscope"       element={<Horoscope           setTab={setTab} T={T} lang={lang} />} />
+          <Route path="/horary" element={<Horary setTab={setTab} T={T} lang={lang} />} />
           <Route path="/pink_sanctuary"  element={<PinkSanctuary       T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} />} />
           <Route path="/purple_sanctuary" element={<PurpleSanctuary    T={T} lang={lang} setTab={setTab} goBack={() => setTab('khub')} fromDirect={!localStorage.getItem('jsukoon_sanctuary_visited')} />} />
 

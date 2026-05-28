@@ -1,18 +1,16 @@
 import React, { useState, useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from '../../supabase';
+import { NorthChart, SouthChart, FourChartGrid, SIGNS, SIGNS_HI, PS } from './VedicCharts';
 
 const ACCENT = '#9B59B6';
 const API    = 'https://jsukoon-api.duckdns.org/horoscope';
 
-const SIGNS  = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const SS     = ['Ar','Ta','Ge','Ca','Le','Vi','Li','Sc','Sa','Cp','Aq','Pi'];
-const PS     = {Sun:'Su',Moon:'Mo',Mars:'Ma',Mercury:'Me',Jupiter:'Ju',Venus:'Ve',Saturn:'Sa',Rahu:'Ra',Ketu:'Ke'};
 const PH     = {Sun:'सूर्य',Moon:'चंद्र',Mars:'मंगल',Mercury:'बुध',Jupiter:'गुरु',Venus:'शुक्र',Saturn:'शनि',Rahu:'राहु',Ketu:'केतु'};
 const DH     = {Ketu:'केतु',Venus:'शुक्र',Sun:'सूर्य',Moon:'चंद्र',Mars:'मंगल',Rahu:'राहु',Jupiter:'गुरु',Saturn:'शनि',Mercury:'बुध'};
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DASHA_ORDER = ['Ketu','Venus','Sun','Moon','Mars','Rahu','Jupiter','Saturn','Mercury'];
-const SIGNS_HI = ['मेष','वृष','मिथुन','कर्क','सिंह','कन्या','तुला','वृश्चिक','धनु','मकर','कुंभ','मीन'];
 const NAKSHATRA_HI = {
   'Ashwini':'अश्विनी','Bharani':'भरणी','Krittika':'कृत्तिका','Rohini':'रोहिणी',
   'Mrigashira':'मृगशिरा','Ardra':'आर्द्रा','Punarvasu':'पुनर्वसु','Pushya':'पुष्य',
@@ -22,15 +20,6 @@ const NAKSHATRA_HI = {
   'Purva Ashadha':'पूर्व आषाढ़','Uttara Ashadha':'उत्तर आषाढ़','Shravana':'श्रवण',
   'Dhanishta':'धनिष्ठा','Shatabhisha':'शतभिषा','Purva Bhadrapada':'पूर्व भाद्रपद',
   'Uttara Bhadrapada':'उत्तर भाद्रपद','Revati':'रेवती',
-};
-const REPORT_SECTIONS_HI = {
-  overview:     'कुंडली सार',
-  career:       'करियर और व्यवसाय',
-  wealth:       'धन और वित्त',
-  health:       'स्वास्थ्य और शक्ति',
-  family:       'परिवार और रिश्ते',
-  spirituality: 'आध्यात्मिक मार्ग',
-  dasha:        'वर्तमान दशा काल',
 };
 const BADGE_HI = {
   'Strongly Indicated': 'अत्यंत शुभ',
@@ -60,7 +49,6 @@ const REPORT_SECTIONS = [
   { id:'spirituality', icon:'☊', title:'Spiritual Path',         title_hi:'आध्यात्मिक मार्ग'   },
   { id:'dasha',        icon:'⏳', title:'Current Dasha Period',   title_hi:'वर्तमान दशा काल'    },
 ];
-
 const BADGE_COLORS = {
   'Strongly Indicated': '#4A9B6F',
   'Favourable':         '#4A9B6F',
@@ -79,201 +67,6 @@ const REPORT_MESSAGES = [
   'Calculating planetary yogas…',
   'Writing your cosmic story…',
 ];
-
-const NI     = [null,[0,1],[0,2],[0,3],[1,3],[2,3],[3,3],[3,2],[3,1],[3,0],[2,0],[1,0],[0,0]];
-const SI     = [[11,0,1,2],[10,-1,-1,3],[9,-1,-1,4],[8,7,6,5]];
-
-function NorthChart({ chart }) {
-  const W   = 280;
-  const OCH = '#C17B2B';
-  const BG  = '#FFFDF8';
-
-  const ai = SIGNS.indexOf(chart.ascendant.sign);
-  const hd = {};
-  for (let h = 1; h <= 12; h++) {
-    hd[h] = { sn: (ai + h - 1) % 12 + 1, p: [] };
-  }
-  Object.entries(chart.planets).forEach(([n, p]) => {
-    if (!hd[p.house]) return;
-    const abbr = PS[n] || n.slice(0, 2);
-    const sym = (p.is_exalted ? '↑' : '') + (p.is_debilitated ? '↓' : '') + (p.is_retrograde ? 'ᴿ' : '') + (p.is_combust ? '☌' : '') + (p.is_vargottama ? '□' : '');
-    hd[p.house].p.push(abbr + sym);
-  });
-
-  const C = {
-    1:  { cx:140, cy:65  },
-    2:  { cx:68,  cy:22  },
-    3:  { cx:22,  cy:78  },
-    4:  { cx:65,  cy:140 },
-    5:  { cx:22,  cy:202 },
-    6:  { cx:68,  cy:258 },
-    7:  { cx:140, cy:215 },
-    8:  { cx:212, cy:258 },
-    9:  { cx:258, cy:202 },
-    10: { cx:215, cy:140 },
-    11: { cx:258, cy:78  },
-    12: { cx:212, cy:22  },
-  };
-
-
-  return (
-    <svg width="100%" viewBox={`0 0 ${W} ${W}`} style={{ display:'block', maxWidth:300, margin:'0 auto' }}>
-      <rect width={W} height={W} fill={BG} />
-      <polygon points="140,0 210,70 140,140 70,70" fill={`${OCH}15`} />
-      <rect x="1" y="1" width={W-2} height={W-2} fill="none" stroke={OCH} strokeWidth="1.5" />
-      <line x1="0"   y1="0"   x2="280" y2="280" stroke={`${OCH}90`} strokeWidth="1" />
-      <line x1="280" y1="0"   x2="0"   y2="280" stroke={`${OCH}90`} strokeWidth="1" />
-      <polygon points="140,0 280,140 140,280 0,140" fill="none" stroke={OCH} strokeWidth="1.3" />
-      {Object.entries(C).map(([h, { cx, cy }]) => {
-        const house = parseInt(h);
-        const { sn, p } = hd[house];
-        const isLagna = house === 1;
-        return (
-          <g key={house}>
-            <text x={cx} y={cy + (p.length ? -6 : 4)} textAnchor="middle"
-              fill={isLagna ? OCH : '#1A1A1A'}
-              fontSize={isLagna ? '13' : '11'}
-              fontWeight={isLagna ? '800' : '600'}
-              fontFamily="DM Sans,sans-serif">
-              {sn}
-            </text>
-            {p.length > 0 && (
-              <text x={cx} y={cy + 14} textAnchor="middle"
-                fill="#7A4A1A"
-                fontSize={isLagna ? '13' : '11'}
-                fontWeight="600"
-                fontFamily="DM Sans,sans-serif">
-                {p.join(' ')}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function SouthChart({ chart }) {
-  const C   = 70;
-  const W   = C * 4;
-  const OCH = '#C17B2B';
-  const BG  = '#FFFDF8';
-
-  const ai = SIGNS.indexOf(chart.ascendant.sign);
-  const sp = {};
-  for (let i = 0; i < 12; i++) sp[i] = [];
-  Object.entries(chart.planets).forEach(([n, p]) => {
-    const si = SIGNS.indexOf(p.sign);
-    if (si >= 0) sp[si].push(PS[n] || n.slice(0, 2));
-  });
-
-  return (
-    <svg width="100%" viewBox={`0 0 ${W} ${W}`} style={{ display:'block', maxWidth:300, margin:'0 auto' }}>
-      <rect width={W} height={W} fill={BG} />
-
-      {/* Outer border */}
-      <rect x="1" y="1" width={W-2} height={W-2} fill="none" stroke={OCH} strokeWidth="1.5" />
-
-      {/* Horizontal lines — full width at rows 1 and 3 */}
-      <line x1="0" y1={C}   x2={W} y2={C}   stroke={OCH} strokeWidth="1" />
-      <line x1="0" y1={3*C} x2={W} y2={3*C} stroke={OCH} strokeWidth="1" />
-
-      {/* Horizontal line at row 2 — skip center */}
-      <line x1="0" y1={2*C} x2={C}   y2={2*C} stroke={OCH} strokeWidth="1" />
-      <line x1={3*C} y1={2*C} x2={W} y2={2*C} stroke={OCH} strokeWidth="1" />
-
-      {/* Vertical lines — full height at cols 1 and 3 */}
-      <line x1={C}   y1="0" x2={C}   y2={W} stroke={OCH} strokeWidth="1" />
-      <line x1={3*C} y1="0" x2={3*C} y2={W} stroke={OCH} strokeWidth="1" />
-
-      {/* Vertical line at col 2 — skip center */}
-      <line x1={2*C} y1="0" x2={2*C} y2={C}   stroke={OCH} strokeWidth="1" />
-      <line x1={2*C} y1={3*C} x2={2*C} y2={W} stroke={OCH} strokeWidth="1" />
-
-      {/* Center empty square — one big box, no inner lines */}
-      <rect x={C} y={C} width={2*C} height={2*C} fill={`${OCH}06`} stroke={OCH} strokeWidth="1" />
-
-      {/* Houses */}
-      {SI.map((row, ri) =>
-        row.map((sIdx, ci) => {
-          if (sIdx === -1) return null;
-          const isAsc = sIdx === ai;
-          const x = ci * C;
-          const y = ri * C;
-          const signNum = sIdx + 1;
-          const planets = sp[sIdx];
-          return (
-            <g key={`${ri}${ci}`}>
-              {isAsc && (
-                <rect x={x+1} y={y+1} width={C-2} height={C-2}
-                  fill={`${OCH}15`} stroke={OCH} strokeWidth="1.5" />
-              )}
-              {/* Sign number top-left */}
-              <text x={x+5} y={y+14}
-                fill={isAsc ? OCH : '#1A1A1A'}
-                fontSize="11"
-                fontWeight={isAsc ? '800' : '600'}
-                fontFamily="DM Sans,sans-serif">
-                {signNum}{isAsc ? '↑' : ''}
-              </text>
-              {/* Planets centered */}
-              {planets.length > 0 && (
-                <text x={x+C/2} y={y+C/2+10} textAnchor="middle"
-                  fill="#7A4A1A" fontSize="11" fontWeight="600" fontFamily="DM Sans,sans-serif">
-                  {planets.join(' ')}
-                </text>
-              )}
-            </g>
-          );
-        })
-      )}
-    </svg>
-  );
-}
-function buildChandraChart(chart) {
-  const moonSign = chart.planets['Moon']?.sign || chart.ascendant.sign;
-  const moonIdx  = SIGNS.indexOf(moonSign);
-  const newPlanets = {};
-  Object.entries(chart.planets).forEach(([name, p]) => {
-    const pSignIdx  = SIGNS.indexOf(p.sign);
-    const houseOffset = ((pSignIdx - moonIdx) + 12) % 12 + 1;
-    newPlanets[name] = { ...p, house: houseOffset };
-  });
-  return {
-    ascendant: { ...chart.ascendant, sign: moonSign },
-    planets:   newPlanets,
-  };
-}
-
-function FourChartGrid({ chart, style = 'north', hi = false }) {
-  const chandraChart = buildChandraChart(chart);
-  const ChartComp    = style === 'north' ? NorthChart : SouthChart;
-  const labels = [
-    { key: 'D1',  label: hi ? 'D1 · लग्न कुंडली'    : 'D1 · Lagna',          data: chart             },
-    { key: 'D9',  label: hi ? 'D9 · नवांश'           : 'D9 · Navamsha',       data: chart.navamsa     },
-    { key: 'D10', label: hi ? 'D10 · दशांश'          : 'D10 · Dashamsha',     data: chart.dashamsha   },
-    { key: 'CL',  label: hi ? 'चंद्र लग्न'           : 'Chandra Lagna',       data: chandraChart      },
-  ];
-  return (
-    <div style={{ marginBottom: '16px' }}>
-      <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', letterSpacing:'1.5px', textTransform:'uppercase', color:'#8B5E3C', textAlign:'center', margin:'0 0 12px', opacity:0.7 }}>
-        {style === 'north' ? (hi ? 'उत्तर भारतीय शैली' : 'North Indian Style') : (hi ? 'दक्षिण भारतीय शैली' : 'South Indian Style')}
-      </p>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-        {labels.map(({ key, label, data }) => (
-          <div key={key} style={{ background:'#FFFDF8', border:'1px solid #C17B2B25', borderRadius:'12px', padding:'8px 6px 6px', boxShadow:'0 2px 8px rgba(193,123,43,0.08)' }}>
-            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, color:'#C17B2B', textAlign:'center', margin:'0 0 6px', letterSpacing:'0.5px' }}>
-              {label}
-            </p>
-            {data ? <ChartComp chart={data} /> : (
-              <p style={{ textAlign:'center', fontSize:'11px', color:'#8B5E3C', padding:'20px 0' }}>—</p>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const hi = lang === 'Hindi';
@@ -304,7 +97,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [reportProgress,setReportProgress]= useState(0);
   const [reportMsg,     setReportMsg]     = useState('');
   const reportRef = useRef(null);
-  
+
   const calcPratyantara = (adStart, adEnd, adLord) => {
     const adMs = new Date(adEnd) - new Date(adStart);
     const adYears = adMs / (365.25 * 24 * 60 * 60 * 1000);
@@ -320,6 +113,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     }
     return result;
   };
+
   const generateReport = async () => {
     if (!chart) { setReportError('Please calculate a chart first.'); return; }
     setReportLoading(true);
@@ -347,7 +141,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     }, 15000);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 190000);
+      const timeout = setTimeout(() => controller.abort(), 350000);
       const res = await fetch(`${API}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -382,6 +176,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     }
     setReportLoading(false);
   };
+
   const handlePrint = () => {
     setIsPrinting(true);
     setTimeout(() => {
@@ -395,7 +190,6 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       const element = document.getElementById('horoscope-report');
       if (!element) { window.print(); return; }
       setIsPrinting(true);
-      // Clone element to avoid React DOM issues
       const clone = element.cloneNode(true);
       clone.style.background = '#FFFDF8';
       clone.style.padding = '20px';
@@ -446,28 +240,25 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       return;
     }
     setError('');
-      setStep('loading');
-      setMainView('chart');
-      setReport(null);
-      window.scrollTo(0, 0);
-    const chartHash = btoa(
-        `${form.day}-${form.month}-${form.year}-${form.hour}-${form.minute}-${form.city.toLowerCase().trim()}`
-      );
+    setStep('loading');
+    setMainView('chart');
+    setReport(null);
+    window.scrollTo(0, 0);
     try {
       let lat, lon;
-if (form._lat && form._lon) {
-  lat = parseFloat(form._lat);
-  lon = parseFloat(form._lon);
-} else {
-  const geo = await fetch(
-    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(form.city)}&format=json&limit=1`,
-    { headers: { 'User-Agent': 'JSuKun-Horoscope/1.0' } }
-  );
-  const gd = await geo.json();
-  if (!gd.length) throw new Error(hi ? 'शहर नहीं मिला।' : 'City not found. Try a nearby major city.');
-  lat = parseFloat(gd[0].lat);
-  lon = parseFloat(gd[0].lon);
-}
+      if (form._lat && form._lon) {
+        lat = parseFloat(form._lat);
+        lon = parseFloat(form._lon);
+      } else {
+        const geo = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(form.city)}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'JSuKun-Horoscope/1.0' } }
+        );
+        const gd = await geo.json();
+        if (!gd.length) throw new Error(hi ? 'शहर नहीं मिला।' : 'City not found. Try a nearby major city.');
+        lat = parseFloat(gd[0].lat);
+        lon = parseFloat(gd[0].lon);
+      }
       const res = await fetch(`${API}/chart`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -512,7 +303,8 @@ if (form._lat && form._lon) {
     dashaFuture: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderRadius:'10px', background:'transparent', border:'1px solid #C17B2B25', cursor:'pointer' },
     disclaimer:  { fontFamily:"'DM Sans',sans-serif", fontSize:'10px', opacity:0.35, textAlign:'center', color:'#8B5E3C', lineHeight:1.6, marginTop:'12px' },
   };
-return (
+
+  return (
     <div style={s.page}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -543,7 +335,7 @@ return (
         <div style={{ width:50 }} />
       </div>
 
-      <div style={s.scroll} classname="print-scroll">
+      <div style={s.scroll} className="print-scroll">
         {step === 'loading' && (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'80vh', gap:'24px', background:'#FFFDF8' }}>
             <div style={{ width:56, height:56, border:'3px solid #C17B2B30', borderTop:'3px solid #C17B2B', borderRadius:'50%', animation:'spin 1s linear infinite' }} />
@@ -555,6 +347,7 @@ return (
             </p>
           </div>
         )}
+
         {step === 'form' && (
           <div>
             <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontStyle:'italic', opacity:0.7, textAlign:'center', marginBottom:'24px', color:T.text, lineHeight:1.45 }}>
@@ -596,60 +389,60 @@ return (
             </p>
 
             <div style={{ marginBottom:'14px', position:'relative' }}>
-  <label style={s.label}>{hi ? 'जन्म स्थान' : 'Birth City'}</label>
-  <input
-    style={s.input}
-    placeholder={hi ? 'जैसे: मुंबई, दिल्ली, चेन्नई' : 'e.g. Mumbai, Delhi, London'}
-    value={form.city}
-    onChange={e => {
-      set('city')(e);
-      const q = e.target.value;
-      if (q.length < 3) { setCitySuggestions([]); return; }
-      clearTimeout(window._cityTimer);
-      window._cityTimer = setTimeout(async () => {
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&featuretype=city`, { headers: { 'User-Agent': 'JSuKun-Horoscope/1.0' } });
-          const data = await res.json();
-          setCitySuggestions(data.map(d => ({ label: d.display_name.split(',').slice(0,3).join(','), lat: d.lat, lon: d.lon })));
-        } catch { setCitySuggestions([]); }
-      }, 400);
-    }}
-    onBlur={() => setTimeout(() => setCitySuggestions([]), 200)}
-  />
-  {citySuggestions.length > 0 && (
-    <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#FFFDF8', border:`1px solid #C17B2B60`, borderRadius:'10px', zIndex:999, overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,0.12)' }}>
-      {citySuggestions.map((c, i) => (
-        <div key={i}
-          onMouseDown={async () => {
-            setForm(f => ({ ...f, city: c.label, _lat: c.lat, _lon: c.lon, tz_label: 'Detecting timezone...', tz_name: '' }));
-            setCitySuggestions([]);
-            try {
-              const tzRes = await fetch(`https://timeapi.io/api/timezone/coordinate?latitude=${c.lat}&longitude=${c.lon}`);
-              const tzData = await tzRes.json();
-              if (tzData.timeZone) {
-                const totalSeconds = tzData.currentUtcOffset?.seconds || 0;
-                const totalOffset = totalSeconds / 3600;
-                const sign = totalOffset >= 0 ? '+' : '-';
-                const absTotal = Math.abs(totalSeconds);
-                const absH = Math.floor(absTotal / 3600);
-                const absM = Math.floor((absTotal % 3600) / 60);
-                const label = `${tzData.timeZone} (UTC ${sign}${String(absH).padStart(2,'0')}:${String(absM).padStart(2,'0')})`;
-                setForm(f => ({ ...f, tz: String(totalOffset), tz_name: tzData.timeZone, tz_label: label }));
-              }
-            } catch {
-              setForm(f => ({ ...f, tz_label: 'Could not detect — please select manually' }));
-            }
-          }}
-          style={{ padding:'10px 14px', fontSize:'13px', fontFamily:"'DM Sans',sans-serif", color:'#1A1A1A', cursor:'pointer', borderBottom: i < citySuggestions.length-1 ? '1px solid #C17B2B20' : 'none' }}
-          onMouseEnter={e => e.currentTarget.style.background='#F5EDE0'}
-          onMouseLeave={e => e.currentTarget.style.background='transparent'}
-        >
-          {c.label}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+              <label style={s.label}>{hi ? 'जन्म स्थान' : 'Birth City'}</label>
+              <input
+                style={s.input}
+                placeholder={hi ? 'जैसे: मुंबई, दिल्ली, चेन्नई' : 'e.g. Mumbai, Delhi, London'}
+                value={form.city}
+                onChange={e => {
+                  set('city')(e);
+                  const q = e.target.value;
+                  if (q.length < 3) { setCitySuggestions([]); return; }
+                  clearTimeout(window._cityTimer);
+                  window._cityTimer = setTimeout(async () => {
+                    try {
+                      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&featuretype=city`, { headers: { 'User-Agent': 'JSuKun-Horoscope/1.0' } });
+                      const data = await res.json();
+                      setCitySuggestions(data.map(d => ({ label: d.display_name.split(',').slice(0,3).join(','), lat: d.lat, lon: d.lon })));
+                    } catch { setCitySuggestions([]); }
+                  }, 400);
+                }}
+                onBlur={() => setTimeout(() => setCitySuggestions([]), 200)}
+              />
+              {citySuggestions.length > 0 && (
+                <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#FFFDF8', border:`1px solid #C17B2B60`, borderRadius:'10px', zIndex:999, overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,0.12)' }}>
+                  {citySuggestions.map((c, i) => (
+                    <div key={i}
+                      onMouseDown={async () => {
+                        setForm(f => ({ ...f, city: c.label, _lat: c.lat, _lon: c.lon, tz_label: 'Detecting timezone...', tz_name: '' }));
+                        setCitySuggestions([]);
+                        try {
+                          const tzRes = await fetch(`https://timeapi.io/api/timezone/coordinate?latitude=${c.lat}&longitude=${c.lon}`);
+                          const tzData = await tzRes.json();
+                          if (tzData.timeZone) {
+                            const totalSeconds = tzData.currentUtcOffset?.seconds || 0;
+                            const totalOffset = totalSeconds / 3600;
+                            const sign = totalOffset >= 0 ? '+' : '-';
+                            const absTotal = Math.abs(totalSeconds);
+                            const absH = Math.floor(absTotal / 3600);
+                            const absM = Math.floor((absTotal % 3600) / 60);
+                            const label = `${tzData.timeZone} (UTC ${sign}${String(absH).padStart(2,'0')}:${String(absM).padStart(2,'0')})`;
+                            setForm(f => ({ ...f, tz: String(totalOffset), tz_name: tzData.timeZone, tz_label: label }));
+                          }
+                        } catch {
+                          setForm(f => ({ ...f, tz_label: 'Could not detect — please select manually' }));
+                        }
+                      }}
+                      style={{ padding:'10px 14px', fontSize:'13px', fontFamily:"'DM Sans',sans-serif", color:'#1A1A1A', cursor:'pointer', borderBottom: i < citySuggestions.length-1 ? '1px solid #C17B2B20' : 'none' }}
+                      onMouseEnter={e => e.currentTarget.style.background='#F5EDE0'}
+                      onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                    >
+                      {c.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div style={{ marginBottom:'22px' }}>
               <label style={s.label}>{hi ? 'समय क्षेत्र' : 'Timezone'}</label>
@@ -673,10 +466,6 @@ return (
               )}
             </div>
 
-            {error && <p style={s.error}>{error}</p>}
-            <button style={s.submitBtn} onClick={submit}>
-              {hi ? '🔮 कुंडली बनाएं' : '🔮 CALCULATE MY CHART'}
-            </button>
             <div style={{ marginBottom:'14px' }}>
               <label style={s.label}>Report Language</label>
               <select style={{ ...s.select, flex:'unset', width:'100%' }}
@@ -697,6 +486,11 @@ return (
                 <option value="Italian">Italiano (Italian)</option>
               </select>
             </div>
+
+            {error && <p style={s.error}>{error}</p>}
+            <button style={s.submitBtn} onClick={submit}>
+              {hi ? '🔮 कुंडली बनाएं' : '🔮 CALCULATE MY CHART'}
+            </button>
             <p style={s.disclaimer}>
               {hi ? 'Swiss Ephemeris द्वारा गणना · केवल आध्यात्मिक अन्वेषण के लिए' : 'Calculated using Swiss Ephemeris · For spiritual exploration only'}
             </p>
@@ -712,12 +506,13 @@ return (
                 ⬇️ {hi ? 'रिपोर्ट डाउनलोड करें' : 'DOWNLOAD FULL REPORT'}
               </button>
             )}
-            
+
             {emailSent && (
               <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#4A9B6F', textAlign:'center', marginBottom:'8px' }}>
                 ✅ Report sent to {email}
               </p>
             )}
+
             <div style={{ display:'flex', gap:'8px', marginBottom: reportLoading ? '8px' : '20px' }}>
               <button
                 onClick={() => setMainView('chart')}
@@ -731,176 +526,235 @@ return (
                 {reportLoading ? '⏳ ' + reportMsg : report ? '📜 Prediction Report' : '📜 Generate Report'}
               </button>
             </div>
+
             {reportLoading && (
               <div style={{ marginBottom:'16px' }}>
                 <div style={{ height:'5px', background:'#C17B2B20', borderRadius:'3px', overflow:'hidden' }}>
                   <div style={{ height:'100%', width:`${reportProgress}%`, background:'linear-gradient(90deg, #C17B2B, #9B59B6)', borderRadius:'3px', transition:'width 1s ease' }} />
                 </div>
                 <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', textAlign:'center', margin:'6px 0 0', opacity:0.7 }}>
-                  This takes about 30–45 seconds · please don't close the page
+                  This takes about 1–2 minutes · please don't close the page
                 </p>
               </div>
             )}
-<div style={{ textAlign:'center', marginTop:'8px', marginBottom:'4px' }}>
-  <span
-    onClick={() => setShowDisclaimer(d => !d)}
-    style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', opacity:0.6, cursor:'pointer', borderBottom:'1px dashed #8B5E3C50' }}>
-    ⓘ AI-generated reading · not professional advice
-  </span>
-  {showDisclaimer && (
-    <div style={{ marginTop:'8px', padding:'12px', background:'#FDF6EC', borderRadius:'10px', border:'1px solid #C17B2B20', fontSize:'11px', color:'#8B5E3C', lineHeight:1.7, textAlign:'left' }}>
-      This horoscope is generated by AI using classical Vedic astrology rules. While it may be fairly accurate, please do not make major life decisions — medical, financial, legal or personal — based solely on this reading. It is intended for reflection and guidance only.
-    </div>
-  )}
-</div>
-{reportError && <p style={{ color:'#C0544A', fontSize:'12px', textAlign:'center', marginBottom:'12px', fontFamily:"'DM Sans',sans-serif" }}>{reportError}</p>}
-            {mainView === 'chart' && <div id="horoscope-chart">
-            <div style={{ textAlign:'center', marginBottom:'20px' }}>
-              <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'24px', fontWeight:600, color:T.text, margin:'0 0 4px' }}>
-                {form.name ? `${form.name}${hi ? ' की कुंडली' : "'s Chart"}` : (hi ? 'आपकी जन्म कुंडली' : 'Your Birth Chart')}
-              </p>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', marginBottom:'8px' }}>
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.45, color:T.text, margin:0 }}>
-                  {form.day} {MONTHS[+form.month-1]} {form.year} · {form.city}
-                </p>
-                <button
-                  onClick={() => { setStep('form'); setChart(null); setReport(null); setMainView('chart'); window.scrollTo(0,0); }}
-                  style={{ background:'none', border:`1px solid #C17B2B50`, borderRadius:'6px', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:600, cursor:'pointer', padding:'2px 8px', letterSpacing:'0.5px' }}>
-                  ✏️ Edit
-                </button>
-              </div>
-              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'13px', color:ACCENT, fontWeight:700 }}>
-                {hi ? 'लग्न:' : 'Lagna:'} {chart.ascendant.sign} · {chart.ascendant.nakshatra} Nakshatra Pada {chart.ascendant.pada}
-              </p>
-            </div>
 
-            <div style={{ marginBottom:'16px' }}>
-              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, letterSpacing:'1px', textTransform:'uppercase', color:'#C17B2B', opacity:0.7, margin:'0 0 6px' }}>
-                {hi ? 'उत्तर भारतीय' : 'North Indian'}
-              </p>
-              <div style={{ display:'flex', gap:'6px', marginBottom:'10px' }}>
-                <button style={s.toggleBtn(chartView === 'north')} onClick={() => setChartView('north')}>D1 Lagna</button>
-                <button style={s.toggleBtn(chartView === 'north_d9')} onClick={() => setChartView('north_d9')}>D9 Navamsha</button>
-                <button style={s.toggleBtn(chartView === 'north_d10')} onClick={() => setChartView('north_d10')}>D10 Dashamsha</button>
-              </div>
-              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, letterSpacing:'1px', textTransform:'uppercase', color:'#C17B2B', opacity:0.7, margin:'0 0 6px' }}>
-                {hi ? 'दक्षिण भारतीय' : 'South Indian'}
-              </p>
-              <div style={{ display:'flex', gap:'6px' }}>
-                <button style={s.toggleBtn(chartView === 'south')} onClick={() => setChartView('south')}>D1 Lagna</button>
-                <button style={s.toggleBtn(chartView === 'south_d9')} onClick={() => setChartView('south_d9')}>D9 Navamsha</button>
-                <button style={s.toggleBtn(chartView === 'south_d10')} onClick={() => setChartView('south_d10')}>D10 Dashamsha</button>
-              </div>
-            </div>
-
-            <div style={{ ...s.card, padding:'16px 12px' }}>
-              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', opacity:0.45, textAlign:'center', margin:'0 0 10px', color:'#1A1A1A', letterSpacing:'1px', textTransform:'uppercase' }}>
-                {chartView === 'north' && 'D1 — Lagna Chart'}
-                {chartView === 'north_d9' && 'D9 — Navamsha Chart'}
-                {chartView === 'north_d10' && 'D10 — Dashamsha Chart'}
-                {chartView === 'south' && 'D1 — Lagna Chart'}
-                {chartView === 'south_d9' && 'D9 — Navamsha Chart'}
-                {chartView === 'south_d10' && 'D10 — Dashamsha Chart'}
-              </p>
-              {chartView === 'north'     && <NorthChart chart={chart} />}
-              {chartView === 'north_d9'  && <NorthChart chart={chart.navamsa} />}
-              {chartView === 'north_d10' && <NorthChart chart={chart.dashamsha} />}
-              {chartView === 'south'     && <SouthChart chart={chart} />}
-              {chartView === 'south_d9'  && <SouthChart chart={chart.navamsa} />}
-              {chartView === 'south_d10' && <SouthChart chart={chart.dashamsha} />}
-            </div>
-            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', color:'#7A4A1A', opacity:0.7, textAlign:'center', marginBottom:'16px', lineHeight:1.8 }}>
-              {hi ? '↑ उच्च · ↓ नीच · ᴿ वक्री · ☌ अस्त · □ वर्गोत्तम' : '↑ Exalted · ↓ Debilitated · ᴿ Retrograde · ☌ Combust · □ Vargottama'}
-            </p>
-            <div style={s.card}>
-              <p style={s.cardTitle}>🌟 {hi ? 'ग्रह स्थिति' : 'Planetary Positions'}</p>
-              {[[hi ? 'लग्न' : 'Ascendant',{ sign:chart.ascendant.sign, nakshatra:chart.ascendant.nakshatra, nakshatra_lord:chart.ascendant.nakshatra_lord, house:1, degrees_in_sign:chart.ascendant.degrees }], ...Object.entries(chart.planets)].map(([name, p]) => (
-                <div key={name} style={s.planetRow}>
-                  <span style={{ color:ACCENT, fontWeight:700, minWidth:70 }}>{hi ? (PH[name] || name) : name}</span>
-                  <span style={{ opacity:0.75, flex:1 }}>
-  {hi ? (SIGNS_HI[SIGNS.indexOf(p.sign)] || p.sign) : p.sign}{p.house ? ` · ${hi ? 'भाव' : 'H'}${p.house}` : ''} · {Math.floor(p.degrees_in_sign)}°{Math.floor((p.degrees_in_sign % 1) * 60)}′
-</span>
-                  <span style={{ opacity:0.45, fontSize:'11px', textAlign:'right' }}>{hi ? (NAKSHATRA_HI[p.nakshatra] || p.nakshatra || '') : (p.nakshatra || '')}{p.nakshatra_lord ? ` · ${hi ? (PH[p.nakshatra_lord] || p.nakshatra_lord) : p.nakshatra_lord}` : ''}</span>
+            <div style={{ textAlign:'center', marginTop:'8px', marginBottom:'4px' }}>
+              <span
+                onClick={() => setShowDisclaimer(d => !d)}
+                style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', opacity:0.6, cursor:'pointer', borderBottom:'1px dashed #8B5E3C50' }}>
+                ⓘ AI-generated reading · not professional advice
+              </span>
+              {showDisclaimer && (
+                <div style={{ marginTop:'8px', padding:'12px', background:'#FDF6EC', borderRadius:'10px', border:'1px solid #C17B2B20', fontSize:'11px', color:'#8B5E3C', lineHeight:1.7, textAlign:'left' }}>
+                  This horoscope is generated by AI using classical Vedic astrology rules. While it may be fairly accurate, please do not make major life decisions — medical, financial, legal or personal — based solely on this reading. It is intended for reflection and guidance only.
                 </div>
-              ))}
+              )}
             </div>
 
-            <div style={s.card}>
-              <p style={s.cardTitle}>⏳ {hi ? 'विंशोत्तरी दशा' : 'Vimshottari Dasha'}</p>
-              <div style={{ padding:'12px', background:`${ACCENT}18`, borderRadius:'10px', marginBottom:'14px', border:`1px solid ${ACCENT}40` }}>
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', opacity:0.55, color:T.text, margin:'0 0 4px', letterSpacing:'1px', textTransform:'uppercase' }}>
-                  {hi ? 'अभी चल रहा है' : 'Currently Running'}
+            {reportError && <p style={{ color:'#C0544A', fontSize:'12px', textAlign:'center', marginBottom:'12px', fontFamily:"'DM Sans',sans-serif" }}>{reportError}</p>}
+
+            {mainView === 'chart' && (
+              <div id="horoscope-chart">
+                <div style={{ textAlign:'center', marginBottom:'20px' }}>
+                  <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'24px', fontWeight:600, color:T.text, margin:'0 0 4px' }}>
+                    {form.name ? `${form.name}${hi ? ' की कुंडली' : "'s Chart"}` : (hi ? 'आपकी जन्म कुंडली' : 'Your Birth Chart')}
+                  </p>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', marginBottom:'8px' }}>
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.45, color:T.text, margin:0 }}>
+                      {form.day} {MONTHS[+form.month-1]} {form.year} · {form.city}
+                    </p>
+                    <button
+                      onClick={() => { setStep('form'); setChart(null); setReport(null); setMainView('chart'); window.scrollTo(0,0); }}
+                      style={{ background:'none', border:`1px solid #C17B2B50`, borderRadius:'6px', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:600, cursor:'pointer', padding:'2px 8px', letterSpacing:'0.5px' }}>
+                      ✏️ Edit
+                    </button>
+                  </div>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'13px', color:ACCENT, fontWeight:700 }}>
+                    {hi ? 'लग्न:' : 'Lagna:'} {chart.ascendant.sign} · {chart.ascendant.nakshatra} Nakshatra Pada {chart.ascendant.pada}
+                  </p>
+                </div>
+
+                <div style={{ marginBottom:'16px' }}>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, letterSpacing:'1px', textTransform:'uppercase', color:'#C17B2B', opacity:0.7, margin:'0 0 6px' }}>
+                    {hi ? 'उत्तर भारतीय' : 'North Indian'}
+                  </p>
+                  <div style={{ display:'flex', gap:'6px', marginBottom:'10px' }}>
+                    <button style={s.toggleBtn(chartView === 'north')} onClick={() => setChartView('north')}>D1 Lagna</button>
+                    <button style={s.toggleBtn(chartView === 'north_d9')} onClick={() => setChartView('north_d9')}>D9 Navamsha</button>
+                    <button style={s.toggleBtn(chartView === 'north_d10')} onClick={() => setChartView('north_d10')}>D10 Dashamsha</button>
+                  </div>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, letterSpacing:'1px', textTransform:'uppercase', color:'#C17B2B', opacity:0.7, margin:'0 0 6px' }}>
+                    {hi ? 'दक्षिण भारतीय' : 'South Indian'}
+                  </p>
+                  <div style={{ display:'flex', gap:'6px' }}>
+                    <button style={s.toggleBtn(chartView === 'south')} onClick={() => setChartView('south')}>D1 Lagna</button>
+                    <button style={s.toggleBtn(chartView === 'south_d9')} onClick={() => setChartView('south_d9')}>D9 Navamsha</button>
+                    <button style={s.toggleBtn(chartView === 'south_d10')} onClick={() => setChartView('south_d10')}>D10 Dashamsha</button>
+                  </div>
+                </div>
+
+                <div style={{ ...s.card, padding:'16px 12px' }}>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', opacity:0.45, textAlign:'center', margin:'0 0 10px', color:'#1A1A1A', letterSpacing:'1px', textTransform:'uppercase' }}>
+                    {chartView === 'north'     && 'D1 — Lagna Chart'}
+                    {chartView === 'north_d9'  && 'D9 — Navamsha Chart'}
+                    {chartView === 'north_d10' && 'D10 — Dashamsha Chart'}
+                    {chartView === 'south'     && 'D1 — Lagna Chart'}
+                    {chartView === 'south_d9'  && 'D9 — Navamsha Chart'}
+                    {chartView === 'south_d10' && 'D10 — Dashamsha Chart'}
+                  </p>
+                  {chartView === 'north'     && <NorthChart chart={chart} />}
+                  {chartView === 'north_d9'  && <NorthChart chart={chart.navamsa} />}
+                  {chartView === 'north_d10' && <NorthChart chart={chart.dashamsha} />}
+                  {chartView === 'south'     && <SouthChart chart={chart} />}
+                  {chartView === 'south_d9'  && <SouthChart chart={chart.navamsa} />}
+                  {chartView === 'south_d10' && <SouthChart chart={chart.dashamsha} />}
+                </div>
+
+                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', color:'#7A4A1A', opacity:0.7, textAlign:'center', marginBottom:'16px', lineHeight:1.8 }}>
+                  {hi ? '↑ उच्च · ↓ नीच · ᴿ वक्री · ☌ अस्त · □ वर्गोत्तम' : '↑ Exalted · ↓ Debilitated · ᴿ Retrograde · ☌ Combust · □ Vargottama'}
                 </p>
-                <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'19px', color:ACCENT, margin:0, fontWeight:600 }}>
-                  {hi ? DH[chart.current_dasha.mahadasha] : chart.current_dasha.mahadasha} {hi ? 'महादशा' : 'Mahadasha'} / {hi ? DH[chart.current_dasha.antadasha] : chart.current_dasha.antadasha} {hi ? 'अंतर्दशा' : 'Antardasha'}
-                </p>
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.45, color:T.text, margin:'4px 0 0' }}>
-                  {chart.current_dasha.ad_start} → {chart.current_dasha.ad_end}
+
+                <div style={s.card}>
+                  <p style={s.cardTitle}>🌟 {hi ? 'ग्रह स्थिति' : 'Planetary Positions'}</p>
+                  {[[hi ? 'लग्न' : 'Ascendant', { sign:chart.ascendant.sign, nakshatra:chart.ascendant.nakshatra, nakshatra_lord:chart.ascendant.nakshatra_lord, house:1, degrees_in_sign:chart.ascendant.degrees }], ...Object.entries(chart.planets)].map(([name, p]) => (
+                    <div key={name} style={s.planetRow}>
+                      <span style={{ color:ACCENT, fontWeight:700, minWidth:70 }}>{hi ? (PH[name] || name) : name}</span>
+                      <span style={{ opacity:0.75, flex:1 }}>
+                        {hi ? (SIGNS_HI[SIGNS.indexOf(p.sign)] || p.sign) : p.sign}{p.house ? ` · ${hi ? 'भाव' : 'H'}${p.house}` : ''} · {Math.floor(p.degrees_in_sign)}°{Math.floor((p.degrees_in_sign % 1) * 60)}′
+                      </span>
+                      <span style={{ opacity:0.45, fontSize:'11px', textAlign:'right' }}>{hi ? (NAKSHATRA_HI[p.nakshatra] || p.nakshatra || '') : (p.nakshatra || '')}{p.nakshatra_lord ? ` · ${hi ? (PH[p.nakshatra_lord] || p.nakshatra_lord) : p.nakshatra_lord}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={s.card}>
+                  <p style={s.cardTitle}>⏳ {hi ? 'विंशोत्तरी दशा' : 'Vimshottari Dasha'}</p>
+                  <div style={{ padding:'12px', background:`${ACCENT}18`, borderRadius:'10px', marginBottom:'14px', border:`1px solid ${ACCENT}40` }}>
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', opacity:0.55, color:T.text, margin:'0 0 4px', letterSpacing:'1px', textTransform:'uppercase' }}>
+                      {hi ? 'अभी चल रहा है' : 'Currently Running'}
+                    </p>
+                    <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'19px', color:ACCENT, margin:0, fontWeight:600 }}>
+                      {hi ? DH[chart.current_dasha.mahadasha] : chart.current_dasha.mahadasha} {hi ? 'महादशा' : 'Mahadasha'} / {hi ? DH[chart.current_dasha.antadasha] : chart.current_dasha.antadasha} {hi ? 'अंतर्दशा' : 'Antardasha'}
+                    </p>
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', opacity:0.45, color:T.text, margin:'4px 0 0' }}>
+                      {chart.current_dasha.ad_start} → {chart.current_dasha.ad_end}
+                    </p>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+                    {chart.dashas.map(d => {
+                      const today = new Date();
+                      const isActive = new Date(d.start) <= today && today <= new Date(d.end);
+                      const isPast   = new Date(d.end) < today;
+                      const isMDSel  = selectedMD === d.lord;
+                      return (
+                        <div key={d.lord}>
+                          <div onClick={() => { setSelectedMD(isMDSel ? null : d.lord); setSelectedAD(null); }}
+                            style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderRadius:'10px', cursor:'pointer', background: isActive ? `${ACCENT}22` : isMDSel ? `${ACCENT}10` : 'transparent', border: isActive ? `1px solid ${ACCENT}` : `1px solid ${ACCENT}20`, opacity: isPast ? 0.45 : 1 }}>
+                            <span style={{ fontWeight: isActive ? 700 : 500, color: isActive ? ACCENT : T.text, fontSize:'13px', fontFamily:"'DM Sans',sans-serif" }}>
+                              {hi ? DH[d.lord] : d.lord} {hi ? 'महादशा' : 'MD'}
+                            </span>
+                            <span style={{ fontSize:'11px', opacity:0.55, fontFamily:"'DM Sans',sans-serif", color:T.text }}>
+                              {d.start.slice(0,4)}–{d.end.slice(0,4)} {isMDSel ? '▲' : '▼'}
+                            </span>
+                          </div>
+                          {isMDSel && (
+                            <div style={{ marginLeft:'12px', marginTop:'4px', display:'flex', flexDirection:'column', gap:'3px' }}>
+                              {d.antadashas.map(ad => {
+                                const adActive = new Date(ad.start) <= today && today <= new Date(ad.end);
+                                const adKey    = `${d.lord}_${ad.lord}`;
+                                const isADSel  = selectedAD === adKey;
+                                const pds      = isADSel ? calcPratyantara(ad.start, ad.end, ad.lord) : [];
+                                return (
+                                  <div key={ad.lord}>
+                                    <div onClick={() => setSelectedAD(isADSel ? null : adKey)}
+                                      style={{ display:'flex', justifyContent:'space-between', padding:'6px 10px', borderRadius:'8px', cursor:'pointer', background: adActive ? `${ACCENT}18` : isADSel ? `${ACCENT}08` : 'transparent', border: adActive ? `1px solid ${ACCENT}80` : `1px solid ${ACCENT}15` }}>
+                                      <span style={{ fontSize:'12px', color: adActive ? ACCENT : T.text, fontFamily:"'DM Sans',sans-serif", fontWeight: adActive ? 700 : 400 }}>
+                                        {hi ? DH[ad.lord] : ad.lord} {hi ? 'अंतर्दशा' : 'AD'}
+                                      </span>
+                                      <span style={{ fontSize:'10px', opacity:0.5, fontFamily:"'DM Sans',sans-serif", color:T.text }}>
+                                        {ad.start} → {ad.end} {isADSel ? '▲' : '▼'}
+                                      </span>
+                                    </div>
+                                    {(isADSel || isPrinting) && (
+                                      <div style={{ marginLeft:'12px', marginTop:'3px', display:'flex', flexDirection:'column', gap:'2px' }}>
+                                        {pds.map(pd => {
+                                          const pdActive = new Date(pd.start) <= today && today <= new Date(pd.end);
+                                          return (
+                                            <div key={pd.lord} style={{ display:'flex', justifyContent:'space-between', padding:'5px 8px', borderRadius:'6px', background: pdActive ? `${ACCENT}12` : 'transparent', border:`1px solid ${ACCENT}10` }}>
+                                              <span style={{ fontSize:'11px', color: pdActive ? ACCENT : T.text, fontFamily:"'DM Sans',sans-serif", fontWeight: pdActive ? 700 : 400 }}>
+                                                {hi ? DH[pd.lord] : pd.lord} {hi ? 'प्रत्यंतर' : 'PD'}
+                                              </span>
+                                              <span style={{ fontSize:'10px', opacity:0.45, fontFamily:"'DM Sans',sans-serif", color:T.text }}>
+                                                {pd.start} → {pd.end}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={s.card}>
+                  <p style={s.cardTitle}>🔮 {hi ? 'चार कुंडलियाँ' : 'Four Charts'}</p>
+                  <div style={{ display:'flex', gap:'8px', justifyContent:'center', marginBottom:'12px' }}>
+                    {['north','south'].map(v => (
+                      <button key={v} onClick={() => setChartStyle(v)}
+                        style={{ padding:'5px 14px', borderRadius:'20px', border:`1px solid #C17B2B${chartStyle===v?'':'30'}`, background: chartStyle===v ? '#C17B2B' : 'transparent', color: chartStyle===v ? '#fff' : '#C17B2B', fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:700, cursor:'pointer', letterSpacing:'0.5px' }}>
+                        {v === 'north' ? (hi ? 'उत्तर' : 'North') : (hi ? 'दक्षिण' : 'South')}
+                      </button>
+                    ))}
+                  </div>
+                  <FourChartGrid chart={chart} style={chartStyle} hi={hi} />
+                </div>
+
+                {chart.reading ? (
+                  <div style={s.card}>
+                    <p style={s.cardTitle}>✨ {hi ? 'आपका व्यक्तिगत विश्लेषण' : 'Your Personal Reading'}</p>
+                    <p style={s.reading}>{chart.reading}</p>
+                  </div>
+                ) : (
+                  <div style={{ ...s.card, textAlign:'center', opacity:0.5 }}>
+                    <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'16px', color:T.text, fontStyle:'italic' }}>
+                      {hi ? 'AI रीडिंग शीघ्र उपलब्ध होगी।' : 'AI Reading will appear once the API key is configured.'}
+                    </p>
+                  </div>
+                )}
+
+                {chart.reading && (
+                  <div style={{ textAlign:'center', padding:'20px 16px', background:'#FDF6EC', borderRadius:'14px', border:'1px solid #C17B2B20', marginBottom:'16px' }}>
+                    <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'20px', color:'#2C1810', margin:'0 0 4px', fontWeight:600 }}>🙏 Dakshina</p>
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', margin:'0 0 16px', lineHeight:1.6 }}>
+                      If this reading resonated with you, consider offering a small dakshina to support this work. Scan with any UPI app.
+                    </p>
+                    <img src="/upi-qr.png" alt="UPI QR Code" className="no-print-qr" style={{ width:180, height:180, borderRadius:'12px', border:'2px solid #C17B2B30' }} />
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', marginTop:'10px', opacity:0.7 }}>anadib1010-2@okicici</p>
+                  </div>
+                )}
+
+                <button onClick={() => { setStep('form'); setChart(null); setError(''); }}
+                  style={{ ...s.submitBtn, background:`${ACCENT}20`, color:ACCENT, marginTop:'4px' }}>
+                  {hi ? '↩ नई कुंडली बनाएं' : '↩ CALCULATE ANOTHER CHART'}
+                </button>
+                <button
+                  onClick={handleChartDownload}
+                  style={{ ...s.submitBtn, background:'transparent', color:'#C17B2B', border:'2px solid #C17B2B', marginBottom:'8px' }}>
+                  ⬇️ {hi ? 'चार्ट डाउनलोड करें' : 'DOWNLOAD CHART'}
+                </button>
+                <p style={s.disclaimer}>
+                  {hi ? 'यह ज्योतिष केवल आध्यात्मिक अन्वेषण के लिए है।' : 'For spiritual exploration only. Not a substitute for professional advice.'}
                 </p>
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
-                {chart.dashas.map(d => {
-                  const today = new Date();
-                  const isActive = new Date(d.start) <= today && today <= new Date(d.end);
-                  const isPast   = new Date(d.end) < today;
-                  const isMDSel  = selectedMD === d.lord;
-                  return (
-                    <div key={d.lord}>
-                      <div onClick={() => { setSelectedMD(isMDSel ? null : d.lord); setSelectedAD(null); }}
-                        style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderRadius:'10px', cursor:'pointer', background: isActive ? `${ACCENT}22` : isMDSel ? `${ACCENT}10` : 'transparent', border: isActive ? `1px solid ${ACCENT}` : `1px solid ${ACCENT}20`, opacity: isPast ? 0.45 : 1 }}>
-                        <span style={{ fontWeight: isActive ? 700 : 500, color: isActive ? ACCENT : T.text, fontSize:'13px', fontFamily:"'DM Sans',sans-serif" }}>
-                          {hi ? DH[d.lord] : d.lord} {hi ? 'महादशा' : 'MD'}
-                        </span>
-                        <span style={{ fontSize:'11px', opacity:0.55, fontFamily:"'DM Sans',sans-serif", color:T.text }}>
-                          {d.start.slice(0,4)}–{d.end.slice(0,4)} {isMDSel ? '▲' : '▼'}
-                        </span>
-                      </div>
-                      {isMDSel && (
-                        <div style={{ marginLeft:'12px', marginTop:'4px', display:'flex', flexDirection:'column', gap:'3px' }}>
-                          {d.antadashas.map(ad => {
-                            const adActive = new Date(ad.start) <= today && today <= new Date(ad.end);
-                            const adKey    = `${d.lord}_${ad.lord}`;
-                            const isADSel  = selectedAD === adKey;
-                            const pds      = isADSel ? calcPratyantara(ad.start, ad.end, ad.lord) : [];
-                            return (
-                              <div key={ad.lord}>
-                                <div onClick={() => setSelectedAD(isADSel ? null : adKey)}
-                                  style={{ display:'flex', justifyContent:'space-between', padding:'6px 10px', borderRadius:'8px', cursor:'pointer', background: adActive ? `${ACCENT}18` : isADSel ? `${ACCENT}08` : 'transparent', border: adActive ? `1px solid ${ACCENT}80` : `1px solid ${ACCENT}15` }}>
-                                  <span style={{ fontSize:'12px', color: adActive ? ACCENT : T.text, fontFamily:"'DM Sans',sans-serif", fontWeight: adActive ? 700 : 400 }}>
-                                    {hi ? DH[ad.lord] : ad.lord} {hi ? 'अंतर्दशा' : 'AD'}
-                                  </span>
-                                  <span style={{ fontSize:'10px', opacity:0.5, fontFamily:"'DM Sans',sans-serif", color:T.text }}>
-                                    {ad.start} → {ad.end} {isADSel ? '▲' : '▼'}
-                                  </span>
-                                </div>
-                                {(isADSel || isPrinting) && (
-                                  <div style={{ marginLeft:'12px', marginTop:'3px', display:'flex', flexDirection:'column', gap:'2px' }}>
-                                    {pds.map(pd => {
-                                      const pdActive = new Date(pd.start) <= today && today <= new Date(pd.end);
-                                      return (
-                                        <div key={pd.lord} style={{ display:'flex', justifyContent:'space-between', padding:'5px 8px', borderRadius:'6px', background: pdActive ? `${ACCENT}12` : 'transparent', border:`1px solid ${ACCENT}10` }}>
-                                          <span style={{ fontSize:'11px', color: pdActive ? ACCENT : T.text, fontFamily:"'DM Sans',sans-serif", fontWeight: pdActive ? 700 : 400 }}>
-                                            {hi ? DH[pd.lord] : pd.lord} {hi ? 'प्रत्यंतर' : 'PD'}
-                                          </span>
-                                          <span style={{ fontSize:'10px', opacity:0.45, fontFamily:"'DM Sans',sans-serif", color:T.text }}>
-                                            {pd.start} → {pd.end}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-            </div>
-            </div>}
+            )}
+
             {(mainView === 'report' || isPrinting) && report && (
               <div ref={reportRef} id="horoscope-report">
                 {report.highlights && report.highlights.length > 0 && (
@@ -919,7 +773,7 @@ return (
                     <button key={sec.id}
                       onClick={() => setActiveSection(sec.id)}
                       style={{ padding:'6px 12px', borderRadius:'20px', border:`1px solid ${activeSection===sec.id ? '#C17B2B' : '#C17B2B33'}`, background: activeSection===sec.id ? '#C17B2B22' : 'transparent', color: activeSection===sec.id ? '#C17B2B' : '#6B5B45', fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:600, cursor:'pointer' }}>
-                      {sec.icon} {sec.title}
+                      {sec.icon} {hi ? sec.title_hi : sec.title}
                     </button>
                   ))}
                 </div>
@@ -931,7 +785,7 @@ return (
                     <div key={sec.id} id={`section-${sec.id}`} style={{ background:'#FFFDF8', border:'1px solid #C17B2B22', borderRadius:'14px', marginBottom:'16px', overflow:'hidden', boxShadow:'0 2px 12px rgba(193,123,43,0.08)' }}>
                       <div style={{ padding:'14px 18px', borderBottom:'1px solid #C17B2B15', display:'flex', alignItems:'center', gap:'12px', background:'#FDF8F0' }}>
                         <span style={{ fontSize:'20px' }}>{sec.icon}</span>
-                        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontWeight:600, color:'#1A1A1A', flex:1 }}>{sec.title}</span>
+                        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontWeight:600, color:'#1A1A1A', flex:1 }}>{hi ? sec.title_hi : sec.title}</span>
                         <span style={{ padding:'3px 10px', borderRadius:'20px', background:`${badgeColor}18`, border:`1px solid ${badgeColor}55`, color:badgeColor, fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{hi ? (BADGE_HI[data.badge] || data.badge) : data.badge}</span>
                       </div>
                       <div style={{ padding:'18px' }}>
@@ -959,55 +813,7 @@ return (
                   <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', marginTop:'10px', opacity:0.7 }}>anadib1010-2@okicici</p>
                 </div>
               </div>
-            )}    
-            <div style={s.card}>
-              <p style={s.cardTitle}>🔮 {hi ? 'चार कुंडलियाँ' : 'Four Charts'}</p>
-              <div style={{ display:'flex', gap:'8px', justifyContent:'center', marginBottom:'12px' }}>
-                {['north','south'].map(v => (
-                  <button key={v} onClick={() => setChartStyle(v)}
-                    style={{ padding:'5px 14px', borderRadius:'20px', border:`1px solid #C17B2B${chartStyle===v?'':'30'}`, background: chartStyle===v ? '#C17B2B' : 'transparent', color: chartStyle===v ? '#fff' : '#C17B2B', fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:700, cursor:'pointer', letterSpacing:'0.5px' }}>
-                    {v === 'north' ? (hi ? 'उत्तर' : 'North') : (hi ? 'दक्षिण' : 'South')}
-                  </button>
-                ))}
-              </div>
-              <FourChartGrid chart={chart} style={chartStyle} hi={hi} />
-            </div>
-
-            {chart.reading ? (
-              <div style={s.card}>
-                <p style={s.cardTitle}>✨ {hi ? 'आपका व्यक्तिगत विश्लेषण' : 'Your Personal Reading'}</p>
-                <p style={s.reading}>{chart.reading}</p>
-              </div>
-            ) : (
-              <div style={{ ...s.card, textAlign:'center', opacity:0.5 }}>
-                <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'16px', color:T.text, fontStyle:'italic' }}>
-                  {hi ? 'AI रीडिंग शीघ्र उपलब्ध होगी।' : 'AI Reading will appear once the API key is configured.'}
-                </p>
-              </div>
             )}
-            {chart.reading && (
-              <div style={{ textAlign:'center', padding:'20px 16px', background:'#FDF6EC', borderRadius:'14px', border:'1px solid #C17B2B20', marginBottom:'16px' }}>
-                <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'20px', color:'#2C1810', margin:'0 0 4px', fontWeight:600 }}>🙏 Dakshina</p>
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', margin:'0 0 16px', lineHeight:1.6 }}>
-                  If this reading resonated with you, consider offering a small dakshina to support this work. Scan with any UPI app.
-                </p>
-                <img src="/upi-qr.png" alt="UPI QR Code" className="no-print-qr" style={{ width:180, height:180, borderRadius:'12px', border:'2px solid #C17B2B30' }} />
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', marginTop:'10px', opacity:0.7 }}>anadib1010-2@okicici</p>
-              </div>
-            )}
-            
-            <button onClick={() => { setStep('form'); setChart(null); setError(''); }}
-              style={{ ...s.submitBtn, background:`${ACCENT}20`, color:ACCENT, marginTop:'4px' }}>
-              {hi ? '↩ नई कुंडली बनाएं' : '↩ CALCULATE ANOTHER CHART'}
-            </button>
-            <button
-              onClick={handleChartDownload}
-              style={{ ...s.submitBtn, background:'transparent', color:'#C17B2B', border:'2px solid #C17B2B', marginBottom:'8px' }}>
-              ⬇️ {hi ? 'चार्ट डाउनलोड करें' : 'DOWNLOAD CHART'}
-            </button>
-            <p style={s.disclaimer}>
-              {hi ? 'यह ज्योतिष केवल आध्यात्मिक अन्वेषण के लिए है।' : 'For spiritual exploration only. Not a substitute for professional advice.'}
-            </p>
 
             {showEmailPrompt && (
               <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
@@ -1040,9 +846,8 @@ return (
                 </div>
               </div>
             )}
-        </div>
+          </div>
         )}
-
       </div>
     </div>
   );

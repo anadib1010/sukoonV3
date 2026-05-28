@@ -84,6 +84,15 @@ export function Home({ setTab, T, lang }) {
       animation: "kpopSuperPulse 3s ease-in-out infinite", // 👈 Using our new Super Pulse
     },
 
+    horaryBtn: {
+      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "16px",
+      background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B625 50%, ${T.bg} 100%)`,
+      border: `1px solid #9B59B650`, borderRadius: "14px",
+      color: "#9B59B6",
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+      fontSize: "15px", letterSpacing: "2px", cursor: "pointer",
+      transition: "all 0.3s ease",
+    },
     // 🔮 HOROSCOPE BUTTON (Vedic cosmic purple)
     horoscopeBtn: {
       width: "100%", maxWidth: "340px", padding: "24px 0", marginBottom: "20px",
@@ -211,6 +220,15 @@ export function Home({ setTab, T, lang }) {
           style={s.horoscopeBtn}
         >
           🔮 {hi ? "वैदिक कुंडली" : "VEDIC HOROSCOPE"}
+        </button>
+
+        {/* 🪬 HORARY — Ask a question */}
+        <button
+          {...pressable}
+          onClick={() => setTab('horary')}
+          style={s.horaryBtn}
+        >
+          🪬 {hi ? "प्रश्न पूछें" : "ASK A QUESTION"}
         </button>
 
       </div>
