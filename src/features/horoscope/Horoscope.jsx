@@ -94,8 +94,14 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [email,         setEmail]         = useState('');
   const [emailSent,     setEmailSent]     = useState(false);
   const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentVerified,  setPaymentVerified]  = useState(null);
   const [reportProgress,setReportProgress]= useState(0);
   const [reportMsg,     setReportMsg]     = useState('');
+  const [streamSections, setStreamSections] = useState({});
+  const [discountCode,  setDiscountCode]  = useState('');
+  const [discountPrice, setDiscountPrice] = useState(null);
+  const [discountMsg,   setDiscountMsg]   = useState('');
   const reportRef = useRef(null);
 
   const calcPratyantara = (adStart, adEnd, adLord) => {
@@ -114,7 +120,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     return result;
   };
 
-  const generateReport = async () => {
+  const generateReport = async (paymentId, orderId) => {
     if (!chart) { setReportError('Please calculate a chart first.'); return; }
     setReportLoading(true);
     setReportError('');
@@ -140,41 +146,143 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       setReportProgress(prog);
     }, 15000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 350000);
-      const res = await fetch(`${API}/report`, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 350000);
+  const res = await fetch(`${API}/report-stream`, {   // new streaming endpoint
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chart, language: reportLang, payment_id: paymentId, order_id: orderId }),
+    signal: controller.signal,
+  });
+  clearTimeout(timeout);
+  clearInterval(interval);
+  if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const built = {};
+
+  setMainView('report');
+  window.scrollTo(0, 0);
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();                            // keep incomplete line
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const chunk = JSON.parse(line);
+        if (chunk.section) {
+          built[chunk.section] = chunk.data;
+          setStreamSections({ ...built });           // triggers re-render per section
+        }
+        if (chunk.highlights) {
+          built.highlights = chunk.highlights;
+          setStreamSections({ ...built });
+        }
+        if (chunk.done) {
+          setReport({ ...built });
+          setReportProgress(100);
+          setReportMsg('Your report is ready ✨');
+        }
+      } catch (_) {}
+    }
+  }
+  // email send unchanged, move it here
+  if (email && email.includes('@')) {
+    try {
+      await fetch(`${API}/send-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chart, language: reportLang }),
-        signal: controller.signal,
+        body: JSON.stringify({ email, report: built, name: form.name || 'Seeker' }),
       });
-      clearTimeout(timeout);
-      clearInterval(interval);
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Report generation failed');
-      setReportProgress(100);
-      setReportMsg('Your report is ready ✨');
-      setReport(data.report);
-      setMainView('report');
-      window.scrollTo(0, 0);
-      if (email && email.includes('@')) {
-        try {
-          await fetch(`${API}/send-report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, report: data.report, name: form.name || 'Seeker' }),
-          });
-          setEmailSent(true);
-        } catch (_) {}
-      }
-    } catch (e) {
-      clearInterval(interval);
-      setReportProgress(0);
-      setReportMsg('');
-      setReportError(`Report failed: ${e.message}`);
-    }
+      setEmailSent(true);
+    } catch (_) {}
+  }
+} catch (e) {
+  clearInterval(interval);
+  setReportProgress(0);
+  setReportMsg('');
+  setReportError(`Report failed: ${e.message}`);
+}
+setReportLoading(false);
     setReportLoading(false);
+  };
+
+  const openRazorpay = async () => {
+    setShowPaymentModal(false);
+    try {
+      // Step 1 — create order on your backend
+      const orderRes = await fetch(`${API}/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: discountPrice !== null ? discountPrice * 100 : 25100, code: discountCode }), // ₹251 in paise, change as needed
+      });
+      const orderData = await orderRes.json();
+      if (!orderData.success) throw new Error(orderData.error);
+
+      // Step 2 — if free (discount code = 0), skip Razorpay
+      if (orderData.free) {
+        setPaymentVerified({ payment_id: orderData.order_id, order_id: orderData.order_id });
+        setShowEmailPrompt(true);
+        return;
+      }
+
+      // Step 3 — load Razorpay script if not already loaded
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+      }
+
+      // Step 4 — open Razorpay checkout
+      const rzp = new window.Razorpay({
+        key:         orderData.key_id,
+        amount:      orderData.amount,
+        currency:    'INR',
+        name:        'J Su Kun',
+        description: 'Vedic Jyotish Report',
+        order_id:    orderData.order_id,
+        prefill:     { email: email || '' },
+        theme:       { color: '#C17B2B' },
+        handler: async (response) => {
+          // Step 5 — verify payment on your backend
+          try {
+            const verifyRes = await fetch(`${API}/verify-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                order_id:   response.razorpay_order_id,
+                payment_id: response.razorpay_payment_id,
+                signature:  response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyData.verified) throw new Error('Payment verification failed');
+
+            // Step 6 — payment verified, proceed
+            setPaymentVerified({
+              payment_id: response.razorpay_payment_id,
+              order_id:   response.razorpay_order_id,
+            });
+            setShowEmailPrompt(true);
+          } catch (err) {
+            setReportError('Payment verification failed. Please contact support.');
+          }
+        },
+      });
+      rzp.open();
+    } catch (err) {
+      setReportError(`Payment failed: ${err.message}`);
+    }
   };
 
   const handlePrint = () => {
@@ -514,7 +622,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
 
         {step === 'result' && chart && (
           <div>
-            {(mainView === 'report' || isPrinting) && report && (
+            {(mainView === 'report' || isPrinting) && (report || Object.keys(streamSections).length > 0) && (
               <button
                 onClick={handleDownload}
                 style={{ width:'100%', padding:'12px', borderRadius:'12px', border:'2px solid #C17B2B', background:'transparent', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', marginBottom:'12px' }}>
@@ -770,7 +878,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
               </div>
             )}
 
-            {(mainView === 'report' || isPrinting) && report && (
+            {(mainView === 'report' || isPrinting) && (report || Object.keys(streamSections).length > 0) && (
               <div ref={reportRef} id="horoscope-report">
                 {report.highlights && report.highlights.length > 0 && (
                   <div style={{ background:'linear-gradient(135deg, #F0FDF4, #DCFCE7)', border:'1px solid #4A9B6F40', borderRadius:'14px', padding:'18px', marginBottom:'20px' }}>
@@ -778,7 +886,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
                     {report.highlights.map((h, i) => (
                       <div key={i} style={{ display:'flex', gap:'10px', alignItems:'flex-start', marginBottom: i < report.highlights.length-1 ? '8px' : 0 }}>
                         <span style={{ color:'#4A9B6F', fontWeight:700, fontSize:'14px', marginTop:'1px' }}>✓</span>
-                        <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'15px', color:'#1A3A2A', lineHeight:1.6, margin:0 }}>{h}</p>
+                        <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'17px', color:'#1A3A2A', lineHeight:2.0, margin:0 }}>{h}</p>
                       </div>
                     ))}
                   </div>
@@ -793,19 +901,29 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
                   ))}
                 </div>
                 {REPORT_SECTIONS.map(sec => {
-                  const data = report[sec.id];
-                  if (!data) return null;
-                  const badgeColor = BADGE_COLORS[data.badge] || '#C17B2B';
-                  return (
-                    <div key={sec.id} id={`section-${sec.id}`} style={{ background:'#FFFDF8', border:'1px solid #C17B2B22', borderRadius:'14px', marginBottom:'16px', overflow:'hidden', boxShadow:'0 2px 12px rgba(193,123,43,0.08)' }}>
+                  const data = (report || streamSections)[sec.id];
+
+                  if (!data) return (
+                    <div key={sec.id} style={{ background:'#FFFDF8', border:'1px solid #C17B2B22', borderRadius:'14px', marginBottom:'32px', overflow:'hidden', opacity:0.4 }}>
                       <div style={{ padding:'14px 18px', borderBottom:'1px solid #C17B2B15', display:'flex', alignItems:'center', gap:'12px', background:'#FDF8F0' }}>
                         <span style={{ fontSize:'20px' }}>{sec.icon}</span>
-                        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontWeight:600, color:'#1A1A1A', flex:1 }}>{hi ? sec.title_hi : sec.title}</span>
+                        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'22px', fontWeight:600, color:'#1A1A1A' }}>{hi ? sec.title_hi : sec.title}</span>
+                        <div style={{ marginLeft:'auto', width:18, height:18, border:'2px solid #C17B2B60', borderTop:'2px solid #C17B2B', borderRadius:'50%', animation:'spin 1s linear infinite' }} />
+                      </div>
+                    </div>
+                  );
+
+                  const badgeColor = BADGE_COLORS[data.badge] || '#C17B2B';
+                  return (
+                    <div key={sec.id} id={`section-${sec.id}`} style={{ background:'#FFFDF8', border:'1px solid #C17B2B22', borderRadius:'14px', marginBottom:'32px', overflow:'hidden', boxShadow:'0 2px 12px rgba(193,123,43,0.08)' }}>
+                      <div style={{ padding:'14px 18px', borderBottom:'1px solid #C17B2B15', display:'flex', alignItems:'center', gap:'12px', background:'#FDF8F0' }}>
+                        <span style={{ fontSize:'20px' }}>{sec.icon}</span>
+                        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'22px', fontWeight:600, color:'#1A1A1A', flex:1 }}>{hi ? sec.title_hi : sec.title}</span>
                         <span style={{ padding:'3px 10px', borderRadius:'20px', background:`${badgeColor}18`, border:`1px solid ${badgeColor}55`, color:badgeColor, fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{hi ? (BADGE_HI[data.badge] || data.badge) : data.badge}</span>
                       </div>
-                      <div style={{ padding:'18px' }}>
+                      <div style={{ padding:'28px 24px' }}>
                         {data.content.split('\n\n').map((para, pi) => (
-                          <p key={pi} style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'15px', color:'#3A2A1A', lineHeight:1.9, marginBottom: pi < data.content.split('\n\n').length-1 ? '14px' : 0 }}>
+                          <p key={pi} style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', color:'#3A2A1A', lineHeight:2.1, marginBottom: pi < data.content.split('\n\n').length-1 ? '24px' : 0 }}>
                             {para}
                           </p>
                         ))}
@@ -819,6 +937,80 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
                     This report is generated by AI using classical Vedic astrology principles and may reflect genuine karmic patterns. However, astrology indicates tendencies — not fixed outcomes. Do not make medical, financial, legal or major personal decisions based solely on this reading. For serious matters, consult a qualified Jyotish practitioner and appropriate professionals.
                   </p>
                 </div>
+
+                <div style={{ padding:'18px', background:'#FDF6EC', borderRadius:'12px', border:'2px solid #C17B2B40', marginBottom:'16px' }}>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', fontWeight:700, color:'#C17B2B', margin:'0 0 6px', letterSpacing:'0.5px' }}>⚠️ Important Disclaimer</p>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', lineHeight:1.8, margin:0 }}>
+                    This report is generated by AI using classical Vedic astrology principles and may reflect genuine karmic patterns. However, astrology indicates tendencies — not fixed outcomes. Do not make medical, financial, legal or major personal decisions based solely on this reading. For serious matters, consult a qualified Jyotish practitioner and appropriate professionals.
+                  </p>
+                </div>
+
+                {showPaymentModal && (
+                  <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1001, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
+                    onClick={() => setShowPaymentModal(false)}>
+                    <div style={{ background:'#FFFDF8', borderRadius:'20px', padding:'28px 24px', maxWidth:'360px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+                      onClick={e => e.stopPropagation()}>
+                      <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'22px', color:'#2C1810', margin:'0 0 4px', fontWeight:600, textAlign:'center' }}>
+                        🔮 {hi ? 'पूर्ण ज्योतिष रिपोर्ट' : 'Full Jyotish Report'}
+                      </p>
+                      <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', textAlign:'center', margin:'0 0 20px', lineHeight:1.7 }}>
+                        {hi ? '7 विस्तृत खंड · AI-संचालित · दशा विश्लेषण' : '7 in-depth sections · AI-powered · Dasha analysis'}
+                      </p>
+                      <div style={{ marginBottom:'16px' }}>
+                        <input
+                          type="text"
+                          placeholder={hi ? '🎟️ डिस्काउंट कोड (वैकल्पिक)' : '🎟️ Discount code (optional)'}
+                          value={discountCode}
+                          onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountMsg(''); }}
+                          style={{ width:'100%', padding:'12px 14px', borderRadius:'10px', border:'1px solid #C17B2B40', background:'#FFF8F0', fontFamily:"'DM Sans',sans-serif", fontSize:'14px', color:'#3A2A1A', outline:'none', boxSizing:'border-box', marginBottom:'8px' }}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!discountCode.trim()) return;
+                            try {
+                              const res = await fetch(`${API}/validate-code`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ code: discountCode.trim() }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setDiscountPrice(data.price);
+                                setDiscountMsg(data.price === 0 ? '✅ Free access granted!' : `✅ Code applied — ₹${data.price}`);
+                              } else {
+                                setDiscountMsg('❌ Invalid code');
+                                setDiscountPrice(null);
+                              }
+                            } catch {
+                              setDiscountMsg('❌ Could not validate code');
+                            }
+                          }}
+                          style={{ width:'100%', padding:'10px', borderRadius:'10px', border:'1px solid #C17B2B60', background:'transparent', color:'#C17B2B', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer' }}>
+                          {hi ? 'कोड लगाएं' : 'Apply Code'}
+                        </button>
+                        {discountMsg && (
+                          <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color: discountMsg.startsWith('✅') ? '#4A9B6F' : '#C0544A', margin:'6px 0 0', textAlign:'center' }}>
+                            {discountMsg}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => discountPrice === 0 ? (() => {
+                          setPaymentVerified({ payment_id: 'FREE_' + discountCode, order_id: 'FREE_' + discountCode });
+                          setShowPaymentModal(false);
+                          setShowEmailPrompt(true);
+                        })() : openRazorpay()}
+                        style={{ width:'100%', padding:'14px', borderRadius:'12px', border:'none', background:'#C17B2B', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'14px', cursor:'pointer', marginBottom:'10px' }}>
+                        {discountPrice === 0 ? (hi ? '✅ मुफ़्त रिपोर्ट पाएं' : '✅ Get Free Report') : (hi ? `💳 ₹${discountPrice ?? 251} में पाएं` : `💳 Pay ₹${discountPrice ?? 251} & Get Report`)}
+                      </button>
+                      <button
+                        onClick={() => setShowPaymentModal(false)}
+                        style={{ width:'100%', padding:'10px', borderRadius:'12px', border:'none', background:'transparent', color:'#8B5E3C', fontFamily:"'DM Sans',sans-serif", fontSize:'12px', cursor:'pointer' }}>
+                        {hi ? 'रद्द करें' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div style={{ textAlign:'center', padding:'20px 16px', background:'#FDF6EC', borderRadius:'14px', border:'1px solid #C17B2B20', marginBottom:'16px' }}>
                   <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'20px', color:'#2C1810', margin:'0 0 4px', fontWeight:600 }}>🙏 Dakshina</p>
                   <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', margin:'0 0 16px', lineHeight:1.6 }}>
@@ -849,12 +1041,18 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
                     style={{ width:'100%', padding:'12px 14px', borderRadius:'10px', border:'1px solid #C17B2B40', background:'#FFF8F0', fontFamily:"'DM Sans',sans-serif", fontSize:'14px', color:'#3A2A1A', outline:'none', boxSizing:'border-box', marginBottom:'16px' }}
                   />
                   <button
-                    onClick={() => { setShowEmailPrompt(false); generateReport(); }}
+                    onClick={() => {
+                      setShowEmailPrompt(false);
+                      generateReport(paymentVerified?.payment_id, paymentVerified?.order_id);
+                    }}
                     style={{ width:'100%', padding:'14px', borderRadius:'12px', border:'none', background:'#C17B2B', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'14px', cursor:'pointer', marginBottom:'10px' }}>
                     {hi ? '🔮 रिपोर्ट बनाएं' : '🔮 Generate Report'}
                   </button>
                   <button
-                    onClick={() => { setShowEmailPrompt(false); generateReport(); }}
+                    onClick={() => {
+                      setShowEmailPrompt(false);
+                      generateReport(paymentVerified?.payment_id, paymentVerified?.order_id);
+                    }}
                     style={{ width:'100%', padding:'10px', borderRadius:'12px', border:'none', background:'transparent', color:'#8B5E3C', fontFamily:"'DM Sans',sans-serif", fontSize:'12px', cursor:'pointer' }}>
                     {hi ? 'बिना ईमेल के जारी रखें' : 'Continue without email'}
                   </button>
