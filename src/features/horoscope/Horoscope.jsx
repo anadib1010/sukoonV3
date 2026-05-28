@@ -76,6 +76,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [chartStyle, setChartStyle] = useState('north');
   const [chart,     setChart]     = useState(null);
   const [error,     setError]     = useState('');
+  const [nameError, setNameError] = useState(false);
   const [form,      setForm]      = useState({
     name:'', day:'', month:'', year:'',
     hour:'12', minute:'0', city:'', tz:'5.5', tz_name:'', tz_label:'',
@@ -103,6 +104,16 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   const [discountPrice, setDiscountPrice] = useState(null);
   const [discountMsg,   setDiscountMsg]   = useState('');
   const reportRef = useRef(null);
+
+  const handleShare = (text) => {
+    const url = 'https://sukun.vercel.app';
+    if (navigator.share) {
+      navigator.share({ title: 'J Su Kun — Vedic Astrology', text, url });
+    } else {
+      navigator.clipboard.writeText(text + '\n' + url);
+      alert(hi ? 'क्लिपबोर्ड पर कॉपी हो गया!' : 'Copied to clipboard!');
+    }
+  };
 
   const calcPratyantara = (adStart, adEnd, adLord) => {
     const adMs = new Date(adEnd) - new Date(adStart);
@@ -358,6 +369,12 @@ setReportLoading(false);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const submit = async () => {
+    if (!form.name.trim()) {
+      setNameError(true);
+      setError(hi ? 'कृपया अपना नाम भरें।' : 'Please enter your name.');
+      return;
+    }
+    setNameError(false);
     if (!form.day || !form.month || !form.year || !form.city) {
       setError(hi ? 'कृपया सभी जानकारी भरें।' : 'Please fill all required fields.');
       return;
@@ -432,7 +449,9 @@ setReportLoading(false);
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes gentlePulse { 0%,100%{opacity:0.65} 50%{opacity:1} }
-        select option { background: #FDF6EC; color: #2C1810; }
+        placeholder={hi ? 'अनिवार्य' : 'Mandatory'}
+select option { background: #FDF6EC; color: #2C1810; }
+        input::placeholder { color: #C4A882; opacity: 1; }
         @media print {
           @page { size: A4; margin: 18mm 15mm 18mm 20mm; }
           body { font-family: 'Cormorant Garamond', serif; font-size: 12pt; color: #2C1810; background: #fff !important; }
@@ -478,8 +497,22 @@ setReportLoading(false);
             </p>
 
             <div style={{ marginBottom:'14px' }}>
-              <label style={s.label}>{hi ? 'नाम (वैकल्पिक)' : 'Name (optional)'}</label>
-              <input style={s.input} placeholder={hi ? 'आपका नाम' : 'Your name'} value={form.name} onChange={set('name')} />
+              <label style={s.label}>
+                {hi ? 'नाम' : 'Name'}
+                <span style={{ color:'#C0544A', marginLeft:'4px' }}>*</span>
+              </label>
+              <input
+                style={{ ...s.input, border: nameError ? '1.5px solid #C0544A' : '1px solid #C17B2B40' }}
+                placeholder={hi ? 'अनिवार्य' : 'Mandatory'}
+                style={{ ...s.input, border: nameError ? '1.5px solid #C0544A' : '1px solid #C17B2B40', color:'#2C1810' }}
+                value={form.name}
+                onChange={e => { set('name')(e); if (e.target.value.trim()) setNameError(false); }}
+              />
+              {nameError && (
+                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#C0544A', margin:'4px 0 0' }}>
+                  {hi ? '⚠ नाम अनिवार्य है' : '⚠ Name is required'}
+                </p>
+              )}
             </div>
 
             <label style={s.label}>{hi ? 'जन्म तिथि' : 'Date of Birth'}</label>
@@ -843,6 +876,15 @@ setReportLoading(false);
                   <div style={s.card}>
                     <p style={s.cardTitle}>✨ {hi ? 'आपका व्यक्तिगत विश्लेषण' : 'Your Personal Reading'}</p>
                     <p style={s.reading}>{chart.reading}</p>
+                    <button
+                      onClick={() => handleShare(
+                        hi
+                          ? `मेरी ज्योतिष रीडिंग J Su Kun से:\n\n${chart.reading.slice(0,200)}…\n\nअपनी रीडिंग पाएं 🔮`
+                          : `My Jyotish reading from J Su Kun:\n\n${chart.reading.slice(0,200)}…\n\nGet your own reading 🔮`
+                      )}
+                      style={{ marginTop:'16px', width:'100%', padding:'10px', borderRadius:'10px', border:'1px solid #4A9B6F60', background:'transparent', color:'#4A9B6F', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer' }}>
+                      🔗 {hi ? 'रीडिंग शेयर करें' : 'Share This Reading'}
+                    </button>
                   </div>
                 ) : (
                   <div style={{ ...s.card, textAlign:'center', opacity:0.5 }}>
@@ -871,6 +913,15 @@ setReportLoading(false);
                   onClick={handleChartDownload}
                   style={{ ...s.submitBtn, background:'transparent', color:'#C17B2B', border:'2px solid #C17B2B', marginBottom:'8px' }}>
                   ⬇️ {hi ? 'चार्ट डाउनलोड करें' : 'DOWNLOAD CHART'}
+                </button>
+                <button
+                  onClick={() => handleShare(
+                    hi
+                      ? `मेरी जन्म कुंडली J Su Kun से:\n${chart.ascendant.sign} लग्न · ${chart.planets.Moon.sign} चंद्र · ${chart.current_dasha.mahadasha} महादशा\n\nअपनी कुंडली बनाएं 🔮`
+                      : `My Vedic Birth Chart from J Su Kun:\n${chart.ascendant.sign} Lagna · ${chart.planets.Moon.sign} Moon · ${chart.current_dasha.mahadasha} Mahadasha\n\nGet your own chart 🔮`
+                  )}
+                  style={{ ...s.submitBtn, background:'transparent', color:'#4A9B6F', border:'2px solid #4A9B6F', marginBottom:'8px' }}>
+                  🔗 {hi ? 'कुंडली शेयर करें' : 'SHARE CHART'}
                 </button>
                 <p style={s.disclaimer}>
                   {hi ? 'यह ज्योतिष केवल आध्यात्मिक अन्वेषण के लिए है।' : 'For spiritual exploration only. Not a substitute for professional advice.'}
@@ -938,12 +989,15 @@ setReportLoading(false);
                   </p>
                 </div>
 
-                <div style={{ padding:'18px', background:'#FDF6EC', borderRadius:'12px', border:'2px solid #C17B2B40', marginBottom:'16px' }}>
-                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', fontWeight:700, color:'#C17B2B', margin:'0 0 6px', letterSpacing:'0.5px' }}>⚠️ Important Disclaimer</p>
-                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', color:'#8B5E3C', lineHeight:1.8, margin:0 }}>
-                    This report is generated by AI using classical Vedic astrology principles and may reflect genuine karmic patterns. However, astrology indicates tendencies — not fixed outcomes. Do not make medical, financial, legal or major personal decisions based solely on this reading. For serious matters, consult a qualified Jyotish practitioner and appropriate professionals.
-                  </p>
-                </div>
+                <button
+                  onClick={() => handleShare(
+                    hi
+                      ? `मेरी पूर्ण ज्योतिष रिपोर्ट J Su Kun से तैयार हो गई!\n${chart.ascendant.sign} लग्न · ${chart.planets.Moon.sign} चंद्र\n\nअपनी रिपोर्ट पाएं 🔮`
+                      : `My full Jyotish report from J Su Kun is ready!\n${chart.ascendant.sign} Lagna · ${chart.planets.Moon.sign} Moon\n\nGet your own report 🔮`
+                  )}
+                  style={{ width:'100%', padding:'12px', borderRadius:'12px', border:'1px solid #4A9B6F60', background:'transparent', color:'#4A9B6F', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'13px', cursor:'pointer', marginBottom:'16px' }}>
+                  🔗 {hi ? 'रिपोर्ट शेयर करें' : 'Share This Report'}
+                </button>
 
                 {showPaymentModal && (
                   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1001, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
