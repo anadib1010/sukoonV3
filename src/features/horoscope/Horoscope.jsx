@@ -193,11 +193,22 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       const clone = element.cloneNode(true);
       clone.style.background = '#FFFDF8';
       clone.style.padding = '20px';
+      clone.style.width = '800px';
+      clone.style.maxWidth = '800px';
+      // Force all SVG charts to fixed size to prevent mobile clipping
+      clone.querySelectorAll('svg').forEach(svg => {
+        svg.style.width = '260px';
+        svg.style.height = '260px';
+        svg.style.minWidth = '260px';
+        svg.style.display = 'block';
+        svg.style.margin = '0 auto';
+        svg.removeAttribute('width');
+      });
       const worker = html2pdf().set({
         margin:      [12, 10, 12, 15],
         filename:    `jsu-kun-${(form.name || 'horoscope').replace(/\s+/g,'-')}-report.pdf`,
         image:       { type: 'jpeg', quality: 0.97 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFDF8', logging: false },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFDF8', logging: false, windowWidth: 900, width: 800 },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       }).from(clone);
       await worker.save();
@@ -217,6 +228,10 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
       const clone = element.cloneNode(true);
       clone.style.background = '#FFFDF8';
       clone.style.padding = '20px';
+      clone.querySelectorAll('svg').forEach(svg => {
+        svg.style.margin = '0';
+        svg.style.display = 'block';
+      });
       await html2pdf().set({
         margin:      [12, 10, 12, 15],
         filename:    `jsu-kun-${(form.name || 'chart').replace(/\s+/g,'-')}-chart.pdf`,

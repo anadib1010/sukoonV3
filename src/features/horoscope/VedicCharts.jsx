@@ -44,7 +44,7 @@ export function NorthChart({ chart }) {
   };
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${W}`} style={{ display:'block', maxWidth:300, margin:'0 auto' }}>
+    <svg width="280" height="280" viewBox={`0 0 ${W} ${W}`} style={{ display:'block', width:'100%', maxWidth:280, margin:'0 auto' }}>
       <rect width={W} height={W} fill={BG} />
       <polygon points="140,0 210,70 140,140 70,70" fill={`${OCH}15`} />
       <rect x="1" y="1" width={W-2} height={W-2} fill="none" stroke={OCH} strokeWidth="1.5" />
@@ -95,7 +95,7 @@ export function SouthChart({ chart }) {
   });
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${W}`} style={{ display:'block', maxWidth:300, margin:'0 auto' }}>
+    <svg width="280" height="280" viewBox={`0 0 ${W} ${W}`} style={{ display:'block', width:'100%', maxWidth:280, margin:'0 auto' }}>
       <rect width={W} height={W} fill={BG} />
       <rect x="1" y="1" width={W-2} height={W-2} fill="none" stroke={OCH} strokeWidth="1.5" />
       <line x1="0" y1={C}   x2={W} y2={C}   stroke={OCH} strokeWidth="1" />
