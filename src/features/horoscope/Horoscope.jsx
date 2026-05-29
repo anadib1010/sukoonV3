@@ -437,7 +437,7 @@ setReportLoading(false);
     cardTitle:   { fontFamily:"'DM Sans',sans-serif", fontSize:'11px', fontWeight:700, letterSpacing:'1px', textTransform:'uppercase', color:'#C17B2B', margin:'0 0 12px', opacity:0.9 },
     toggleBtn:   a => ({ flex:1, padding:'10px', borderRadius:'10px', border:`1px solid ${a ? '#C17B2B' : '#C17B2B33'}`, background: a ? '#C17B2B' : 'transparent', color: a ? '#FFFFFF' : '#8B5E3C', fontFamily:"'DM Sans',sans-serif", fontSize:'12px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }),
     planetRow:   { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid #C17B2B10', fontSize:'13px', fontFamily:"'DM Sans',sans-serif", gap:'8px' },
-    reading:     { fontFamily:"'Cormorant Garamond',serif", fontSize:'16px', lineHeight:1.85, opacity:0.9, color:'#2C1810', fontStyle:'italic', whiteSpace:'pre-wrap' },
+    reading: { fontFamily:"'Cormorant Garamond',serif", fontSize:'19px', lineHeight:2.1, opacity:0.9, color:'#2C1810', fontStyle:'italic', whiteSpace:'pre-wrap' },
     dashaActive: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderRadius:'10px', background:'linear-gradient(135deg, #C17B2B22, #E09B4B22)', border:'1px solid #C17B2B', cursor:'pointer' },
     dashaPast:   { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderRadius:'10px', background:'transparent', border:'1px solid #C17B2B20', opacity:0.4, cursor:'pointer' },
     dashaFuture: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderRadius:'10px', background:'transparent', border:'1px solid #C17B2B25', cursor:'pointer' },
