@@ -158,7 +158,6 @@ export function buildChandraChart(chart) {
   };
 }
 
-// ── Four Chart Grid (D1 · D9 · D10 · Chandra Lagna) ──────────────────────────
 export function FourChartGrid({ chart, style = 'north', hi = false }) {
   const chandraChart = buildChandraChart(chart);
   const ChartComp    = style === 'north' ? NorthChart : SouthChart;
@@ -173,8 +172,20 @@ export function FourChartGrid({ chart, style = 'north', hi = false }) {
       <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'11px', letterSpacing:'1.5px', textTransform:'uppercase', color:'#8B5E3C', textAlign:'center', margin:'0 0 12px', opacity:0.7 }}>
         {style === 'north' ? (hi ? 'उत्तर भारतीय शैली' : 'North Indian Style') : (hi ? 'दक्षिण भारतीय शैली' : 'South Indian Style')}
       </p>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-        {labels.map(({ key, label, data }) => (
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px' }}>
+        {labels.slice(0,2).map(({ key, label, data }) => (
+          <div key={key} style={{ background:'#FFFDF8', border:'1px solid #C17B2B25', borderRadius:'12px', padding:'8px 6px 6px', boxShadow:'0 2px 8px rgba(193,123,43,0.08)' }}>
+            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, color:'#C17B2B', textAlign:'center', margin:'0 0 6px', letterSpacing:'0.5px' }}>
+              {label}
+            </p>
+            {data ? <ChartComp chart={data} /> : (
+              <p style={{ textAlign:'center', fontSize:'11px', color:'#8B5E3C', padding:'20px 0' }}>—</p>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', pageBreakBefore:'always', breakBefore:'page' }}>
+        {labels.slice(2,4).map(({ key, label, data }) => (
           <div key={key} style={{ background:'#FFFDF8', border:'1px solid #C17B2B25', borderRadius:'12px', padding:'8px 6px 6px', boxShadow:'0 2px 8px rgba(193,123,43,0.08)' }}>
             <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', fontWeight:700, color:'#C17B2B', textAlign:'center', margin:'0 0 6px', letterSpacing:'0.5px' }}>
               {label}

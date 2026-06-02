@@ -130,7 +130,24 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     }
     return result;
   };
-
+  const renderReading = (text) => {
+    if (!text) return null;
+    return text.split('\n').map((line, i) => {
+      if (line.startsWith('## ')) {
+        return <p key={i} style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'18px', fontWeight:600, fontStyle:'normal', color:'#C17B2B', margin:'24px 0 8px', letterSpacing:'0.5px' }}>{line.replace('## ','')}</p>;
+      }
+      if (line.startsWith('# ')) {
+        return <p key={i} style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'20px', fontWeight:700, fontStyle:'normal', color:'#2C1810', margin:'0 0 16px', letterSpacing:'0.5px' }}>{line.replace('# ','')}</p>;
+      }
+      if (!line.trim()) return <div key={i} style={{ height:'12px' }} />;
+      const parts = line.split(/\*\*(.*?)\*\*/g);
+      return (
+        <p key={i} style={s.reading}>
+          {parts.map((part, j) => j % 2 === 1 ? <strong key={j} style={{ fontWeight:700, fontStyle:'normal', color:'#2C1810' }}>{part}</strong> : part)}
+        </p>
+      );
+    });
+  };
   const generateReport = async (paymentId, orderId) => {
     if (!chart) { setReportError('Please calculate a chart first.'); return; }
     setReportLoading(true);
@@ -159,7 +176,7 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
     try {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 350000);
-  const res = await fetch(`${API}/report-stream`, {   // new streaming endpoint
+  const res = await fetch(`${API}/report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chart, language: reportLang, payment_id: paymentId, order_id: orderId }),
@@ -169,40 +186,13 @@ export function Horoscope({ setTab, T: _T, lang = 'English' }) {
   clearInterval(interval);
   if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  const built = {};
-
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Report generation failed');
+  setReportProgress(100);
+  setReportMsg('Your report is ready ✨');
+  setReport(data.report);
   setMainView('report');
   window.scrollTo(0, 0);
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop();                            // keep incomplete line
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const chunk = JSON.parse(line);
-        if (chunk.section) {
-          built[chunk.section] = chunk.data;
-          setStreamSections({ ...built });           // triggers re-render per section
-        }
-        if (chunk.highlights) {
-          built.highlights = chunk.highlights;
-          setStreamSections({ ...built });
-        }
-        if (chunk.done) {
-          setReport({ ...built });
-          setReportProgress(100);
-          setReportMsg('Your report is ready ✨');
-        }
-      } catch (_) {}
-    }
-  }
   // email send unchanged, move it here
   if (email && email.includes('@')) {
     try {
@@ -875,7 +865,7 @@ select option { background: #FDF6EC; color: #2C1810; }
                 {chart.reading ? (
                   <div style={s.card}>
                     <p style={s.cardTitle}>✨ {hi ? 'आपका व्यक्तिगत विश्लेषण' : 'Your Personal Reading'}</p>
-                    <p style={s.reading}>{chart.reading}</p>
+                    <div>{renderReading(chart.reading)}</div>
                     <button
                       onClick={() => handleShare(
                         hi
@@ -1079,36 +1069,107 @@ select option { background: #FDF6EC; color: #2C1810; }
             {showEmailPrompt && (
               <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
                 onClick={() => setShowEmailPrompt(false)}>
-                <div style={{ background:'#FFFDF8', borderRadius:'20px', padding:'28px 24px', maxWidth:'360px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+                <div style={{ background:'#FFFDF8', borderRadius:'20px', padding:'28px 24px', maxWidth:'380px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
                   onClick={e => e.stopPropagation()}>
-                  <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'22px', color:'#2C1810', margin:'0 0 6px', fontWeight:600, textAlign:'center' }}>
-                    📜 {hi ? 'पूर्ण रिपोर्ट' : 'Full Report'}
+
+                  {/* Title */}
+                  <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'24px', color:'#2C1810', margin:'0 0 4px', fontWeight:600, textAlign:'center' }}>
+                    📜 {hi ? 'पूर्ण ज्योतिष रिपोर्ट' : 'Full Jyotish Report'}
                   </p>
                   <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color:'#8B5E3C', textAlign:'center', margin:'0 0 20px', lineHeight:1.6 }}>
-                    {hi ? 'रिपोर्ट ईमेल पर भेजें (वैकल्पिक)' : 'Get the report sent to your email (optional)'}
+                    {hi ? '7 खंडों में विस्तृत विश्लेषण' : '7-section detailed Vedic analysis'}
                   </p>
+
+                  {/* Price display */}
+                  <div style={{ textAlign:'center', marginBottom:'20px', padding:'12px', background:'#FDF6EC', borderRadius:'12px', border:'1px solid #C17B2B30' }}>
+                    {discountPrice === 0 ? (
+                      <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'20px', fontWeight:700, color:'#4A9B6F', margin:0 }}>
+                        ✅ {hi ? 'निःशुल्क' : 'FREE'}
+                      </p>
+                    ) : discountPrice !== null ? (
+                      <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'20px', fontWeight:700, color:'#C17B2B', margin:0 }}>
+                        <span style={{ textDecoration:'line-through', opacity:0.5, fontSize:'14px', marginRight:'8px' }}>₹251</span>
+                        ₹{discountPrice}
+                      </p>
+                    ) : (
+                      <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'20px', fontWeight:700, color:'#C17B2B', margin:0 }}>
+                        ₹251
+                      </p>
+                    )}
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'10px', color:'#8B5E3C', margin:'4px 0 0', opacity:0.7 }}>
+                      {hi ? 'एक बार भुगतान · कोई सदस्यता नहीं' : 'One-time payment · No subscription'}
+                    </p>
+                  </div>
+
+                  {/* Email input */}
                   <input
                     type="email"
-                    placeholder={hi ? '✉️ आपका ईमेल' : '✉️ your@email.com'}
+                    placeholder={hi ? '✉️ ईमेल (वैकल्पिक — रिपोर्ट भेजने के लिए)' : '✉️ Email (optional — to receive report)'}
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    style={{ width:'100%', padding:'12px 14px', borderRadius:'10px', border:'1px solid #C17B2B40', background:'#FFF8F0', fontFamily:"'DM Sans',sans-serif", fontSize:'14px', color:'#3A2A1A', outline:'none', boxSizing:'border-box', marginBottom:'16px' }}
+                    style={{ width:'100%', padding:'12px 14px', borderRadius:'10px', border:'1px solid #C17B2B40', background:'#FFF8F0', fontFamily:"'DM Sans',sans-serif", fontSize:'13px', color:'#3A2A1A', outline:'none', boxSizing:'border-box', marginBottom:'12px' }}
                   />
+
+                  {/* Discount code */}
+                  <div style={{ display:'flex', gap:'8px', marginBottom:'6px' }}>
+                    <input
+                      type="text"
+                      placeholder={hi ? '🏷️ डिस्काउंट कोड' : '🏷️ Discount code'}
+                      value={discountCode}
+                      onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountMsg(''); setDiscountPrice(null); }}
+                      style={{ flex:1, padding:'11px 14px', borderRadius:'10px', border:`1px solid ${discountMsg.includes('✅') ? '#4A9B6F' : '#C17B2B40'}`, background:'#FFF8F0', fontFamily:"'DM Sans',sans-serif", fontSize:'13px', color:'#3A2A1A', outline:'none', boxSizing:'border-box' }}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!discountCode.trim()) return;
+                        try {
+                          const r = await fetch(`${API}/validate-code`, {
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({ code: discountCode.trim() }),
+                          });
+                          const d = await r.json();
+                          if (d.success) {
+                            setDiscountPrice(d.price);
+                            setDiscountMsg(d.price === 0 ? '✅ Free!' : `✅ ₹${d.price}`);
+                          } else {
+                            setDiscountMsg('❌ Invalid code');
+                            setDiscountPrice(null);
+                          }
+                        } catch { setDiscountMsg('❌ Error'); }
+                      }}
+                      style={{ padding:'11px 16px', borderRadius:'10px', border:'none', background:'#C17B2B', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontSize:'12px', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+                      {hi ? 'लगाएं' : 'Apply'}
+                    </button>
+                  </div>
+                  {discountMsg && (
+                    <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'12px', color: discountMsg.includes('✅') ? '#4A9B6F' : '#C0544A', margin:'0 0 12px' }}>
+                      {discountMsg}
+                    </p>
+                  )}
+
+                  {/* Pay / Generate button */}
                   <button
                     onClick={() => {
                       setShowEmailPrompt(false);
-                      generateReport(paymentVerified?.payment_id, paymentVerified?.order_id);
+                      if (discountPrice === 0) {
+                        // Free via discount code — generate directly
+                        setPaymentVerified({ payment_id: 'FREE_' + discountCode, order_id: 'FREE_' + discountCode });
+                        generateReport('FREE_' + discountCode, 'FREE_' + discountCode);
+                      } else {
+                        // Paid — open Razorpay
+                        openRazorpay();
+                      }
                     }}
-                    style={{ width:'100%', padding:'14px', borderRadius:'12px', border:'none', background:'#C17B2B', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'14px', cursor:'pointer', marginBottom:'10px' }}>
-                    {hi ? '🔮 रिपोर्ट बनाएं' : '🔮 Generate Report'}
+                    style={{ width:'100%', padding:'15px', borderRadius:'12px', border:'none', background: discountPrice === 0 ? '#4A9B6F' : '#C17B2B', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:'15px', cursor:'pointer', marginBottom:'10px', letterSpacing:'0.5px' }}>
+                    {discountPrice === 0
+                      ? (hi ? '🔮 रिपोर्ट बनाएं (निःशुल्क)' : '🔮 Generate Free Report')
+                      : `🔮 ${hi ? 'भुगतान करें' : 'Pay'} ₹${discountPrice !== null ? discountPrice : 251} & ${hi ? 'रिपोर्ट पाएं' : 'Get Report'}`}
                   </button>
+
                   <button
-                    onClick={() => {
-                      setShowEmailPrompt(false);
-                      generateReport(paymentVerified?.payment_id, paymentVerified?.order_id);
-                    }}
+                    onClick={() => setShowEmailPrompt(false)}
                     style={{ width:'100%', padding:'10px', borderRadius:'12px', border:'none', background:'transparent', color:'#8B5E3C', fontFamily:"'DM Sans',sans-serif", fontSize:'12px', cursor:'pointer' }}>
-                    {hi ? 'बिना ईमेल के जारी रखें' : 'Continue without email'}
+                    {hi ? 'रद्द करें' : 'Cancel'}
                   </button>
                 </div>
               </div>
