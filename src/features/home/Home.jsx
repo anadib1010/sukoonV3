@@ -18,11 +18,10 @@ export function Home({ setTab, T, lang }) {
     ? (hours < 12 ? "सुप्रभात" : hours < 17 ? "शुभ दोपहर" : "शुभ संध्या")
     : (hours < 12 ? "Good Morning" : hours < 17 ? "Good Afternoon" : "Good Evening");
 
-  // ─── THE RULE OF T: EVERY LINE RESTORED ───
   const s = {
     page: {
       position: "relative", height: "100%", display: "flex", flexDirection: "column",
-      alignItems: "center", background: T.bg, color: T.text, overflowX: "hidden", 
+      alignItems: "center", background: T.bg, color: T.text, overflowX: "hidden",
       boxSizing: "border-box", padding: "1vh 24px 4vh",
     },
     topSection: {
@@ -32,12 +31,9 @@ export function Home({ setTab, T, lang }) {
       transition: "opacity 0.8s ease, transform 0.8s ease",
     },
     title: {
-      fontFamily: "'Cormorant Garamond', serif", 
-      // 👇 Reduced from 48px/64px to 32px/42px 👇
-      fontSize: "clamp(32px, 8vw, 42px)", 
-      fontWeight: 600, 
-      margin: "0 0 4px", 
-      letterSpacing: "3px",
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: "clamp(32px, 8vw, 42px)",
+      fontWeight: 600, margin: "0 0 4px", letterSpacing: "3px",
     },
     subTitle: {
       fontFamily: "'DM Sans', sans-serif", fontSize: "11px", fontWeight: 500,
@@ -65,43 +61,44 @@ export function Home({ setTab, T, lang }) {
       margin: "0 0 16px", textAlign: "center",
     },
 
-    // 💖 K-HUB BUTTON (RESTORED & IMPROVED)
-    kUniverseBtn: {
-      width: "100%", 
-      maxWidth: "340px", 
-      padding: "22px 0",      // 👈 Taller than the others
-      marginBottom: "16px",   // 👈 More space below it
-      background: `linear-gradient(135deg, ${T.bg} 0%, #FF69B425 50%, ${T.bg} 100%)`,
-      border: `2px solid #FF69B460`, // 👈 Thicker 2px border
-      borderRadius: "14px",   // 👈 Slightly rounder for a premium feel
-      color: "#FF69B4", 
-      fontFamily: "'DM Sans', sans-serif", 
-      fontWeight: 800,        // 👈 Extra Bold text
-      fontSize: "16px",       // 👈 Larger text
-      letterSpacing: "2.5px", 
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-      animation: "kpopSuperPulse 3s ease-in-out infinite", // 👈 Using our new Super Pulse
+    // ── TOP ROW: Horoscope + Ask a Question (reduced, side by side) ──────────
+    topBtnRow: {
+      display: "flex", gap: "10px", width: "100%", maxWidth: "340px",
+      marginBottom: "14px",
+    },
+    // 🔮 HOROSCOPE — reduced height, half width
+    horoscopeBtn: {
+      flex: 1, padding: "16px 0",
+      background: `linear-gradient(135deg, ${T.bg} 0%, #C17B2B25 50%, ${T.bg} 100%)`,
+      border: `1.5px solid #C17B2B60`, borderRadius: "12px",
+      color: "#C17B2B",
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+      fontSize: "13px", letterSpacing: "2px", cursor: "pointer",
+      animation: "horoscopeBreathe 3s ease-in-out infinite",
+      lineHeight: 1.3, textAlign: "center",
+    },
+    // 🪬 HORARY — reduced height, half width
+    horaryBtn: {
+      flex: 1, padding: "16px 0",
+      background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B625 50%, ${T.bg} 100%)`,
+      border: `1px solid #9B59B640`, borderRadius: "12px",
+      color: "#9B59B6",
+      fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
+      fontSize: "13px", letterSpacing: "1.5px", cursor: "pointer",
+      lineHeight: 1.3, textAlign: "center",
     },
 
-    horaryBtn: {
-      width: "100%", maxWidth: "340px", padding: "18px 0", marginBottom: "16px",
-      background: `linear-gradient(135deg, ${T.bg} 0%, #9B59B625 50%, ${T.bg} 100%)`,
-      border: `1px solid #9B59B650`, borderRadius: "14px",
-      color: "#9B59B6",
-      fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
-      fontSize: "15px", letterSpacing: "2px", cursor: "pointer",
-      transition: "all 0.3s ease",
-    },
-    // 🔮 HOROSCOPE BUTTON (Vedic cosmic purple)
-    horoscopeBtn: {
-      width: "100%", maxWidth: "340px", padding: "24px 0", marginBottom: "20px",
-      background: `linear-gradient(135deg, ${T.bg} 0%, #C17B2B25 50%, ${T.bg} 100%)`,
-      border: `2px solid #C17B2B70`, borderRadius: "14px",
-      color: "#C17B2B",
+    // 📈 VEDIC STOCKS — hero button, full width, gold/amber
+    stocksBtn: {
+      width: "100%", maxWidth: "340px",
+      padding: "22px 0", marginBottom: "14px",
+      background: `linear-gradient(135deg, ${T.bg} 0%, #c9a84c28 40%, #c9a84c18 60%, ${T.bg} 100%)`,
+      border: `2px solid #c9a84c70`, borderRadius: "14px",
+      color: "#c9a84c",
       fontFamily: "'DM Sans', sans-serif", fontWeight: 800,
-      fontSize: "17px", letterSpacing: "3px", cursor: "pointer",
-      animation: "horoscopeBreathe 3s ease-in-out infinite",
+      fontSize: "15px", letterSpacing: "2.5px", cursor: "pointer",
+      animation: "stocksPulse 3.5s ease-in-out infinite",
+      textAlign: "center", lineHeight: 1.4,
     },
 
     buttonBase: {
@@ -109,15 +106,12 @@ export function Home({ setTab, T, lang }) {
       border: `1px solid ${T.accent}40`,
       borderRadius: "12px", color: T.text,
       fontFamily: "'DM Sans', sans-serif", fontWeight: 600, cursor: "pointer",
-      boxShadow: `0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px ${T.accent}30`,
+      boxShadow: `0 10px 25px rgba(0,0,0,0.4), 0 0 15px ${T.accent}30`,
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
     },
     resetBtn: {
-      width: "calc(50% - 6px)",
-      padding: "16px 0",
-      fontSize: "13px",
-      letterSpacing: "1.5px",
-      marginBottom: "0",
+      width: "calc(50% - 6px)", padding: "16px 0",
+      fontSize: "13px", letterSpacing: "1.5px", marginBottom: "0",
     },
     kHubSmallBtn: {
       width: "calc(50% - 6px)", padding: "16px 0", backgroundColor: "transparent",
@@ -125,7 +119,7 @@ export function Home({ setTab, T, lang }) {
       cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
       fontWeight: 600, letterSpacing: "1.5px",
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
-      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`,
+      boxShadow: `0 8px 16px rgba(0,0,0,0.3), 0 0 10px ${T.accent}20`,
     },
     bottomContainer: {
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -148,7 +142,7 @@ export function Home({ setTab, T, lang }) {
       fontWeight: 600, letterSpacing: "1.5px",
       transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
       transform: "translateY(0px)",
-      boxShadow: `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px ${T.accent}20`,
+      boxShadow: `0 8px 16px rgba(0,0,0,0.3), 0 0 10px ${T.accent}20`,
     },
     footerWrap: {
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -163,12 +157,10 @@ export function Home({ setTab, T, lang }) {
       padding: "8px 12px",
     },
     disclaimer: {
-      fontFamily: "'DM Sans', sans-serif", fontSize: "11px",  // slightly larger
-      color: T.textSoft,  // use a muted token, not full opacity reduction
-      opacity: 0.7,       // readable — WCAG recommends min 4.5:1 contrast ratio
-      letterSpacing: "0.5px",
+      fontFamily: "'DM Sans', sans-serif", fontSize: "11px",
+      color: T.textSoft, opacity: 0.7, letterSpacing: "0.5px",
       textAlign: "center", maxWidth: "340px", margin: 0,
-  },
+    },
   };
 
   const handleHover = (e, isEnter) => {
@@ -179,28 +171,38 @@ export function Home({ setTab, T, lang }) {
     } else {
       e.currentTarget.style.background = `linear-gradient(135deg, ${T.bg} 0%, ${T.accent}30 50%, ${T.bg} 100%)`;
       e.currentTarget.style.border = `1px solid ${T.accent}40`;
-      e.currentTarget.style.boxShadow = `0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px ${T.accent}30`;
+      e.currentTarget.style.boxShadow = `0 10px 25px rgba(0,0,0,0.4), 0 0 15px ${T.accent}30`;
     }
   };
 
   return (
     <div style={s.page}>
-      {/* 🌟 UPGRADED: Neon Pulse Animation */}
       <style>{`
         @keyframes horoscopeBreathe {
-          0%, 100% { 
-            transform: translateY(0px); 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3), 0 0 18px #C17B2B40;
-            border-color: #C17B2B70;
+          0%, 100% {
+            transform: translateY(0px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3), 0 0 12px #C17B2B35;
+            border-color: #C17B2B60;
           }
-          50% { 
-            transform: translateY(-4px); 
-            box-shadow: 0 16px 32px rgba(0,0,0,0.4), 0 0 35px #C17B2BAA;
-            border-color: #C17B2B; 
+          50% {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.4), 0 0 28px #C17B2B90;
+            border-color: #C17B2B;
+          }
+        }
+        @keyframes stocksPulse {
+          0%, 100% {
+            transform: translateY(0px);
+            box-shadow: 0 8px 22px rgba(0,0,0,0.35), 0 0 18px #c9a84c30;
+            border-color: #c9a84c70;
+          }
+          50% {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.45), 0 0 40px #c9a84cA0;
+            border-color: #c9a84c;
           }
         }
       `}</style>
-      {/* 👆 ------------------- 👆 */}
 
       {/* 1. TOP SECTION */}
       <div style={s.topSection}>
@@ -213,22 +215,27 @@ export function Home({ setTab, T, lang }) {
       {/* 2. MIDDLE SECTION */}
       <div style={s.midSection}>
 
-        {/* 🔮 HOROSCOPE — Main hero button */}
-        <button
-          {...pressable}
-          onClick={() => setTab('horoscope')}
-          style={s.horoscopeBtn}
-        >
-          🔮 {hi ? "वैदिक कुंडली" : "VEDIC HOROSCOPE"}
-        </button>
+        {/* 🔮 HOROSCOPE + 🪬 HORARY — side by side, reduced */}
+        <div style={s.topBtnRow}>
+          <button {...pressable} onClick={() => setTab('horoscope')} style={s.horoscopeBtn}>
+            🔮{"\n"}{hi ? "वैदिक कुंडली" : "HOROSCOPE"}
+          </button>
+          <button {...pressable} onClick={() => setTab('horary')} style={s.horaryBtn}>
+            🪬{"\n"}{hi ? "प्रश्न पूछें" : "ASK A QUESTION"}
+          </button>
+        </div>
 
-        {/* 🪬 HORARY — Ask a question */}
+        {/* 📈 VEDIC STOCKS ORACLE — new hero button */}
         <button
           {...pressable}
-          onClick={() => setTab('horary')}
-          style={s.horaryBtn}
+          onClick={() => setTab('stocks')}
+          style={s.stocksBtn}
         >
-          🪬 {hi ? "प्रश्न पूछें" : "ASK A QUESTION"}
+          📈 {hi ? "वैदिक शेयर बाज़ार" : "VEDIC STOCK ORACLE"}
+          {"\n"}
+          <span style={{ fontSize: "10px", letterSpacing: "1.5px", opacity: 0.7, fontWeight: 500 }}>
+            {hi ? "ज्योतिष · अर्थशास्त्र · सांख्यिकी" : "ASTROLOGY · ECONOMICS · STATISTICS"}
+          </span>
         </button>
 
       </div>
@@ -256,7 +263,7 @@ export function Home({ setTab, T, lang }) {
               {hi ? "खोजें" : "EXPLORE"}
             </button>
           </div>
-          
+
           <div style={s.row}>
             <button
               {...pressable}
@@ -300,7 +307,7 @@ export function Home({ setTab, T, lang }) {
           </div>
         </div>
 
-        {/* 4. FOOTER (Every line restored) */}
+        {/* 4. FOOTER */}
         <div style={s.footerWrap}>
           <div style={s.footerLinks}>
             <button onClick={() => setTab('terms')} style={s.footerLink}>
