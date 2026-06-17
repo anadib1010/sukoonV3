@@ -284,10 +284,6 @@ export function Reset({ setTab, T, lang }) {
       fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic",
       letterSpacing: "1px", margin: 0, lineHeight: 1.4,
     },
-    text: {
-      fontSize: "clamp(28px, 8vw, 36px)", fontWeight: 300, fontStyle: "italic",
-      letterSpacing: "1px", margin: 0, lineHeight: 1.4,
-    },
     // 👇 ADD THIS NEW STYLE HERE 👇
     earphoneText: {
       fontFamily: "'DM Sans', sans-serif", 
