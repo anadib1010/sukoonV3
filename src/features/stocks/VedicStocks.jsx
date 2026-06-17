@@ -516,6 +516,7 @@ export function VedicStocks({ setTab, T, lang }) {
     catch { return []; }
   });
   const [showBacktest, setShowBacktest] = useState(false);
+  const [fetchStatus, setFetchStatus] = useState(null); // null | 'loading' | 'ok' | 'error'
 
   // Auto-detect GPS on mount
   useEffect(() => {
@@ -533,16 +534,91 @@ export function VedicStocks({ setTab, T, lang }) {
     );
   }, []);
 
-  const handleAnalyze = useCallback(() => {
+  // ── Symbol → Yahoo Finance ticker mapping ────────────────────────────────
+  const toYahooSymbol = (input) => {
+    const s = input.trim().toUpperCase().replace(/\s+/g, '');
+    const MAP = {
+      // Indices
+      'NIFTY':'%5ENSEI','NIFTY50':'%5ENSEI','NIFTY 50':'%5ENSEI',
+      'SENSEX':'%5EBSESN','BANKNIFTY':'%5ENSEBANK','NIFTYIT':'%5ECNXIT',
+      // Large caps — NSE
+      'RELIANCE':'RELIANCE.NS','TCS':'TCS.NS','INFY':'INFY.NS','INFOSYS':'INFY.NS',
+      'HDFCBANK':'HDFCBANK.NS','ICICIBANK':'ICICIBANK.NS','SBIN':'SBIN.NS',
+      'HINDUNILVR':'HINDUNILVR.NS','ITC':'ITC.NS','KOTAKBANK':'KOTAKBANK.NS',
+      'AXISBANK':'AXISBANK.NS','WIPRO':'WIPRO.NS','HCLTECH':'HCLTECH.NS',
+      'HCLT':'HCLTECH.NS','TECHM':'TECHM.NS','LTIMINDTREE':'LTIMINDTREE.NS',
+      'SUNPHARMA':'SUNPHARMA.NS','DRREDDY':'DRREDDY.NS','CIPLA':'CIPLA.NS',
+      'DIVISLAB':'DIVISLAB.NS','LUPIN':'LUPIN.NS','MARUTI':'MARUTI.NS',
+      'TATAMOTORS':'TATAMOTORS.NS','MM':'M%26M.NS','BAJAJ':'BAJAJFINSV.NS',
+      'BAJAJFINSV':'BAJAJFINSV.NS','BAJFINANCE':'BAJFINANCE.NS',
+      'HEROMOTOCO':'HEROMOTOCO.NS','EICHERMOT':'EICHERMOT.NS',
+      'TATASTEEL':'TATASTEEL.NS','JSPL':'JSPL.NS','SAIL':'SAIL.NS',
+      'HINDALCO':'HINDALCO.NS','JSWSTEEL':'JSWSTEEL.NS','DLF':'DLF.NS',
+      'GODREJPROP':'GODREJPROP.NS','PRESTIGE':'PRESTIGE.NS',
+      'RELIANCE':'RELIANCE.NS','ONGC':'ONGC.NS','BPCL':'BPCL.NS',
+      'IOC':'IOC.NS','HINDPETRO':'HINDPETRO.NS','GAIL':'GAIL.NS',
+      'HAL':'HAL.NS','BEL':'BEL.NS','BHEL':'BHEL.NS','NMDC':'NMDC.NS',
+      'COALINDIA':'COALINDIA.NS','NTPC':'NTPC.NS','POWERGRID':'POWERGRID.NS',
+      'NESTLEIND':'NESTLEIND.NS','BRITANNIA':'BRITANNIA.NS','DABUR':'DABUR.NS',
+      'MARICO':'MARICO.NS','INDUSINDBK':'INDUSINDBK.NS','FEDERALBNK':'FEDERALBNK.NS',
+      'PERSISTENT':'PERSISTENT.NS','MPHASIS':'MPHASIS.NS','IDEA':'IDEA.NS',
+      'VODAFONEIDEA':'IDEA.NS','ZOMATO':'ZOMATO.NS','PAYTM':'PAYTM.NS',
+      'NYKAA':'NYKAA.NS','DMART':'DMART.NS','ADANIPORTS':'ADANIPORTS.NS',
+      'ADANIENT':'ADANIENT.NS','TATACONSUM':'TATACONSUM.NS',
+    };
+    if (MAP[s]) return MAP[s];
+    // Default: append .NS for NSE
+    return s + '.NS';
+  };
+
+  const handleAnalyze = useCallback(async () => {
     setLoading(true);
+    setFetchStatus(null);
+
+    let resolvedPrice = { ...priceData };
+
+    // Auto-fetch price data if stock name entered and fields are empty
+    if (stockInput.trim()) {
+      const allEmpty = !priceData.currentPrice && !priceData.high52w && !priceData.low52w;
+      if (allEmpty) {
+        setFetchStatus('loading');
+        try {
+          const symbol = toYahooSymbol(stockInput);
+          const res = await fetch(\`/api/stock?symbol=\${symbol}&range=1y&interval=1d\`);
+          const data = await res.json();
+          if (data && data.currentPrice) {
+            resolvedPrice = {
+              currentPrice: data.currentPrice?.toFixed(2) || '',
+              high52w:      data.high52 ? parseFloat(data.high52).toFixed(2) : '',
+              low52w:       data.low52  ? parseFloat(data.low52).toFixed(2)  : '',
+              dma200:       '', // computed below from closes
+              rsi:          '', // not returned by Yahoo directly
+            };
+            // Compute 200-DMA from historical closes
+            if (data.closes && data.closes.length >= 200) {
+              const last200 = data.closes.filter(Boolean).slice(-200);
+              const dma = last200.reduce((a, b) => a + b, 0) / last200.length;
+              resolvedPrice.dma200 = dma.toFixed(2);
+            }
+            setPriceData(resolvedPrice);
+            setFetchStatus('ok');
+          } else {
+            setFetchStatus('error');
+          }
+        } catch {
+          setFetchStatus('error');
+        }
+      }
+    }
+
     setTimeout(() => {
-      const r = runEngine(date, time, lat, lon, macroInputs, priceData);
+      const r = runEngine(date, time, lat, lon, macroInputs, resolvedPrice);
       setResult(r);
       setActiveTab('overview');
       setView('result');
       setLoading(false);
     }, 400);
-  }, [date, time, lat, lon, macroInputs, priceData]);
+  }, [date, time, lat, lon, macroInputs, priceData, stockInput]);
 
   // BUILD 3 — Save a prediction to the backtest log for later outcome recording
   const saveToBacktestLog = useCallback((stockSymbol, score, verdict) => {
@@ -842,7 +918,7 @@ export function VedicStocks({ setTab, T, lang }) {
           <div style={s.stockRow}>
             <span style={s.inputLabel}>{hi ? 'स्टॉक नाम (वैकल्पिक)' : 'Stock / Index name (optional)'}</span>
             <input style={s.stockInput} type="text" value={stockInput}
-              onChange={e=>setStockInput(e.target.value)}
+              onChange={e=>{setStockInput(e.target.value);setFetchStatus(null);setPriceData({currentPrice:'',high52w:'',low52w:'',dma200:'',rsi:''});}}
               placeholder="e.g. RELIANCE, TCS, HDFC Bank, NIFTY 50…"/>
           </div>
 
@@ -922,9 +998,26 @@ export function VedicStocks({ setTab, T, lang }) {
             </div>
           )}
 
+          {/* Fetch status indicator */}
+          {fetchStatus === 'loading' && (
+            <div style={{fontSize:'11px',textAlign:'center',color:'#c9a84c',opacity:0.8,marginBottom:'8px',letterSpacing:'1px'}}>
+              📡 Fetching live price data…
+            </div>
+          )}
+          {fetchStatus === 'ok' && (
+            <div style={{fontSize:'11px',textAlign:'center',color:'#7DC66A',opacity:0.9,marginBottom:'8px',letterSpacing:'0.5px'}}>
+              ✓ Price data auto-filled from Yahoo Finance
+            </div>
+          )}
+          {fetchStatus === 'error' && (
+            <div style={{fontSize:'11px',textAlign:'center',color:'#c9a84c',opacity:0.7,marginBottom:'8px',letterSpacing:'0.5px'}}>
+              ⚠ Could not fetch price data — fill manually or continue without
+            </div>
+          )}
+
           {/* Analyze */}
           <button style={s.analyzeBtn} onClick={handleAnalyze} disabled={loading}>
-            {loading ? '⏳ Computing…' : `✦ ${hi ? 'विश्लेषण करें' : 'Analyse Now'} ✦`}
+            {loading ? (fetchStatus === 'loading' ? '📡 Fetching prices…' : '⏳ Computing…') : `✦ ${hi ? 'विश्लेषण करें' : 'Analyse Now'} ✦`}
           </button>
 
           {/* BUILD 3 — Track record / backtest log button */}
