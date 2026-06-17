@@ -518,11 +518,11 @@ export function VedicStocks({ setTab, T, lang }) {
   const [showBacktest, setShowBacktest] = useState(false);
   const [fetchStatus, setFetchStatus] = useState(null); // null | 'loading' | 'ok' | 'error'
 
-  // Auto-detect GPS on mount
+  // Auto-detect GPS on mount — checks permissions first to avoid policy violation
   useEffect(() => {
-    setGpsStatus('loading');
     if (!navigator.geolocation) { setGpsStatus('denied'); return; }
-    navigator.geolocation.getCurrentPosition(
+    setGpsStatus('loading');
+    const doGps = () => navigator.geolocation.getCurrentPosition(
       pos => {
         setLat(parseFloat(pos.coords.latitude.toFixed(4)));
         setLon(parseFloat(pos.coords.longitude.toFixed(4)));
@@ -532,6 +532,17 @@ export function VedicStocks({ setTab, T, lang }) {
       () => setGpsStatus('denied'),
       { timeout: 6000 }
     );
+    // Use Permissions API to silently skip if blocked by policy
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(result => {
+          if (result.state === 'denied') { setGpsStatus('denied'); }
+          else { doGps(); }
+        })
+        .catch(() => doGps()); // permissions API not supported — try anyway
+    } else {
+      doGps();
+    }
   }, []);
 
   // ── Symbol → Yahoo Finance ticker mapping ────────────────────────────────
