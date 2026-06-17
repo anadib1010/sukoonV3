@@ -1856,7 +1856,7 @@ export function VedicStocks({ setTab, T, lang }) {
         <p style={s.disclaimer}>
           {hi
             ? 'यह एक शोध और शिक्षा उपकरण है। SEBI-पंजीकृत निवेश सलाह नहीं। कोई भी निवेश निर्णय लेने से पहले वित्तीय सलाहकार से परामर्श करें।'
-            : 'Research and education tool only. Not SEBI-registered investment advice. Consult a registered financial advisor before making any investment decision. Past astrological correlations do not guarantee future returns.'}
+            : 'Research and education tool only. It is Not SEBI-registered investment advice. Consult a registered financial advisor before making any investment decision. Past astrological correlations do not guarantee future returns.'}
         </p>
       </div>
     </div>
