@@ -22,7 +22,7 @@
 export const config = {
   // Edge runtime is faster and has no cold start, but it does NOT support
   // Node http.  Use the default (Node.js) runtime so we can set full headers.
-  runtime: "nodejs18.x",
+  runtime: "nodejs",
 };
 
 // Yahoo Finance v8 chart endpoint — works server-side without a crumb
