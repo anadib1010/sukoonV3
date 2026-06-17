@@ -584,7 +584,7 @@ export function VedicStocks({ setTab, T, lang }) {
         setFetchStatus('loading');
         try {
           const symbol = toYahooSymbol(stockInput);
-          const res = await fetch(\`/api/stock?symbol=\${symbol}&range=1y&interval=1d\`);
+          const res = await fetch(`/api/stock?symbol=${symbol}&range=1y&interval=1d`);
           const data = await res.json();
           if (data && data.currentPrice) {
             resolvedPrice = {
