@@ -253,56 +253,222 @@ function analyzeHouseTransits(nseLagnaSign, planets, exalted, debil) {
   return { transits, wealthHouseOccupants, eleventhHouseOccupants, eighthHouseOccupants, avgImpact };
 }
 
-// ─── BUILD 1 — PRICE-BASED TECHNICAL SCORING (manual input, no API) ────────
-function calcPriceTechnicals(priceData) {
+// ─── TECHNICAL INDICATOR ENGINE (computed from 5-year Yahoo Finance data) ──
+function calcRSI(closes, period=14) {
+  if (closes.length < period+1) return null;
+  const slice = closes.slice(-period-1);
+  let gains=0, losses=0;
+  for (let i=1; i<slice.length; i++) {
+    const d = slice[i]-slice[i-1];
+    if (d>0) gains+=d; else losses+=Math.abs(d);
+  }
+  const avgG=gains/period, avgL=losses/period;
+  if (avgL===0) return 100;
+  return parseFloat((100 - 100/(1+avgG/avgL)).toFixed(2));
+}
+
+function calcMACD(closes) {
+  if (closes.length < 26) return null;
+  const ema = (arr, n) => {
+    const k=2/(n+1); let e=arr[0];
+    for (let i=1;i<arr.length;i++) e=arr[i]*k+e*(1-k);
+    return e;
+  };
+  const ema12=ema(closes.slice(-50),12);
+  const ema26=ema(closes.slice(-50),26);
+  const macd=ema12-ema26;
+  // signal: 9-day EMA of MACD (approximate with last 9 daily diffs)
+  const macdLine=closes.slice(-35).map((_,i,a)=>{
+    if(i<1) return 0;
+    const e12=ema(a.slice(0,i+1).slice(-24),12);
+    const e26=ema(a.slice(0,i+1).slice(-35),26);
+    return e12-e26;
+  });
+  const signal=ema(macdLine.slice(-9),9);
+  return { macd: parseFloat(macd.toFixed(3)), signal: parseFloat(signal.toFixed(3)), hist: parseFloat((macd-signal).toFixed(3)) };
+}
+
+function calcBollinger(closes, period=20) {
+  if (closes.length < period) return null;
+  const slice = closes.slice(-period);
+  const mean = slice.reduce((a,b)=>a+b,0)/period;
+  const std = Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);
+  const upper=mean+2*std, lower=mean-2*std;
+  const cp=closes[closes.length-1];
+  const pct=((cp-lower)/(upper-lower)*100);
+  return { upper:parseFloat(upper.toFixed(2)), lower:parseFloat(lower.toFixed(2)), mean:parseFloat(mean.toFixed(2)), pct:parseFloat(pct.toFixed(1)) };
+}
+
+function calcDMASlope(closes, period=200) {
+  if (closes.length < period+20) return null;
+  const dma1=closes.slice(-period).reduce((a,b)=>a+b,0)/period;
+  const dma2=closes.slice(-period-20,-20).reduce((a,b)=>a+b,0)/period;
+  return parseFloat(((dma1-dma2)/dma2*100).toFixed(2)); // % change over 20 days
+}
+
+function calcVolumeSignal(volumes) {
+  if (!volumes || volumes.length < 20) return null;
+  const recent = volumes.filter(Boolean).slice(-5).reduce((a,b)=>a+b,0)/5;
+  const avg20  = volumes.filter(Boolean).slice(-20).reduce((a,b)=>a+b,0)/20;
+  return parseFloat((recent/avg20*100).toFixed(1)); // % of 20-day avg
+}
+
+function calcPriceTechnicals(priceData, series=null) {
   const { currentPrice, high52w, low52w, dma200, rsi } = priceData;
+
+  // ── If we have 5-year series from Yahoo, compute everything from it ────────
+  if (series && series.closes && series.closes.length > 50) {
+    const closes  = series.closes.filter(Boolean);
+    const volumes = (series.volumes||[]).filter(Boolean);
+    const cp      = closes[closes.length-1];
+
+    // 52-week high/low from series
+    const yr1   = closes.slice(-252);
+    const h52   = Math.max(...yr1);
+    const l52   = Math.min(...yr1);
+    // 5-year high/low
+    const h5y   = Math.max(...closes);
+    const l5y   = Math.min(...closes);
+
+    // 200-DMA
+    const dma200val = closes.length>=200 ? closes.slice(-200).reduce((a,b)=>a+b,0)/200 : null;
+    // 50-DMA
+    const dma50val  = closes.length>=50  ? closes.slice(-50).reduce((a,b)=>a+b,0)/50  : null;
+
+    // Computed indicators
+    const rsiVal     = calcRSI(closes, 14);
+    const macd       = calcMACD(closes);
+    const boll       = calcBollinger(closes, 20);
+    const dmaSlope   = calcDMASlope(closes, 200);
+    const volSignal  = calcVolumeSignal(volumes);
+
+    // Range positions
+    const rangePos52  = h52>l52 ? ((cp-l52)/(h52-l52)*100) : 50;
+    const rangePos5y  = h5y>l5y ? ((cp-l5y)/(h5y-l5y)*100) : 50;
+    const pctFromHigh = ((h52-cp)/h52*100);
+
+    // ── Score each indicator ────────────────────────────────────────────────
+    // 1. DMA200 position
+    let dmaScore=55, dmaSignal='No 200-DMA data';
+    if (dma200val) {
+      const pct=((cp-dma200val)/dma200val*100);
+      if (pct>15)      { dmaScore=32; dmaSignal=`${pct.toFixed(1)}% above 200-DMA — extended, mean-reversion risk`; }
+      else if (pct>5)  { dmaScore=55; dmaSignal=`${pct.toFixed(1)}% above 200-DMA — healthy uptrend`; }
+      else if (pct>0)  { dmaScore=70; dmaSignal=`${pct.toFixed(1)}% above 200-DMA — close support, bullish`; }
+      else if (pct>-8) { dmaScore=78; dmaSignal=`${Math.abs(pct).toFixed(1)}% below 200-DMA — value zone, watch for bounce`; }
+      else             { dmaScore=85; dmaSignal=`${Math.abs(pct).toFixed(1)}% below 200-DMA — deep value, high risk/reward`; }
+    }
+
+    // 2. DMA slope (trend direction of 200-DMA)
+    let slopeScore=55, slopeSignal='DMA slope unavailable';
+    if (dmaSlope!==null) {
+      if (dmaSlope>0.5)       { slopeScore=78; slopeSignal=`200-DMA rising +${dmaSlope}% in 20 days — strong uptrend`; }
+      else if (dmaSlope>0)    { slopeScore=65; slopeSignal=`200-DMA mildly rising +${dmaSlope}% — uptrend intact`; }
+      else if (dmaSlope>-0.5) { slopeScore=48; slopeSignal=`200-DMA flat/declining ${dmaSlope}% — trend weakening`; }
+      else                    { slopeScore=30; slopeSignal=`200-DMA falling ${dmaSlope}% — downtrend confirmed`; }
+    }
+
+    // 3. RSI
+    let rsiScore=55, rsiSignal='RSI unavailable';
+    if (rsiVal!==null) {
+      if (rsiVal>75)      { rsiScore=28; rsiSignal=`RSI ${rsiVal} — overbought, pullback likely`; }
+      else if (rsiVal>60) { rsiScore=62; rsiSignal=`RSI ${rsiVal} — bullish momentum zone`; }
+      else if (rsiVal>45) { rsiScore=55; rsiSignal=`RSI ${rsiVal} — neutral`; }
+      else if (rsiVal>30) { rsiScore=75; rsiSignal=`RSI ${rsiVal} — oversold, accumulation zone`; }
+      else                { rsiScore=88; rsiSignal=`RSI ${rsiVal} — deeply oversold, capitulation signal`; }
+    }
+
+    // 4. MACD
+    let macdScore=55, macdSignal='MACD unavailable';
+    if (macd) {
+      if (macd.hist>0 && macd.macd>0)      { macdScore=75; macdSignal=`MACD bullish crossover — momentum building`; }
+      else if (macd.hist>0 && macd.macd<0) { macdScore=62; macdSignal=`MACD histogram turning up — early recovery signal`; }
+      else if (macd.hist<0 && macd.macd>0) { macdScore=45; macdSignal=`MACD histogram declining — momentum fading`; }
+      else                                  { macdScore=32; macdSignal=`MACD bearish — both line and histogram negative`; }
+    }
+
+    // 5. Bollinger Band position
+    let bollScore=55, bollSignal='Bollinger unavailable';
+    if (boll) {
+      if (boll.pct>95)      { bollScore=28; bollSignal=`Price at upper Bollinger band — overbought (${boll.pct.toFixed(0)}%)`; }
+      else if (boll.pct>70) { bollScore=52; bollSignal=`Price in upper Bollinger zone (${boll.pct.toFixed(0)}%) — bullish but stretched`; }
+      else if (boll.pct>30) { bollScore=65; bollSignal=`Price in Bollinger midrange (${boll.pct.toFixed(0)}%) — balanced`; }
+      else if (boll.pct>5)  { bollScore=78; bollSignal=`Price near lower Bollinger band (${boll.pct.toFixed(0)}%) — value zone`; }
+      else                  { bollScore=88; bollSignal=`Price at/below lower Bollinger band — extreme oversold`; }
+    }
+
+    // 6. 5-year range percentile
+    let range5yScore=55, range5ySignal='5-year range unavailable';
+    if (rangePos5y!==null) {
+      if (rangePos5y<15)      { range5yScore=85; range5ySignal=`In bottom 15% of 5-year range — multi-year value zone`; }
+      else if (rangePos5y<35) { range5yScore=72; range5ySignal=`In lower third of 5-year range — good long-term entry zone`; }
+      else if (rangePos5y<65) { range5yScore=58; range5ySignal=`In middle of 5-year range — fair value`; }
+      else if (rangePos5y<85) { range5yScore=45; range5ySignal=`In upper third of 5-year range — above historical average`; }
+      else                    { range5yScore=30; range5ySignal=`Near 5-year highs — momentum play only, high valuation risk`; }
+    }
+
+    // 7. Volume signal
+    let volScore=55, volSignal='Volume data unavailable';
+    if (volSignal!==null) {
+      const v=volSignal;
+      if (v>150)      { volScore=75; volSignal=`Volume ${v}% of 20-day avg — strong conviction move`; }
+      else if (v>110) { volScore=65; volSignal=`Volume ${v}% of avg — above normal activity`; }
+      else if (v>80)  { volScore=55; volSignal=`Volume ${v}% of avg — normal`; }
+      else            { volScore=42; volSignal=`Volume ${v}% of avg — low conviction, weak signal`; }
+    }
+
+    // Composite technical score (weighted)
+    const priceScore = Math.round(
+      dmaScore*0.20 + slopeScore*0.15 + rsiScore*0.20 +
+      macdScore*0.15 + bollScore*0.12 + range5yScore*0.12 + volScore*0.06
+    );
+
+    return {
+      source: 'live',
+      currentPrice: cp, high52w: h52, low52w: l52, dma200: dma200val, dma50: dma50val,
+      high5y: h5y, low5y: l5y,
+      rsi: rsiVal, macd, boll, dmaSlope, volSignal,
+      rangePos52: rangePos52.toFixed(1), rangePos5y: rangePos5y.toFixed(1),
+      pctFromHigh: pctFromHigh.toFixed(1),
+      dmaScore, dmaSignal, slopeScore, slopeSignal,
+      rsiScore, rsiSignal, macdScore, macdSignal,
+      bollScore, bollSignal, range5yScore, range5ySignal,
+      volScore, volSignal: typeof volSignal==='string'?volSignal:`Volume ${volSignal}% of 20-day avg`,
+      priceScore, dataPoints: closes.length,
+    };
+  }
+
+  // ── Fallback: manual price inputs only ─────────────────────────────────────
   if (!currentPrice || !high52w || !low52w) return null;
-
-  const cp = parseFloat(currentPrice), h = parseFloat(high52w), l = parseFloat(low52w);
-  const dma = dma200 ? parseFloat(dma200) : null;
-  const rsiVal = rsi ? parseFloat(rsi) : null;
-
-  // % from 52-week high (deeper discount = better value entry, but check trend)
-  const pctFromHigh = ((h - cp) / h) * 100;
-  // % position in 52-week range (0 = at low, 100 = at high)
-  const rangePosition = ((cp - l) / (h - l)) * 100;
-
-  // DMA position score
-  let dmaScore = 55;
-  let dmaSignal = 'No 200-DMA entered';
-  if (dma) {
-    const pctVsDma = ((cp - dma) / dma) * 100;
-    if (pctVsDma > 8) { dmaScore = 38; dmaSignal = `${pctVsDma.toFixed(1)}% above 200-DMA — overbought, mean-reversion risk`; }
-    else if (pctVsDma > 0) { dmaScore = 68; dmaSignal = `${pctVsDma.toFixed(1)}% above 200-DMA — healthy uptrend`; }
-    else if (pctVsDma > -8) { dmaScore = 78; dmaSignal = `${Math.abs(pctVsDma).toFixed(1)}% below 200-DMA — value zone`; }
-    else { dmaScore = 85; dmaSignal = `${Math.abs(pctVsDma).toFixed(1)}% below 200-DMA — deep value, high risk/reward`; }
+  const cp=parseFloat(currentPrice), h=parseFloat(high52w), l=parseFloat(low52w);
+  const dma=dma200?parseFloat(dma200):null;
+  const rsiVal=rsi?parseFloat(rsi):null;
+  const pctFromHigh=((h-cp)/h*100);
+  const rangePosition=((cp-l)/(h-l)*100);
+  let dmaScore=55,dmaSignal='No 200-DMA entered';
+  if(dma){const pct=((cp-dma)/dma*100);
+    if(pct>8){dmaScore=38;dmaSignal=`${pct.toFixed(1)}% above 200-DMA — overbought`;}
+    else if(pct>0){dmaScore=68;dmaSignal=`${pct.toFixed(1)}% above 200-DMA — healthy uptrend`;}
+    else if(pct>-8){dmaScore=78;dmaSignal=`${Math.abs(pct).toFixed(1)}% below 200-DMA — value zone`;}
+    else{dmaScore=85;dmaSignal=`${Math.abs(pct).toFixed(1)}% below 200-DMA — deep value`;}
   }
-
-  // RSI score
-  let rsiScore = 55;
-  let rsiSignal = 'No RSI entered';
-  if (rsiVal !== null) {
-    if (rsiVal > 70) { rsiScore = 30; rsiSignal = `RSI ${rsiVal} — overbought, pullback risk elevated`; }
-    else if (rsiVal > 60) { rsiScore = 62; rsiSignal = `RSI ${rsiVal} — bullish momentum zone`; }
-    else if (rsiVal > 40) { rsiScore = 58; rsiSignal = `RSI ${rsiVal} — neutral momentum`; }
-    else if (rsiVal > 30) { rsiScore = 78; rsiSignal = `RSI ${rsiVal} — oversold recovery zone, classic accumulation signal`; }
-    else { rsiScore = 88; rsiSignal = `RSI ${rsiVal} — deeply oversold, capitulation likely near, strong buy zone historically`; }
+  let rsiScore=55,rsiSignal='No RSI entered';
+  if(rsiVal!==null){
+    if(rsiVal>70){rsiScore=30;rsiSignal=`RSI ${rsiVal} — overbought`;}
+    else if(rsiVal>60){rsiScore=62;rsiSignal=`RSI ${rsiVal} — bullish zone`;}
+    else if(rsiVal>40){rsiScore=58;rsiSignal=`RSI ${rsiVal} — neutral`;}
+    else if(rsiVal>30){rsiScore=78;rsiSignal=`RSI ${rsiVal} — oversold, accumulation zone`;}
+    else{rsiScore=88;rsiSignal=`RSI ${rsiVal} — deeply oversold`;}
   }
-
-  // 52-week range score (lower range position with uptrend resuming = best risk/reward)
-  let rangeScore = 55;
-  if (rangePosition < 20) rangeScore = 82;
-  else if (rangePosition < 40) rangeScore = 70;
-  else if (rangePosition < 60) rangeScore = 58;
-  else if (rangePosition < 85) rangeScore = 48;
-  else rangeScore = 32;
-
-  const priceScore = Math.round(dmaScore*0.40 + rsiScore*0.35 + rangeScore*0.25);
-
+  let rangeScore=55;
+  if(rangePosition<20)rangeScore=82;else if(rangePosition<40)rangeScore=70;
+  else if(rangePosition<60)rangeScore=58;else if(rangePosition<85)rangeScore=48;else rangeScore=32;
+  const priceScore=Math.round(dmaScore*0.40+rsiScore*0.35+rangeScore*0.25);
   return {
-    currentPrice: cp, high52w: h, low52w: l, dma200: dma, rsi: rsiVal,
-    pctFromHigh: pctFromHigh.toFixed(1), rangePosition: rangePosition.toFixed(0),
-    dmaScore, dmaSignal, rsiScore, rsiSignal, rangeScore, priceScore
+    source:'manual',
+    currentPrice:cp,high52w:h,low52w:l,dma200:dma,rsi:rsiVal,
+    pctFromHigh:pctFromHigh.toFixed(1),rangePosition:rangePosition.toFixed(0),
+    dmaScore,dmaSignal,rsiScore,rsiSignal,rangeScore,priceScore,
   };
 }
 
@@ -324,7 +490,7 @@ const ALL_SECTORS=[
 const STOCK_MAP={TCS:'it',INFOSYS:'it',INFY:'it',WIPRO:'it',HCLT:'it','HCL TECH':'it',TECHM:'it',LTIMINDTREE:'it',MPHASIS:'it',PERSISTENT:'it',HDFCBANK:'banking',ICICIBANK:'banking',SBIN:'banking','STATE BANK':'banking',KOTAKBANK:'banking',AXISBANK:'banking',INDUSINDBK:'banking',FEDERALBNK:'banking',HINDUNILVR:'fmcg','HINDUSTAN UNILEVER':'fmcg',ITC:'fmcg',NESTLEIND:'fmcg',DABUR:'fmcg',MARICO:'fmcg',BRITANNIA:'fmcg',SUNPHARMA:'pharma','SUN PHARMA':'pharma',DRREDDY:'pharma','DR REDDY':'pharma',CIPLA:'pharma',DIVISLAB:'pharma',LUPIN:'pharma',MARUTI:'auto',TATAMOTORS:'auto','TATA MOTORS':'auto',MM:'auto','M&M':'auto',BAJAJ:'auto',HEROMOTOCO:'auto',EICHERMOT:'auto',TATASTEEL:'metals','TATA STEEL':'metals',JSPL:'metals',SAIL:'metals',HINDALCO:'metals',JSWSTEEL:'metals',DLF:'realty',GODREJPROP:'realty',PRESTIGE:'realty',RELIANCE:'oil',ONGC:'oil',BPCL:'oil',IOC:'oil',HINDPETRO:'oil',GAIL:'oil',HAL:'defence',BEL:'defence',BHEL:'defence',NMDC:'defence',COALINDIA:'defence',NTPC:'defence',POWERGRID:'defence',NIFTY:'index',NIFTY50:'index',SENSEX:'index','NIFTY 50':'index',BANKNIFTY:'banking','BANK NIFTY':'banking','NIFTY IT':'it','NIFTY PHARMA':'pharma',GOLDBEES:'gold',GOLDIETF:'gold'};
 
 // ─── MAIN ENGINE ─────────────────────────────────────────────────────────────
-function runEngine(date,time,lat,lon,macroInputs={},priceData={}){
+function runEngine(date,time,lat,lon,macroInputs={},priceData={},newsSentiment=null,priceSeries=null){
   const[yr,mo,dy]=date.split('-').map(Number);
   const[hr,mn]=time.split(':').map(Number);
   const JD=jdFromDate(yr,mo,dy,hr-5.5,mn);
@@ -409,8 +575,12 @@ function runEngine(date,time,lat,lon,macroInputs={},priceData={}){
   const VIX_MAP_T  = {'calm':75,'normal':62,'fearful':38};
   const macroBase  = TREND_MAP[macroInputs.trend]||58;
   const macroAdj   = (DMA_MAP[macroInputs.dma]||0)+(FII_MAP[macroInputs.fii]||0)+(RBI_MAP[macroInputs.rbi]||0);
-  const macroScore = Math.min(100,Math.max(10,macroBase+macroAdj));
-  const techScore  = VIX_MAP_T[macroInputs.vix]||62;
+  const newsAdj    = newsSentiment ? Math.round((newsSentiment.score||0) * 1.2) : 0; // -12 to +12
+  const macroScore = Math.min(100,Math.max(10,macroBase+macroAdj+newsAdj));
+  const vixBase    = VIX_MAP_T[macroInputs.vix]||62;
+  // Use full indicator engine if series available, else VIX-based fallback
+  const _pt        = calcPriceTechnicals(priceData, priceSeries);
+  const techScore  = _pt ? Math.round(_pt.priceScore*0.75 + vixBase*0.25) : vixBase;
 
   // RBI stance affects specific sectors
   const rateFavSectors = macroInputs.rbi==='cutting'?['banking','auto','realty','fmcg']:macroInputs.rbi==='hiking'?['it','gold']:[];
@@ -468,7 +638,7 @@ function runEngine(date,time,lat,lon,macroInputs={},priceData={}){
   }
 
   // BUILD 1 — Price technicals from manual input (no API)
-  const priceTech = calcPriceTechnicals(priceData);
+  const priceTech = _pt; // already computed above
 
   return {
     composite,layers,bullLayers,vedicScore,westScore,lunarScore,dashaScore,
@@ -476,7 +646,7 @@ function runEngine(date,time,lat,lon,macroInputs={},priceData={}){
     tithiNum,paksha,dow,horaData,retro,exalted,debil,
     dasha,yogas,yogaBoost,jsAspect,phase,ashtak,d9,d10,
     sectorScores,calDays,startDow,date,time,lat,lon,
-    jupSignQ,satSignQ,macroInputs,rateFavSectors,
+    jupSignQ,satSignQ,macroInputs,rateFavSectors,newsSentiment,
     bearLayers:Object.values(layers).filter(s=>s<42).length,
     houseTransits, NSE_LAGNA_SIGN, priceTech,
   };
@@ -517,7 +687,11 @@ export function VedicStocks({ setTab, T, lang }) {
   });
   const [showBacktest, setShowBacktest] = useState(false);
   const [fetchStatus, setFetchStatus] = useState(null); // null | 'loading' | 'ok' | 'error'
+  const [priceSeries, setPriceSeries] = useState(null); // raw 5-year series from Yahoo
   const [showReport, setShowReport] = useState(false);
+  const [newsText, setNewsText] = useState('');
+  const [newsSentiment, setNewsSentiment] = useState(null); // {score, label, summary, detail}
+  const [newsLoading, setNewsLoading] = useState(false);
 
   // Auto-detect GPS on mount — checks permissions first to avoid policy violation
   useEffect(() => {
@@ -596,22 +770,31 @@ export function VedicStocks({ setTab, T, lang }) {
         setFetchStatus('loading');
         try {
           const symbol = toYahooSymbol(stockInput);
-          const res = await fetch(`/api/stock?symbol=${symbol}&range=1y&interval=1d`);
+          const res = await fetch(`/api/stock?symbol=${symbol}&range=5y&interval=1d`);
           const data = await res.json();
-          if (data && data.currentPrice) {
+          if (data && data.closes && data.closes.length > 50) {
+            const closes  = data.closes.filter(Boolean);
+            const volumes = (data.volumes||[]).filter(Boolean);
+
+            // Store raw series for indicator engine
+            const series = { closes, volumes, timestamps: data.timestamps||[] };
+            setPriceSeries(series);
+
+            // Fill price fields from series
+            const cp     = data.currentPrice || closes[closes.length-1];
+            const yr1    = closes.slice(-252);
+            const h52    = Math.max(...yr1);
+            const l52    = Math.min(...yr1);
+            const last200 = closes.slice(-200);
+            const dma200  = last200.reduce((a,b)=>a+b,0)/last200.length;
+
             resolvedPrice = {
-              currentPrice: data.currentPrice?.toFixed(2) || '',
-              high52w:      data.high52 ? parseFloat(data.high52).toFixed(2) : '',
-              low52w:       data.low52  ? parseFloat(data.low52).toFixed(2)  : '',
-              dma200:       '', // computed below from closes
-              rsi:          '', // not returned by Yahoo directly
+              currentPrice: cp.toFixed(2),
+              high52w:      h52.toFixed(2),
+              low52w:       l52.toFixed(2),
+              dma200:       dma200.toFixed(2),
+              rsi:          '',  // computed inside calcPriceTechnicals from series
             };
-            // Compute 200-DMA from historical closes
-            if (data.closes && data.closes.length >= 200) {
-              const last200 = data.closes.filter(Boolean).slice(-200);
-              const dma = last200.reduce((a, b) => a + b, 0) / last200.length;
-              resolvedPrice.dma200 = dma.toFixed(2);
-            }
             setPriceData(resolvedPrice);
             setFetchStatus('ok');
           } else {
@@ -624,13 +807,49 @@ export function VedicStocks({ setTab, T, lang }) {
     }
 
     setTimeout(() => {
-      const r = runEngine(date, time, lat, lon, macroInputs, resolvedPrice);
+      const r = runEngine(date, time, lat, lon, macroInputs, resolvedPrice, newsSentiment, priceSeries);
       setResult(r);
       setActiveTab('overview');
       setView('result');
       setLoading(false);
     }, 400);
-  }, [date, time, lat, lon, macroInputs, priceData, stockInput]);
+  }, [date, time, lat, lon, macroInputs, priceData, stockInput, priceSeries, newsSentiment]);
+
+  // ── Score today's news via Claude API ────────────────────────────────────
+  const scoreNews = async () => {
+    if (!newsText.trim()) return;
+    setNewsLoading(true);
+    setNewsSentiment(null);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 400,
+          system: `You are a financial market sentiment analyser specialising in Indian markets (NSE/BSE). 
+Given news headlines or a brief description of current events, return ONLY a JSON object with these exact keys:
+- score: integer from -10 to +10 (negative = bearish, 0 = neutral, positive = bullish for Indian equities)
+- label: one of "Strongly Bullish", "Mildly Bullish", "Neutral", "Mildly Bearish", "Strongly Bearish"
+- summary: one sentence plain-English verdict (max 20 words)
+- detail: 2-3 sentences explaining which sectors are most affected and why (max 60 words)
+- sectors_up: array of up to 3 sector names that benefit (e.g. ["banking","it","auto"])
+- sectors_down: array of up to 3 sector names that are hurt
+
+Return ONLY the JSON. No markdown, no preamble.`,
+          messages: [{ role: 'user', content: newsText.trim() }],
+        }),
+      });
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || '').join('') || '';
+      const clean = text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+      const parsed = JSON.parse(clean);
+      setNewsSentiment(parsed);
+    } catch (e) {
+      setNewsSentiment({ score: 0, label: 'Neutral', summary: 'Could not score — using neutral.', detail: '', sectors_up: [], sectors_down: [] });
+    }
+    setNewsLoading(false);
+  };
 
   // BUILD 3 — Save a prediction to the backtest log for later outcome recording
   const saveToBacktestLog = useCallback((stockSymbol, score, verdict) => {
@@ -926,11 +1145,70 @@ export function VedicStocks({ setTab, T, lang }) {
             ))}
           </div>
 
+          {/* ── TODAY'S NEWS INPUT ── */}
+          <div style={{...s.section, marginBottom:'14px'}}>
+            <p style={{...s.sectionTitle, marginBottom:'6px'}}>
+              🌐 Today's news <span style={{opacity:0.4,fontWeight:400,letterSpacing:'0.5px'}}>(optional — AI scores market impact)</span>
+            </p>
+            <p style={{fontSize:'10px',opacity:0.4,marginBottom:'10px',lineHeight:1.5}}>
+              Paste headlines or describe: RBI decisions, geopolitical events, budget announcements, oil prices, major policy changes, politician statements…
+            </p>
+            <textarea
+              value={newsText}
+              onChange={e=>setNewsText(e.target.value)}
+              placeholder={"e.g. RBI cut rates 25bps. FII bought ₹3200cr. Monsoon 12% above normal. India-China border tensions easing."}
+              style={{...s.input, height:'72px', resize:'vertical', lineHeight:1.5,
+                fontFamily:"'DM Sans',sans-serif", fontSize:'12px', width:'100%', boxSizing:'border-box'}}
+            />
+            <button
+              onClick={scoreNews}
+              disabled={newsLoading || !newsText.trim()}
+              style={{marginTop:'8px', width:'100%', padding:'10px',
+                borderRadius:'10px', fontSize:'12px', fontWeight:600,
+                cursor: newsText.trim() ? 'pointer' : 'not-allowed',
+                fontFamily:"'DM Sans',sans-serif", letterSpacing:'1px',
+                background: newsText.trim() ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.03)',
+                border:`1px solid ${newsText.trim() ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                color: newsText.trim() ? '#c9a84c' : T.text+'44'}}>
+              {newsLoading ? '🤖 Scoring news…' : '🤖 Score this news with AI'}
+            </button>
+
+            {/* Sentiment result badge */}
+            {newsSentiment && !newsLoading && (() => {
+              const s2 = newsSentiment.score || 0;
+              const col = s2 >= 3 ? '#7DC66A' : s2 <= -3 ? '#E05C5C' : '#c9a84c';
+              const bg  = s2 >= 3 ? 'rgba(100,180,80,0.1)' : s2 <= -3 ? 'rgba(224,92,92,0.1)' : 'rgba(201,168,76,0.1)';
+              return (
+                <div style={{marginTop:'10px', padding:'12px', borderRadius:'10px',
+                  background:bg, border:`1px solid ${col}40`}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}}>
+                    <span style={{fontSize:'12px',fontWeight:700,color:col}}>{newsSentiment.label}</span>
+                    <span style={{fontSize:'11px',opacity:0.5}}>Macro adj: {s2>=0?'+':''}{Math.round(s2*1.2)} pts</span>
+                  </div>
+                  <p style={{fontSize:'12px',margin:'0 0 6px',lineHeight:1.5}}>{newsSentiment.summary}</p>
+                  <p style={{fontSize:'11px',opacity:0.55,margin:'0 0 6px',lineHeight:1.5}}>{newsSentiment.detail}</p>
+                  {(newsSentiment.sectors_up?.length > 0 || newsSentiment.sectors_down?.length > 0) && (
+                    <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'4px'}}>
+                      {(newsSentiment.sectors_up||[]).map((sec,i)=>(
+                        <span key={i} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'6px',
+                          background:'rgba(100,180,80,0.15)',color:'#7DC66A'}}>↑ {sec}</span>
+                      ))}
+                      {(newsSentiment.sectors_down||[]).map((sec,i)=>(
+                        <span key={i} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'6px',
+                          background:'rgba(224,92,92,0.15)',color:'#E05C5C'}}>↓ {sec}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
           {/* Stock name */}
           <div style={s.stockRow}>
             <span style={s.inputLabel}>{hi ? 'स्टॉक नाम (वैकल्पिक)' : 'Stock / Index name (optional)'}</span>
             <input style={s.stockInput} type="text" value={stockInput}
-              onChange={e=>{setStockInput(e.target.value);setFetchStatus(null);setPriceData({currentPrice:'',high52w:'',low52w:'',dma200:'',rsi:''});}}
+              onChange={e=>{setStockInput(e.target.value);setFetchStatus(null);setPriceSeries(null);setPriceData({currentPrice:'',high52w:'',low52w:'',dma200:'',rsi:''});}}
               placeholder="e.g. RELIANCE, TCS, HDFC Bank, NIFTY 50…"/>
           </div>
 
@@ -1460,7 +1738,7 @@ export function VedicStocks({ setTab, T, lang }) {
                     <p style={rStyle}>The score is built from 6 independent models. You ideally want <strong>4 or more layers bullish</strong> before entering.</p>
                     {[
                       {name:'Vedic (32%)', score:R.vedicScore, explain:`Nakshatra quality, tithi, hora, dasha, and ashtakvarga. The heaviest layer. Your score: ${R.vedicScore}/100.`},
-                      {name:'Macro (22%)', score:R.layers.macro, explain:`Your 5 market context inputs — Nifty trend, DMA, FII flow, RBI stance, VIX. Score: ${R.layers.macro}/100.`},
+                      {name:'Macro (22%)', score:R.layers.macro, explain:`Your 5 market context inputs (Nifty trend, DMA, FII flow, RBI stance, VIX)${R.newsSentiment?` + AI news sentiment (${R.newsSentiment.label}, adj ${R.newsSentiment.score>=0?'+':''}${Math.round((R.newsSentiment.score||0)*1.2)} pts)`:' — add news below for AI sentiment boost'}. Score: ${R.layers.macro}/100.`},
                       {name:'Western (16%)', score:R.westernScore, explain:`Jupiter sign quality (${R.jupSignQ}/100) × 40% + Saturn sign quality (${R.satSignQ}/100) × 30% + Jupiter-Saturn aspect (${R.jsAspect.name}) × 30%. Score: ${R.westernScore}/100.`},
                       {name:'Technical (12%)', score:R.layers.tech, explain:`Price vs 200-DMA, RSI, 52-week range position. Score: ${R.layers.tech}/100. ${R.priceTech?'Live price data used.':'No price data entered — neutral 55 assumed.'}`},
                       {name:'Lunar (10%)', score:R.lunarScore, explain:`Dichev-Janes academic model: returns are statistically higher in the waxing (Shukla) phase. Current: ${R.phase.name} ${R.phase.emoji}, ${R.paksha} Paksha. Score: ${R.lunarScore}/100.`},
@@ -1541,6 +1819,27 @@ export function VedicStocks({ setTab, T, lang }) {
                     </p>
                     <p style={rStyle}>Lunar score: <strong style={{color:scoreColor(R.lunarScore)}}>{R.lunarScore}/100</strong></p>
                   </div>
+
+                  {/* 7b. News sentiment */}
+                  {R.newsSentiment && (() => {
+                    const ns = R.newsSentiment;
+                    const s2 = ns.score || 0;
+                    const col = s2>=3?'#7DC66A':s2<=-3?'#E05C5C':'#c9a84c';
+                    return (
+                      <div style={{...blockStyle,borderColor:col+'40'}}>
+                        <p style={{...headStyle,color:col}}>⑦b News & geopolitical sentiment — {ns.label}</p>
+                        <p style={rStyle}><strong>AI sentiment score: {s2>=0?'+':''}{s2}/10</strong> → macro layer adjusted by {s2>=0?'+':''}{Math.round(s2*1.2)} points.</p>
+                        <p style={rStyle}>{ns.summary}</p>
+                        <p style={rStyle}>{ns.detail}</p>
+                        {(ns.sectors_up?.length>0||ns.sectors_down?.length>0) && (
+                          <p style={rStyle}>
+                            {ns.sectors_up?.length>0 && <span>Sectors benefiting: <strong style={{color:'#7DC66A'}}>{ns.sectors_up.join(', ')}</strong>. </span>}
+                            {ns.sectors_down?.length>0 && <span>Sectors under pressure: <strong style={{color:'#E05C5C'}}>{ns.sectors_down.join(', ')}</strong>.</span>}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* 8. Bottom line */}
                   <div style={{...blockStyle,borderColor:score>=65?'rgba(100,180,80,0.3)':score<50?'rgba(224,92,92,0.3)':'rgba(201,168,76,0.3)'}}>
@@ -1895,20 +2194,82 @@ export function VedicStocks({ setTab, T, lang }) {
               ))}
             </div>
 
-            {/* ══ POINT 00 — PRICE TECHNICALS (Build 1: real data, not estimated) ══ */}
-            {stockData.hasRealPriceData && (
-              <PointCard num="00" icon="💹" title="Price technicals — your data" verdict={`Price score: ${stockData.priceTech.priceScore}/100 · ₹${stockData.priceTech.currentPrice}`} verdictScore={stockData.priceTech.priceScore}>
-                <EvidenceRow label="200-day moving average" value={stockData.priceTech.dmaSignal} score={stockData.priceTech.dmaScore} explain={`Current price ₹${stockData.priceTech.currentPrice} vs 200-DMA ₹${stockData.priceTech.dma200||'not entered'}. This is the single most-watched technical level by institutional traders — price above DMA confirms uptrend, below suggests caution or value entry.`}/>
-                <EvidenceRow label="RSI (14-day momentum)" value={stockData.priceTech.rsiSignal} score={stockData.priceTech.rsiScore} explain="RSI measures momentum on a 0-100 scale. Above 70 = overbought (pullback risk). Below 30 = oversold (bounce likely). This is real momentum data, not an astrological estimate."/>
-                <EvidenceRow label="52-week range position" value={`${stockData.priceTech.rangePosition}% of the way from low to high · ${stockData.priceTech.pctFromHigh}% below 52w high`} score={stockData.priceTech.rangeScore} explain={`52-week range: ₹${stockData.priceTech.low52w} to ₹${stockData.priceTech.high52w}. Current price sits at ${stockData.priceTech.rangePosition}% of this range. Lower range position with improving momentum = best risk/reward entries historically.`}/>
-                <div style={{fontSize:'10px',opacity:0.4,marginTop:'6px',lineHeight:1.5,fontStyle:'italic'}}>
-                  This layer blends into your final score at 45% weight when present — astrology and price technicals combined give the most complete picture.
+            {/* ══ POINT 00 — PRICE TECHNICALS (5-year Yahoo Finance data) ══ */}
+            {stockData.hasRealPriceData && stockData.priceTech && (
+              <PointCard num="00" icon="💹"
+                title={stockData.priceTech.source==='live' ? `Technical analysis — ${stockData.priceTech.dataPoints} days of data` : 'Price technicals — manual data'}
+                verdict={`Tech score: ${stockData.priceTech.priceScore}/100 · ₹${stockData.priceTech.currentPrice?.toFixed?.(2)??stockData.priceTech.currentPrice}`}
+                verdictScore={stockData.priceTech.priceScore}>
+
+                {stockData.priceTech.source==='live' && (
+                  <div style={{fontSize:'10px',color:'#7DC66A',opacity:0.8,marginBottom:'10px',letterSpacing:'0.5px'}}>
+                    ✓ All indicators auto-computed from {stockData.priceTech.dataPoints} trading days (~5 years) of Yahoo Finance data
+                  </div>
+                )}
+
+                {/* Price snapshot */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'12px'}}>
+                  {[
+                    {l:'Current', v:`₹${stockData.priceTech.currentPrice?.toFixed?.(2)??'—'}`, c:'#c9a84c'},
+                    {l:'200-DMA', v:stockData.priceTech.dma200?`₹${stockData.priceTech.dma200?.toFixed?.(2)??stockData.priceTech.dma200}`:'—', c:'#fff'},
+                    {l:'50-DMA',  v:stockData.priceTech.dma50?`₹${stockData.priceTech.dma50?.toFixed?.(2)??'—'}`:'—', c:'#fff'},
+                    {l:'52w High',v:`₹${stockData.priceTech.high52w?.toFixed?.(2)??'—'}`, c:'#7DC66A'},
+                    {l:'52w Low', v:`₹${stockData.priceTech.low52w?.toFixed?.(2)??'—'}`,  c:'#E05C5C'},
+                    {l:'5y High', v:stockData.priceTech.high5y?`₹${stockData.priceTech.high5y?.toFixed?.(2)??'—'}`:'—', c:'#7DC66A'},
+                  ].map((m,i)=>(
+                    <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'8px 6px',textAlign:'center'}}>
+                      <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:'3px'}}>{m.l}</div>
+                      <div style={{fontSize:'12px',fontWeight:600,color:m.c}}>{m.v}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <EvidenceRow label="200-DMA position" value={stockData.priceTech.dmaSignal} score={stockData.priceTech.dmaScore}
+                  explain={`The 200-DMA is the most-watched institutional level. Price above it = bull market. Price below = bear territory. Your score: ${stockData.priceTech.dmaScore}/100.`}/>
+
+                {stockData.priceTech.source==='live' && stockData.priceTech.slopeSignal && (
+                  <EvidenceRow label="200-DMA slope (trend direction)" value={stockData.priceTech.slopeSignal} score={stockData.priceTech.slopeScore}
+                    explain={`A rising 200-DMA confirms a long-term uptrend. A flat or falling DMA means the long-term trend is weakening. This is calculated from actual price history, not estimated.`}/>
+                )}
+
+                <EvidenceRow label="RSI (14-day)" value={stockData.priceTech.rsiSignal} score={stockData.priceTech.rsiScore}
+                  explain={`RSI: above 70 = overbought, below 30 = oversold. ${stockData.priceTech.source==='live'?'Auto-computed from actual daily closes.':'Manually entered.'}`}/>
+
+                {stockData.priceTech.source==='live' && stockData.priceTech.macd && (
+                  <EvidenceRow label="MACD" value={stockData.priceTech.macdSignal} score={stockData.priceTech.macdScore}
+                    explain={`MACD (Moving Average Convergence Divergence): histogram above zero = bullish momentum building. Below zero = bearish. A crossover from negative to positive is a classic buy signal.`}/>
+                )}
+
+                {stockData.priceTech.source==='live' && stockData.priceTech.boll && (
+                  <EvidenceRow label="Bollinger Bands" value={stockData.priceTech.bollSignal} score={stockData.priceTech.bollScore}
+                    explain={`Bollinger Bands mark 2 standard deviations above/below the 20-day average. Price near lower band = oversold / value zone. Near upper band = stretched. Band: ₹${stockData.priceTech.boll.lower} – ₹${stockData.priceTech.boll.upper}`}/>
+                )}
+
+                {stockData.priceTech.source==='live' && stockData.priceTech.rangePos5y && (
+                  <EvidenceRow label="5-year range percentile" value={stockData.priceTech.range5ySignal} score={stockData.priceTech.range5yScore}
+                    explain={`Where the current price sits within its 5-year trading range. Bottom 20% of 5-year range = multi-year accumulation opportunity. Top 20% = momentum play, elevated valuation risk. 5y range: ₹${stockData.priceTech.low5y?.toFixed(2)} – ₹${stockData.priceTech.high5y?.toFixed(2)}`}/>
+                )}
+
+                {stockData.priceTech.source==='live' && stockData.priceTech.volSignal && (
+                  <EvidenceRow label="Volume signal" value={stockData.priceTech.volSignal} score={stockData.priceTech.volScore}
+                    explain="High volume on a move = institutional conviction. Low volume = weak signal, likely to reverse. Volume is compared to the 20-day average."/>
+                )}
+
+                {stockData.priceTech.source!=='live' && (
+                  <EvidenceRow label="52-week range position" value={`${stockData.priceTech.rangePosition}% · ${stockData.priceTech.pctFromHigh}% below 52w high`} score={stockData.priceTech.rangeScore}
+                    explain={`52-week range: ₹${stockData.priceTech.low52w} – ₹${stockData.priceTech.high52w}. Lower position with improving momentum = best risk/reward entries.`}/>
+                )}
+
+                <div style={{fontSize:'10px',opacity:0.4,marginTop:'8px',lineHeight:1.5,fontStyle:'italic'}}>
+                  {stockData.priceTech.source==='live'
+                    ? `7 indicators computed from ${stockData.priceTech.dataPoints} trading days. Technical layer (12%) blended with astrology for final score.`
+                    : 'Manual price data used. Hit Analyse again after typing stock name for auto 5-year data.'}
                 </div>
               </PointCard>
             )}
             {!stockData.hasRealPriceData && (
               <div style={{...s.alert('warn'),marginBottom:'12px'}}>
-                <strong>⚠ No price data entered</strong> — score is based on astrology + sector signals only. Go back and enter current price, 52-week high/low, and RSI for significantly higher accuracy.
+                <strong>⚠ No price data fetched</strong> — type the stock name and hit Analyse to auto-load 5 years of Yahoo Finance data and compute all technical indicators automatically.
               </div>
             )}
 
