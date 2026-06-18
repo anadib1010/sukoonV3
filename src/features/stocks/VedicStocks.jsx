@@ -517,6 +517,7 @@ export function VedicStocks({ setTab, T, lang }) {
   });
   const [showBacktest, setShowBacktest] = useState(false);
   const [fetchStatus, setFetchStatus] = useState(null); // null | 'loading' | 'ok' | 'error'
+  const [showReport, setShowReport] = useState(false);
 
   // Auto-detect GPS on mount — checks permissions first to avoid policy violation
   useEffect(() => {
@@ -1407,6 +1408,156 @@ export function VedicStocks({ setTab, T, lang }) {
                 </div>
               ))}
             </div>
+
+            {/* ── PLAIN-ENGLISH REPORT BUTTON ── */}
+            <button
+              onClick={()=>setShowReport(r=>!r)}
+              style={{width:'100%',padding:'14px',marginBottom:'10px',borderRadius:'12px',
+                fontSize:'13px',fontWeight:600,cursor:'pointer',letterSpacing:'1px',
+                background:showReport?'rgba(201,168,76,0.14)':'rgba(255,255,255,0.04)',
+                border:`1px solid ${showReport?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'}`,
+                color:showReport?'#c9a84c':T.text,fontFamily:"'DM Sans',sans-serif"}}>
+              {showReport ? '▲ Hide explanation' : '📖 Explain this analysis — plain English'}
+            </button>
+
+            {/* ── PLAIN-ENGLISH REPORT PANEL ── */}
+            {showReport && (()=>{
+              const score = R.composite;
+              const scoreVerdict = score>=65?'GREEN — conditions favour entry':score>=50?'YELLOW — neutral, wait for better window':'RED — avoid new positions';
+              const scoreColor2 = score>=65?'#7DC66A':score<50?'#E05C5C':'#c9a84c';
+              const rikta = [4,8,13].includes(R.tithiNum);
+              const amavasya = R.tithiNum===16;
+              const retroMerc = R.retro.Mercury;
+              const rStyle = {fontSize:'12px',lineHeight:1.75,opacity:0.75,margin:'0 0 4px'};
+              const headStyle = {fontSize:'11px',fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',
+                color:'#c9a84c',opacity:0.9,margin:'16px 0 6px'};
+              const blockStyle = {background:'rgba(255,255,255,0.03)',borderRadius:'12px',
+                border:'0.5px solid rgba(255,255,255,0.08)',padding:'14px 16px',marginBottom:'10px'};
+
+              return (
+                <div style={{marginBottom:'16px'}}>
+
+                  {/* 1. Master score */}
+                  <div style={{...blockStyle,borderColor:scoreColor2+'40'}}>
+                    <p style={{...headStyle,color:scoreColor2}}>① Master score — {score}/100</p>
+                    <p style={rStyle}>
+                      This is the only number you need for a quick decision.
+                      Think of it as a traffic light:
+                    </p>
+                    <p style={{...rStyle,paddingLeft:'12px'}}>
+                      🟢 <strong>65–100</strong> = Enter. Conditions favour buying.<br/>
+                      🟡 <strong>50–64</strong> = Wait. Mixed signals.<br/>
+                      🔴 <strong>Below 50</strong> = Avoid. Multiple bearish signals.
+                    </p>
+                    <p style={{...rStyle,fontWeight:600,color:scoreColor2}}>
+                      Your score of {score} = {scoreVerdict}.
+                    </p>
+                  </div>
+
+                  {/* 2. Layers */}
+                  <div style={blockStyle}>
+                    <p style={headStyle}>② What the {R.bullLayers}/6 layers mean</p>
+                    <p style={rStyle}>The score is built from 6 independent models. You ideally want <strong>4 or more layers bullish</strong> before entering.</p>
+                    {[
+                      {name:'Vedic (32%)', score:R.vedicScore, explain:`Nakshatra quality, tithi, hora, dasha, and ashtakvarga. The heaviest layer. Your score: ${R.vedicScore}/100.`},
+                      {name:'Macro (22%)', score:R.layers.macro, explain:`Your 5 market context inputs — Nifty trend, DMA, FII flow, RBI stance, VIX. Score: ${R.layers.macro}/100.`},
+                      {name:'Western (16%)', score:R.westernScore, explain:`Jupiter sign quality (${R.jupSignQ}/100) × 40% + Saturn sign quality (${R.satSignQ}/100) × 30% + Jupiter-Saturn aspect (${R.jsAspect.name}) × 30%. Score: ${R.westernScore}/100.`},
+                      {name:'Technical (12%)', score:R.layers.tech, explain:`Price vs 200-DMA, RSI, 52-week range position. Score: ${R.layers.tech}/100. ${R.priceTech?'Live price data used.':'No price data entered — neutral 55 assumed.'}`},
+                      {name:'Lunar (10%)', score:R.lunarScore, explain:`Dichev-Janes academic model: returns are statistically higher in the waxing (Shukla) phase. Current: ${R.phase.name} ${R.phase.emoji}, ${R.paksha} Paksha. Score: ${R.lunarScore}/100.`},
+                      {name:'Dasha (8%)', score:R.dashaScore, explain:`Vimshottari dasha: ${R.dasha.maha} Maha + ${R.dasha.antar} Antar + ${R.dasha.pratyantar} Pratyantar. Score: ${R.dashaScore}/100.`},
+                    ].map((l,i)=>(
+                      <div key={i} style={{display:'flex',alignItems:'flex-start',gap:'10px',marginBottom:'10px'}}>
+                        <div style={{width:'8px',height:'8px',borderRadius:'50%',flexShrink:0,marginTop:'5px',
+                          background:l.score>=65?'#7DC66A':l.score<50?'#E05C5C':'#c9a84c'}}/>
+                        <div>
+                          <div style={{fontSize:'12px',fontWeight:600,marginBottom:'2px'}}>{l.name} — <span style={{color:l.score>=65?'#7DC66A':l.score<50?'#E05C5C':'#c9a84c'}}>{l.score}/100</span></div>
+                          <div style={{fontSize:'11px',opacity:0.55,lineHeight:1.6}}>{l.explain}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 3. Tithi */}
+                  <div style={{...blockStyle,borderColor:rikta||amavasya?'rgba(224,92,92,0.3)':'rgba(255,255,255,0.08)'}}>
+                    <p style={{...headStyle,color:rikta||amavasya?'#E05C5C':'#c9a84c'}}>③ Tithi — {TITHI_N[R.tithiNum]} ({R.tithiNum})</p>
+                    <p style={rStyle}>
+                      {rikta
+                        ? `⚠ Rikta tithi. Tithis 4, 8, and 13 are called "Rikta" (empty) in classical Muhurta texts — Muhurta Chintamani strictly forbids new financial commitments on these days. This is a strong reason to wait.`
+                        : amavasya
+                        ? `⚠ Amavasya (new moon). Complete prohibition on new financial beginnings in all classical Vedic texts.`
+                        : R.tithiNum===15
+                        ? `✓ Purnima (full moon) — maximum energy. One of the most auspicious tithis for bold entries.`
+                        : R.tithiNum===11
+                        ? `✓ Ekadashi — considered the most auspicious tithi for wealth-related decisions across all classical texts.`
+                        : `${TITHI_N[R.tithiNum]} is a standard tithi — no special prohibition, no special blessing. Score: ${TITHI_Q[R.tithiNum]}/100.`}
+                    </p>
+                    <p style={rStyle}><strong>Best tithis to watch for:</strong> Ekadashi (11), Dwadashi (12), Dashami (10), Purnima (15).</p>
+                  </div>
+
+                  {/* 4. Dasha */}
+                  <div style={blockStyle}>
+                    <p style={headStyle}>④ Dasha — {R.dasha.maha} / {R.dasha.antar} / {R.dasha.pratyantar}</p>
+                    <p style={rStyle}>
+                      You are in <strong>{R.dasha.maha} Mahadasha</strong> (the 7–20 year backdrop), <strong>{R.dasha.antar} Antardasha</strong> (months-long sub-period), and <strong>{R.dasha.pratyantar} Pratyantar</strong> (week-level). These are calculated from NSE's natal chart (founded 4 Nov 1992).
+                    </p>
+                    <p style={rStyle}>
+                      {R.dasha.maha==='Jupiter'||R.dasha.maha==='Venus'||R.dasha.maha==='Mercury'||R.dasha.maha==='Moon'
+                        ? `✓ ${R.dasha.maha} is a natural benefic — its Mahadasha generally supports market growth, especially in ${(PLANET_SEC[R.dasha.maha]||[]).slice(0,3).join(', ')}.`
+                        : `${R.dasha.maha} Mahadasha is neutral-to-bearish for broad markets. Favour defensive sectors and smaller position sizes.`}
+                    </p>
+                    <p style={rStyle}>Dasha score: <strong style={{color:scoreColor(R.dashaScore)}}>{R.dashaScore}/100</strong></p>
+                  </div>
+
+                  {/* 5. Planets */}
+                  <div style={blockStyle}>
+                    <p style={headStyle}>⑤ Exalted & debilitated planets</p>
+                    {R.exalted.length>0 && <p style={rStyle}>✓ <strong>Exalted: {R.exalted.join(', ')}</strong> — these planets are at maximum strength. {R.exalted.includes('Jupiter')?'Jupiter exalted strongly blesses banking, education, and finance sectors. ':''}{R.exalted.includes('Venus')?'Venus exalted favours luxury, auto, and FMCG. ':''}{R.exalted.includes('Mercury')?'Mercury exalted is excellent for IT and telecom. ':''}</p>}
+                    {R.debil.length>0 && <p style={rStyle}>✗ <strong>Debilitated: {R.debil.join(', ')}</strong> — these planets are weakened. {R.debil.includes('Venus')?'Venus debilitated puts pressure on luxury, auto, pharma sectors. ':''}{R.debil.includes('Jupiter')?'Jupiter debilitated weakens banking and finance sentiment. ':''}{R.debil.includes('Mercury')?'Mercury debilitated — avoid IT/telecom entries. ':''}</p>}
+                    {R.exalted.length===0&&R.debil.length===0 && <p style={rStyle}>No planets are exalted or debilitated right now — neutral planetary strength across sectors.</p>}
+                    <p style={rStyle}><strong>Mercury {retroMerc?'retrograde ⚠':'direct ✓'}</strong> — {retroMerc?'Avoid IT, banking, logistics, and communication sector entries. Contracts signed during Mercury retrograde often face reversals.':'Mercury direct is good for IT, banking, logistics, and communication stocks.'}</p>
+                  </div>
+
+                  {/* 6. Jupiter-Saturn */}
+                  <div style={blockStyle}>
+                    <p style={headStyle}>⑥ Jupiter–Saturn aspect — {R.jsAspect.name}</p>
+                    <p style={rStyle}>These two planets form a 20-year economic cycle tracked by both Western and Vedic astrologers. Their mutual angle right now is <strong>{R.jsAspect.name}</strong> ({R.jsAspect.note}).</p>
+                    <p style={rStyle}>
+                      {R.jsAspect.name.includes('Trine')?'✓ Trine is the most bullish aspect — sustained bull market energy. Enter with confidence when other layers agree.'
+                      :R.jsAspect.name.includes('Sextile')?'✓ Sextile is a mild opportunity aspect — good for selective entries.'
+                      :R.jsAspect.name.includes('Square')||R.jsAspect.name.includes('Opposition')?'⚠ Stress aspect — markets may face corrections or volatility. Reduce position sizes.'
+                      :'No major aspect currently — transitional phase. Neither strongly bullish nor bearish.'}
+                    </p>
+                    <p style={rStyle}>Aspect score: <strong style={{color:scoreColor(R.jsAspect.q)}}>{R.jsAspect.q}/100</strong></p>
+                  </div>
+
+                  {/* 7. Lunar */}
+                  <div style={blockStyle}>
+                    <p style={headStyle}>⑦ Lunar phase — {R.phase.name} {R.phase.emoji}</p>
+                    <p style={rStyle}>The <strong>Dichev-Janes model</strong> (published in the American Economic Review) found that stock returns are measurably higher in the 15 days after a new moon (waxing / Shukla phase) than the 15 days before it (waning / Krishna phase). This is not astrology folklore — it is a peer-reviewed academic finding.</p>
+                    <p style={rStyle}>
+                      {R.paksha==='Shukla'
+                        ? '✓ You are in Shukla Paksha (waxing, bright fortnight) — the statistically favourable half of the lunar month.'
+                        : '⚠ You are in Krishna Paksha (waning, dark fortnight) — the statistically weaker half. Lunar science slightly cautions against entry.'}
+                    </p>
+                    <p style={rStyle}>Lunar score: <strong style={{color:scoreColor(R.lunarScore)}}>{R.lunarScore}/100</strong></p>
+                  </div>
+
+                  {/* 8. Bottom line */}
+                  <div style={{...blockStyle,borderColor:score>=65?'rgba(100,180,80,0.3)':score<50?'rgba(224,92,92,0.3)':'rgba(201,168,76,0.3)'}}>
+                    <p style={{...headStyle,color:scoreColor2}}>⑧ Bottom line{stockInput?` — ${stockInput.toUpperCase()}`:''}</p>
+                    <p style={rStyle}>
+                      {score>=65
+                        ? `Score ${score}/100 with ${R.bullLayers}/6 layers bullish — conditions are favourable. Enter in 2–3 tranches rather than lump sum. ${rikta?'Note: today is a Rikta tithi — wait one day if possible.':''}`
+                        : score>=50
+                        ? `Score ${score}/100 with only ${R.bullLayers}/6 layers bullish — too mixed to act confidently. ${rikta?'Rikta tithi today is a classical prohibition. ':''}Wait for score ≥65 and at least 4 layers aligning.`
+                        : `Score ${score}/100 — multiple bearish signals active. ${rikta?'Rikta tithi. ':''}${retroMerc?'Mercury retrograde. ':''}${R.debil.length?`Debilitated ${R.debil.join(', ')}. `:''}Do not enter new positions.`}
+                    </p>
+                    <p style={rStyle}><strong>Best windows to watch:</strong> Ekadashi or Purnima tithi · Thursday (Jupiter) or Wednesday (Mercury) · Score ≥65 · Mercury direct · 4+ layers bullish.</p>
+                  </div>
+
+                </div>
+              );
+            })()}
           </>
         )}
 
