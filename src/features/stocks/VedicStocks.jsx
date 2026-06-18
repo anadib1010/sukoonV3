@@ -1709,7 +1709,14 @@ Return ONLY the JSON. No markdown, no preamble.`,
                   </div>
                   <div style={{...b,borderColor:score>=65?'rgba(100,180,80,0.3)':score<50?'rgba(224,92,92,0.3)':'rgba(201,168,76,0.3)'}}>
                     <p style={{...h,color:sc2}}>⑥ Bottom line{stockInput?` — ${stockInput.toUpperCase()}`:''}</p>
-                    <p style={{...r,fontWeight:500}}>{score>=65?`Enter in 2–3 tranches. Keep stop-loss strict.${rikta?' Wait one day — Rikta tithi.':''}`:score>=50?`Wait. Score needs to reach 65+ with 4+ layers bullish.${rikta?' Rikta tithi is an additional prohibition.':''}`:` Do not enter.${rikta?' Rikta tithi.':''}${retroMerc?' Mercury retrograde.':''}${R.debil.length?` Debilitated ${R.debil.join(', ')}.':''}`}</p>
+                    <p style={{...r, fontWeight: 500}}>
+                      {score >= 65 
+                        ? `Enter in 2–3 tranches. Keep stop-loss strict.${rikta ? ' Wait one day — Rikta tithi.' : ''}` 
+                        : score >= 50 
+                          ? `Wait. Score needs to reach 65+ with 4+ layers bullish.${rikta ? ' Rikta tithi is an additional prohibition.' : ''}` 
+                          : ` Do not enter.${rikta ? ' Rikta tithi.' : ''}${retroMerc ? ' Mercury retrograde.' : ''}${R.debil.length ? ` Debilitated ${R.debil.join(', ')}.` : ''}`
+                      }
+                    </p>
                     <p style={r}>Best entry windows: Ekadashi or Purnima · Thursday or Wednesday · Score ≥65 · 4+ layers bullish.</p>
                   </div>
                   {R.newsSentiment && (()=>{const ns=R.newsSentiment;const s2=ns.score||0;const col=s2>=3?'#7DC66A':s2<=-3?'#E05C5C':'#c9a84c';return(<div style={{...b,borderColor:col+'40'}}><p style={{...h,color:col}}>⑦ News — {ns.label}</p><p style={r}>{ns.summary}</p><p style={r}>{ns.detail}</p></div>);})()}
