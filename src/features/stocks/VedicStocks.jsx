@@ -666,7 +666,7 @@ export function VedicStocks({ setTab, T, lang }) {
   const [city, setCity] = useState('Delhi, India');
   const [stockInput, setStockInput] = useState('');
   const [result, setResult] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('Summary');
   const [loading, setLoading] = useState(false);
   // FIX 1 — Live market context inputs (replaces hardcoded 65/62)
   const [macroInputs, setMacroInputs] = useState({
@@ -808,7 +808,7 @@ export function VedicStocks({ setTab, T, lang }) {
     setTimeout(() => {
       const r = runEngine(date, time, lat, lon, macroInputs, resolvedPrice, newsSentiment, priceSeries);
       setResult(r);
-      setActiveTab('overview');
+      setActiveTab('Summary');
       setView('result');
       setLoading(false);
     }, 400);
@@ -1053,13 +1053,22 @@ Return ONLY the JSON. No markdown, no preamble.`,
   };
 
   // ── HOME VIEW ─────────────────────────────────────────────────────────────
+  // Progressive 3-step form: Step 1 = stock name, Step 2 = market context (collapsible), Step 3 = analyse
+  const [formStep, setFormStep] = useState(1); // 1=stock, 2=context, 3=ready
+  const [contextOpen, setContextOpen] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(false);
+
   if (view === 'home' || !result) {
+    const scoreColor2 = (s) => s>=65?'#7DC66A':s<50?'#E05C5C':'#c9a84c';
+
     return (
       <div style={s.page}>
         <style>{`
-          input[type="date"],input[type="time"],input[type="number"],input[type="text"]{color-scheme:dark;}
-          input:focus{border-color:rgba(201,168,76,0.6)!important;outline:none;}
+          input[type="date"],input[type="time"],input[type="number"],input[type="text"],textarea{color-scheme:dark;}
+          input:focus,textarea:focus{border-color:rgba(201,168,76,0.6)!important;outline:none;}
         `}</style>
+
+        {/* HEADER */}
         <div style={s.header}>
           <button style={s.backBtn} onClick={() => setTab('home')}>←</button>
           <div>
@@ -1069,324 +1078,251 @@ Return ONLY the JSON. No markdown, no preamble.`,
         </div>
 
         <div style={s.body}>
-          {/* GPS Banner */}
-          <div style={s.gpsBanner(gpsStatus==='ok')}>
-            <div style={{...s.gpsDoc, background: gpsStatus==='ok'?'#7DC66A':gpsStatus==='loading'?'#c9a84c':'#888'}}/>
-            <span>
-              {gpsStatus==='ok' ? `📍 GPS active — ${city}` :
-               gpsStatus==='loading' ? '🔍 Detecting your location…' :
-               gpsStatus==='denied' ? '📍 Location off — using Delhi, India. Enable GPS for precision.' :
-               '📍 Enable location for precise calculations'}
-            </span>
+
+          {/* ── STEP 1: STOCK NAME (always visible) ── */}
+          <div style={{marginBottom:'20px'}}>
+            <p style={{fontSize:'13px',opacity:0.5,marginBottom:'10px',textAlign:'center',letterSpacing:'0.5px'}}>
+              Type any Indian stock or index to begin
+            </p>
+            <input
+              style={{...s.stockInput, fontSize:'16px', padding:'16px 18px',
+                border:`1.5px solid ${stockInput.trim()?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'}`,
+                textAlign:'center', letterSpacing:'1px'}}
+              type="text"
+              value={stockInput}
+              onChange={e=>{setStockInput(e.target.value);setFetchStatus(null);setPriceSeries(null);setPriceData({currentPrice:'',high52w:'',low52w:'',dma200:'',rsi:''}); }}
+              placeholder="RELIANCE · TCS · NIFTY · HDFC…"
+            />
+            {stockInput.trim() && fetchStatus==='ok' && (
+              <p style={{fontSize:'11px',color:'#7DC66A',textAlign:'center',margin:'8px 0 0',opacity:0.8}}>
+                ✓ 5 years of price data loaded automatically
+              </p>
+            )}
+            {stockInput.trim() && fetchStatus==='error' && (
+              <p style={{fontSize:'11px',color:'#c9a84c',textAlign:'center',margin:'8px 0 0',opacity:0.7}}>
+                ⚠ Could not load price data — analysis will still work
+              </p>
+            )}
           </div>
 
-          {/* Date & Time */}
-          <div style={s.inputRow}>
-            <div style={s.inputGroup}>
-              <span style={s.inputLabel}>{hi ? 'तारीख' : 'Date'}</span>
+          {/* ── STEP 2: DATE/TIME (compact, auto-filled) ── */}
+          <div style={{display:'flex',gap:'10px',marginBottom:'16px'}}>
+            <div style={{flex:1}}>
+              <span style={s.inputLabel}>Date</span>
               <input style={s.input} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
             </div>
-            <div style={s.inputGroup}>
-              <span style={s.inputLabel}>{hi ? 'समय (IST)' : 'Time (IST)'}</span>
+            <div style={{flex:1}}>
+              <span style={s.inputLabel}>Time (IST)</span>
               <input style={s.input} type="time" value={time} onChange={e=>setTime(e.target.value)}/>
             </div>
           </div>
 
-          {/* City */}
-          <div style={{marginBottom:'12px'}}>
-            <span style={s.inputLabel}>{hi ? 'शहर' : 'City / Place'}</span>
+          {/* Location — compact single line */}
+          <div style={{marginBottom:'20px'}}>
+            <span style={s.inputLabel}>Your city</span>
             <input style={s.input} type="text" value={city}
               onChange={e=>setCity(e.target.value)}
-              placeholder="e.g. Mumbai, Delhi, Bengaluru"/>
+              placeholder="Mumbai, Delhi, Bengaluru…"/>
+            {gpsStatus==='ok' && (
+              <p style={{fontSize:'10px',color:'#7DC66A',margin:'5px 0 0',opacity:0.7}}>📍 GPS detected: {city}</p>
+            )}
           </div>
 
-          {/* Lat/Lon */}
-          <div style={s.inputRow}>
-            <div style={s.inputGroup}>
-              <span style={s.inputLabel}>Latitude</span>
-              <input style={s.input} type="number" step="0.0001" value={lat} onChange={e=>setLat(parseFloat(e.target.value))}/>
-            </div>
-            <div style={s.inputGroup}>
-              <span style={s.inputLabel}>Longitude</span>
-              <input style={s.input} type="number" step="0.0001" value={lon} onChange={e=>setLon(parseFloat(e.target.value))}/>
-            </div>
-          </div>
-
-          {/* FIX 1 — 5-question market context panel */}
-          <div style={{...s.section, marginBottom:'14px'}}>
-            <p style={{...s.sectionTitle, marginBottom:'10px'}}>📊 Market context <span style={{opacity:0.4,fontWeight:400,letterSpacing:'0.5px'}}>(5 quick inputs — boosts accuracy by ~15%)</span></p>
-            {[
-              {key:'trend', label:'Nifty trend last 30 days',
-               opts:[['strong-up','📈 Strong uptrend'],['mild-up','↗ Mild uptrend'],['sideways','→ Sideways'],['mild-down','↘ Mild downtrend'],['strong-down','📉 Strong downtrend']]},
-              {key:'dma',   label:'Nifty vs 50-day moving average',
-               opts:[['above','Above DMA (bullish)'],['neutral','At DMA (neutral)'],['below','Below DMA (bearish)']]},
-              {key:'fii',   label:'FII flow this week',
-               opts:[['buying','Net buyers ✓'],['neutral','Neutral'],['selling','Net sellers ✗']]},
-              {key:'rbi',   label:'RBI interest rate stance',
-               opts:[['cutting','Rate cutting cycle ★'],['neutral','Neutral / pause'],['hiking','Rate hiking ⚠']]},
-              {key:'vix',   label:'India VIX level',
-               opts:[['calm','Below 13 — calm ★'],['normal','13–18 — normal'],['fearful','Above 18 — fear (buy signal)']]},
-            ].map(({key,label,opts})=>(
-              <div key={key} style={{marginBottom:'10px'}}>
-                <span style={s.inputLabel}>{label}</span>
-                <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-                  {opts.map(([val,lbl])=>(
-                    <button key={val} onClick={()=>setMacroInputs(m=>({...m,[key]:val}))}
-                      style={{padding:'6px 10px',borderRadius:'8px',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:macroInputs[key]===val?600:400,
-                        background:macroInputs[key]===val?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)',
-                        border:`0.5px solid ${macroInputs[key]===val?'#c9a84c80':'rgba(255,255,255,0.1)'}`,
-                        color:macroInputs[key]===val?'#c9a84c':T.text+'88'}}>
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── TODAY'S NEWS INPUT ── */}
-          <div style={{...s.section, marginBottom:'14px'}}>
-            <p style={{...s.sectionTitle, marginBottom:'6px'}}>
-              🌐 Today's news <span style={{opacity:0.4,fontWeight:400,letterSpacing:'0.5px'}}>(optional — AI scores market impact)</span>
-            </p>
-            <p style={{fontSize:'10px',opacity:0.4,marginBottom:'10px',lineHeight:1.5}}>
-              Paste headlines or describe: RBI decisions, geopolitical events, budget announcements, oil prices, major policy changes, politician statements…
-            </p>
-            <textarea
-              value={newsText}
-              onChange={e=>setNewsText(e.target.value)}
-              placeholder={"e.g. RBI cut rates 25bps. FII bought ₹3200cr. Monsoon 12% above normal. India-China border tensions easing."}
-              style={{...s.input, height:'72px', resize:'vertical', lineHeight:1.5,
-                fontFamily:"'DM Sans',sans-serif", fontSize:'12px', width:'100%', boxSizing:'border-box'}}
-            />
+          {/* ── MARKET CONTEXT — collapsible ── */}
+          <div style={{marginBottom:'12px'}}>
             <button
-              onClick={scoreNews}
-              disabled={newsLoading || !newsText.trim()}
-              style={{marginTop:'8px', width:'100%', padding:'10px',
-                borderRadius:'10px', fontSize:'12px', fontWeight:600,
-                cursor: newsText.trim() ? 'pointer' : 'not-allowed',
-                fontFamily:"'DM Sans',sans-serif", letterSpacing:'1px',
-                background: newsText.trim() ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.03)',
-                border:`1px solid ${newsText.trim() ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                color: newsText.trim() ? '#c9a84c' : T.text+'44'}}>
-              {newsLoading ? '🤖 Scoring news…' : '🤖 Score this news with AI'}
+              onClick={()=>setContextOpen(o=>!o)}
+              style={{width:'100%',padding:'12px 16px',borderRadius:'12px',cursor:'pointer',
+                display:'flex',justifyContent:'space-between',alignItems:'center',
+                background:'rgba(255,255,255,0.03)',
+                border:`0.5px solid ${contextOpen?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.1)'}`,
+                color: contextOpen?'#c9a84c':T.text+'aa',
+                fontFamily:"'DM Sans',sans-serif",fontSize:'12px',fontWeight:600,letterSpacing:'1px'}}>
+              <span>⚙️ Market context <span style={{opacity:0.5,fontWeight:400}}>(optional — boosts accuracy)</span></span>
+              <span style={{opacity:0.5}}>{contextOpen?'▲':'▼'}</span>
             </button>
 
-            {/* Sentiment result badge */}
-            {newsSentiment && !newsLoading && (() => {
-              const s2 = newsSentiment.score || 0;
-              const col = s2 >= 3 ? '#7DC66A' : s2 <= -3 ? '#E05C5C' : '#c9a84c';
-              const bg  = s2 >= 3 ? 'rgba(100,180,80,0.1)' : s2 <= -3 ? 'rgba(224,92,92,0.1)' : 'rgba(201,168,76,0.1)';
-              return (
-                <div style={{marginTop:'10px', padding:'12px', borderRadius:'10px',
-                  background:bg, border:`1px solid ${col}40`}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}}>
-                    <span style={{fontSize:'12px',fontWeight:700,color:col}}>{newsSentiment.label}</span>
-                    <span style={{fontSize:'11px',opacity:0.5}}>Macro adj: {s2>=0?'+':''}{Math.round(s2*1.2)} pts</span>
-                  </div>
-                  <p style={{fontSize:'12px',margin:'0 0 6px',lineHeight:1.5}}>{newsSentiment.summary}</p>
-                  <p style={{fontSize:'11px',opacity:0.55,margin:'0 0 6px',lineHeight:1.5}}>{newsSentiment.detail}</p>
-                  {(newsSentiment.sectors_up?.length > 0 || newsSentiment.sectors_down?.length > 0) && (
-                    <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'4px'}}>
-                      {(newsSentiment.sectors_up||[]).map((sec,i)=>(
-                        <span key={i} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'6px',
-                          background:'rgba(100,180,80,0.15)',color:'#7DC66A'}}>↑ {sec}</span>
-                      ))}
-                      {(newsSentiment.sectors_down||[]).map((sec,i)=>(
-                        <span key={i} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'6px',
-                          background:'rgba(224,92,92,0.15)',color:'#E05C5C'}}>↓ {sec}</span>
+            {contextOpen && (
+              <div style={{marginTop:'8px',padding:'14px 16px',borderRadius:'12px',
+                background:'rgba(255,255,255,0.02)',border:'0.5px solid rgba(255,255,255,0.08)'}}>
+                <p style={{fontSize:'10px',opacity:0.4,marginBottom:'14px',lineHeight:1.6}}>
+                  These 5 questions feed the macro layer. Tap your best guess — you can skip any.
+                </p>
+                {[
+                  {key:'trend', label:'Nifty trend (last 30 days)',
+                   opts:[['strong-up','📈 Strong up'],['mild-up','↗ Mild up'],['sideways','→ Flat'],['mild-down','↘ Mild down'],['strong-down','📉 Down']]},
+                  {key:'dma', label:'Nifty vs 200-DMA',
+                   opts:[['above','Above ↑'],['neutral','At DMA'],['below','Below ↓']]},
+                  {key:'fii', label:'FII activity this week',
+                   opts:[['buying','Buying ✓'],['neutral','Neutral'],['selling','Selling ✗']]},
+                  {key:'rbi', label:'RBI rate stance',
+                   opts:[['cutting','Cutting ★'],['neutral','Pause'],['hiking','Hiking ⚠']]},
+                  {key:'vix', label:'India VIX',
+                   opts:[['calm','<13 calm'],['normal','13–18'],['fearful','>18 fear']]},
+                ].map(({key,label,opts})=>(
+                  <div key={key} style={{marginBottom:'12px'}}>
+                    <span style={{...s.inputLabel,opacity:0.6}}>{label}</span>
+                    <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                      {opts.map(([val,lbl])=>(
+                        <button key={val} onClick={()=>setMacroInputs(m=>({...m,[key]:val}))}
+                          style={{padding:'6px 11px',borderRadius:'8px',fontSize:'11px',cursor:'pointer',
+                            fontFamily:"'DM Sans',sans-serif",fontWeight:macroInputs[key]===val?700:400,
+                            background:macroInputs[key]===val?'rgba(201,168,76,0.2)':'rgba(255,255,255,0.04)',
+                            border:`0.5px solid ${macroInputs[key]===val?'#c9a84c':'rgba(255,255,255,0.1)'}`,
+                            color:macroInputs[key]===val?'#c9a84c':T.text+'77'}}>
+                          {lbl}
+                        </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Stock name */}
-          <div style={s.stockRow}>
-            <span style={s.inputLabel}>{hi ? 'स्टॉक नाम (वैकल्पिक)' : 'Stock / Index name (optional)'}</span>
-            <input style={s.stockInput} type="text" value={stockInput}
-              onChange={e=>{setStockInput(e.target.value);setFetchStatus(null);setPriceSeries(null);setPriceData({currentPrice:'',high52w:'',low52w:'',dma200:'',rsi:''});}}
-              placeholder="e.g. RELIANCE, TCS, HDFC Bank, NIFTY 50…"/>
-          </div>
-
-          {/* BUILD 1 — Price data inputs (manual, no API needed) */}
-          {stockInput.trim() && (
-            <div style={{...s.section, marginBottom:'14px'}}>
-              <p style={{...s.sectionTitle, marginBottom:'10px'}}>💹 {stockInput.toUpperCase()} — price data <span style={{opacity:0.4,fontWeight:400}}>optional but boosts accuracy significantly</span></p>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-                <div>
-                  <span style={s.inputLabel}>Current price (₹)</span>
-                  <input style={s.input} type="number" value={priceData.currentPrice}
-                    onChange={e=>setPriceData(p=>({...p,currentPrice:e.target.value}))}
-                    placeholder="e.g. 2850"/>
-                </div>
-                <div>
-                  <span style={s.inputLabel}>200-day DMA (₹)</span>
-                  <input style={s.input} type="number" value={priceData.dma200}
-                    onChange={e=>setPriceData(p=>({...p,dma200:e.target.value}))}
-                    placeholder="e.g. 2700"/>
-                </div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-                <div>
-                  <span style={s.inputLabel}>52-week high (₹)</span>
-                  <input style={s.input} type="number" value={priceData.high52w}
-                    onChange={e=>setPriceData(p=>({...p,high52w:e.target.value}))}
-                    placeholder="e.g. 3200"/>
-                </div>
-                <div>
-                  <span style={s.inputLabel}>52-week low (₹)</span>
-                  <input style={s.input} type="number" value={priceData.low52w}
-                    onChange={e=>setPriceData(p=>({...p,low52w:e.target.value}))}
-                    placeholder="e.g. 2200"/>
-                </div>
-              </div>
-              <div>
-                <span style={s.inputLabel}>RSI (14-day, if known)</span>
-                <input style={s.input} type="number" value={priceData.rsi}
-                  onChange={e=>setPriceData(p=>({...p,rsi:e.target.value}))}
-                  placeholder="e.g. 58 (find on tradingview/moneycontrol)"/>
-              </div>
-              <div style={{fontSize:'10px',opacity:0.4,marginTop:'8px',lineHeight:1.5}}>
-                Find these on Moneycontrol, TradingView, or NSE India website for any stock in seconds.
-              </div>
-            </div>
-          )}
-
-          {/* FIX 3 — Stock-specific context (shown only when stock name entered) */}
-          {stockInput.trim() && (
-            <div style={{...s.section, marginBottom:'14px'}}>
-              <p style={{...s.sectionTitle, marginBottom:'10px'}}>📌 {stockInput.toUpperCase()} — context <span style={{opacity:0.4,fontWeight:400}}>boosts stock accuracy ~7%</span></p>
-              {[
-                {key:'priceVsHigh', label:'Price vs 52-week high',
-                 opts:[['near-high','Within 5% of high'],['below-10','10–20% below'],['below-30','20–40% below'],['deep-value','40%+ below ★']]},
-                {key:'recentTrend', label:'Stock trend last 5 days',
-                 opts:[['up','↑ Going up'],['flat','→ Flat'],['down','↓ Going down']]},
-                {key:'earningsSeason', label:'Earnings season',
-                 opts:[['due-soon','Results in 2 weeks ⚠'],['just-reported','Just reported ✓'],['off-season','Off-season']]},
-                {key:'sectorFii', label:'FII activity in this sector',
-                 opts:[['buying','FII buying ★'],['neutral','Neutral'],['selling','FII selling ✗']]},
-              ].map(({key,label,opts})=>(
-                <div key={key} style={{marginBottom:'10px'}}>
-                  <span style={s.inputLabel}>{label}</span>
-                  <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-                    {opts.map(([val,lbl])=>(
-                      <button key={val} onClick={()=>setStockContext(c=>({...c,[key]:val}))}
-                        style={{padding:'6px 10px',borderRadius:'8px',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:stockContext[key]===val?600:400,
-                          background:stockContext[key]===val?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)',
-                          border:`0.5px solid ${stockContext[key]===val?'#c9a84c80':'rgba(255,255,255,0.1)'}`,
-                          color:stockContext[key]===val?'#c9a84c':T.text+'88'}}>
-                        {lbl}
-                      </button>
-                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Fetch status indicator */}
-          {fetchStatus === 'loading' && (
-            <div style={{fontSize:'11px',textAlign:'center',color:'#c9a84c',opacity:0.8,marginBottom:'8px',letterSpacing:'1px'}}>
-              📡 Fetching live price data…
-            </div>
-          )}
-          {fetchStatus === 'ok' && (
-            <div style={{fontSize:'11px',textAlign:'center',color:'#7DC66A',opacity:0.9,marginBottom:'8px',letterSpacing:'0.5px'}}>
-              ✓ Price data auto-filled from Yahoo Finance
-            </div>
-          )}
-          {fetchStatus === 'error' && (
-            <div style={{fontSize:'11px',textAlign:'center',color:'#c9a84c',opacity:0.7,marginBottom:'8px',letterSpacing:'0.5px'}}>
-              ⚠ Could not fetch price data — fill manually or continue without
-            </div>
-          )}
-
-          {/* Analyze */}
-          <button style={s.analyzeBtn} onClick={handleAnalyze} disabled={loading}>
-            {loading ? (fetchStatus === 'loading' ? '📡 Fetching prices…' : '⏳ Computing…') : `✦ ${hi ? 'विश्लेषण करें' : 'Analyse Now'} ✦`}
-          </button>
-
-          {/* BUILD 3 — Track record / backtest log button */}
-          <button
-            style={{...s.analyzeBtn, background:'transparent', border:`1px solid ${T.accent}30`, color:T.text+'aa', marginTop:'4px'}}
-            onClick={()=>setShowBacktest(true)}>
-            📊 {hi ? 'ट्रैक रेकॉर्ड देखें' : `Track Record${backtestLog.length?` (${backtestLog.length})`:''}`}
-          </button>
-
-          {/* What's calculated note */}
-          <div style={{...s.section, marginTop:'8px'}}>
-            <p style={{...s.sectionTitle, marginBottom:'8px'}}>What gets calculated automatically</p>
-            {['D1 · D9 Navamsa · D10 Dashamsa','Nakshatra · Tithi · Karana · Yoga · Hora','Vimshottari Dasha (Maha + Antar + Pratyantar)','Ashtakvarga (all 7 planets) · Bhav Madhya','NSE natal house transits (2nd/5th/8th/11th)','Planetary degrees · Retrograde status · Exaltation','Jupiter-Saturn aspect (Western 20-yr cycle)','Lunar phase (Dichev-Janes model)','Ghatak chakra · Avakahada · Yogas','Sector confluence scoring · Month calendar','Price technicals when you provide them (200-DMA, RSI, 52w range)'].map((item,i)=>(
-              <p key={i} style={{fontSize:'11px',opacity:0.5,margin:'4px 0',lineHeight:1.5}}>✦ {item}</p>
-            ))}
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* ── TODAY'S NEWS — collapsible ── */}
+          <div style={{marginBottom:'20px'}}>
+            <button
+              onClick={()=>setNewsOpen(o=>!o)}
+              style={{width:'100%',padding:'12px 16px',borderRadius:'12px',cursor:'pointer',
+                display:'flex',justifyContent:'space-between',alignItems:'center',
+                background:'rgba(255,255,255,0.03)',
+                border:`0.5px solid ${newsOpen?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.1)'}`,
+                color: newsOpen?'#c9a84c':T.text+'aa',
+                fontFamily:"'DM Sans',sans-serif",fontSize:'12px',fontWeight:600,letterSpacing:'1px'}}>
+              <span>🌐 Today's news <span style={{opacity:0.5,fontWeight:400}}>(AI scores market impact)</span></span>
+              <span style={{opacity:0.5,display:'flex',alignItems:'center',gap:'6px'}}>
+                {newsSentiment && <span style={{fontSize:'10px',color:newsSentiment.score>=3?'#7DC66A':newsSentiment.score<=-3?'#E05C5C':'#c9a84c'}}>{newsSentiment.label}</span>}
+                {newsOpen?'▲':'▼'}
+              </span>
+            </button>
+
+            {newsOpen && (
+              <div style={{marginTop:'8px',padding:'14px 16px',borderRadius:'12px',
+                background:'rgba(255,255,255,0.02)',border:'0.5px solid rgba(255,255,255,0.08)'}}>
+                <p style={{fontSize:'10px',opacity:0.4,marginBottom:'10px',lineHeight:1.6}}>
+                  Paste headlines: RBI decisions, FII data, geopolitical news, oil prices, budget…
+                </p>
+                <textarea
+                  value={newsText}
+                  onChange={e=>setNewsText(e.target.value)}
+                  placeholder="e.g. RBI cut rates 25bps. FII bought ₹3200cr. Monsoon above normal."
+                  style={{...s.input, height:'64px', resize:'none', lineHeight:1.5,
+                    fontFamily:"'DM Sans',sans-serif", fontSize:'12px', width:'100%', boxSizing:'border-box'}}
+                />
+                <button
+                  onClick={scoreNews}
+                  disabled={newsLoading || !newsText.trim()}
+                  style={{marginTop:'8px',width:'100%',padding:'10px',borderRadius:'10px',
+                    fontSize:'12px',fontWeight:600,cursor:newsText.trim()?'pointer':'not-allowed',
+                    fontFamily:"'DM Sans',sans-serif",letterSpacing:'1px',
+                    background:newsText.trim()?'rgba(201,168,76,0.12)':'rgba(255,255,255,0.03)',
+                    border:`1px solid ${newsText.trim()?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.08)'}`,
+                    color:newsText.trim()?'#c9a84c':T.text+'44'}}>
+                  {newsLoading?'🤖 Scoring…':'🤖 Score with AI'}
+                </button>
+                {newsSentiment && !newsLoading && (()=>{
+                  const s2=newsSentiment.score||0;
+                  const col=s2>=3?'#7DC66A':s2<=-3?'#E05C5C':'#c9a84c';
+                  return (
+                    <div style={{marginTop:'10px',padding:'10px 12px',borderRadius:'10px',
+                      background:`${col}12`,border:`1px solid ${col}30`}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                        <span style={{fontSize:'12px',fontWeight:700,color:col}}>{newsSentiment.label}</span>
+                        <span style={{fontSize:'10px',opacity:0.5}}>adj {s2>=0?'+':''}{Math.round(s2*1.2)} pts</span>
+                      </div>
+                      <p style={{fontSize:'11px',margin:'0 0 6px',lineHeight:1.5}}>{newsSentiment.summary}</p>
+                      <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
+                        {(newsSentiment.sectors_up||[]).map((sec,i)=>(
+                          <span key={i} style={{fontSize:'10px',padding:'2px 7px',borderRadius:'6px',background:'rgba(100,180,80,0.15)',color:'#7DC66A'}}>↑ {sec}</span>
+                        ))}
+                        {(newsSentiment.sectors_down||[]).map((sec,i)=>(
+                          <span key={i} style={{fontSize:'10px',padding:'2px 7px',borderRadius:'6px',background:'rgba(224,92,92,0.15)',color:'#E05C5C'}}>↓ {sec}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* ── ANALYSE BUTTON ── */}
+          <button style={s.analyzeBtn} onClick={handleAnalyze} disabled={loading}>
+            {loading
+              ? (fetchStatus==='loading'?'📡 Loading 5y price data…':'⏳ Computing…')
+              : `✦ ${hi?'विश्लेषण करें':'Analyse'} ${stockInput.trim()?stockInput.toUpperCase():''} ✦`}
+          </button>
+
+          {/* Track record — subtle link */}
+          <button
+            style={{width:'100%',padding:'10px',marginTop:'6px',borderRadius:'10px',cursor:'pointer',
+              background:'transparent',border:`0.5px solid ${T.accent}20`,
+              color:T.text+'55',fontFamily:"'DM Sans',sans-serif",fontSize:'11px',letterSpacing:'1px'}}
+            onClick={()=>setShowBacktest(true)}>
+            📊 {hi?'ट्रैक रेकॉर्ड':'Track Record'}{backtestLog.length?` (${backtestLog.length})`:''}
+          </button>
+
         </div>
 
-        {/* BUILD 3 — Backtest / track record modal */}
+        {/* Backtest modal */}
         {showBacktest && (
           <div style={{
-            position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:1000,
-            background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'flex-end',
+            position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:1000,
+            background:'rgba(0,0,0,0.75)',display:'flex',alignItems:'flex-end',
           }} onClick={()=>setShowBacktest(false)}>
             <div style={{
-              background: T.bg, width:'100%', maxHeight:'85vh', overflowY:'auto',
-              borderRadius:'20px 20px 0 0', padding:'20px', boxSizing:'border-box',
+              background:T.bg,width:'100%',maxHeight:'85vh',overflowY:'auto',
+              borderRadius:'20px 20px 0 0',padding:'20px',boxSizing:'border-box',
             }} onClick={e=>e.stopPropagation()}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
                 <p style={{fontSize:'15px',fontWeight:600,color:'#c9a84c',margin:0}}>📊 Your track record</p>
                 <button onClick={()=>setShowBacktest(false)} style={{background:'none',border:'none',color:T.text,fontSize:'18px',cursor:'pointer',opacity:0.6}}>✕</button>
               </div>
-
-              {backtestLog.length===0 ? (
+              {backtestLog.length===0?(
                 <div style={{textAlign:'center',padding:'30px 10px',opacity:0.5}}>
-                  <p style={{fontSize:'12px',lineHeight:1.7}}>
-                    No predictions logged yet. After analysing a stock, tap "Log this prediction" in the stock report. Come back in a few weeks and mark whether the prediction was correct — this builds your personal accuracy track record over time, since there's no live price feed to backtest automatically.
-                  </p>
+                  <p style={{fontSize:'12px',lineHeight:1.7}}>No predictions logged yet. Analyse a stock and tap "Log this prediction" to start tracking.</p>
                 </div>
-              ) : (
+              ):(
                 <>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginBottom:'16px'}}>
                     {(()=>{
-                      const judged = backtestLog.filter(e=>e.outcome);
-                      const correct = judged.filter(e=>e.outcome==='correct').length;
-                      const hitRate = judged.length ? Math.round((correct/judged.length)*100) : null;
-                      return [
-                        {l:'Logged',v:backtestLog.length},
-                        {l:'Judged',v:judged.length},
-                        {l:'Hit rate',v:hitRate!==null?`${hitRate}%`:'—'},
-                      ];
+                      const judged=backtestLog.filter(e=>e.outcome);
+                      const correct=judged.filter(e=>e.outcome==='correct').length;
+                      const hitRate=judged.length?Math.round((correct/judged.length)*100):null;
+                      return [{l:'Logged',v:backtestLog.length},{l:'Judged',v:judged.length},{l:'Hit rate',v:hitRate!==null?`${hitRate}%`:'—'}];
                     })().map((m,i)=>(
-                      <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:'10px',padding:'10px',textAlign:'center'}}>
-                        <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'4px'}}>{m.l}</div>
+                      <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
                         <div style={{fontSize:'18px',fontWeight:600,color:'#c9a84c'}}>{m.v}</div>
+                        <div style={{fontSize:'10px',opacity:0.5,marginTop:'3px'}}>{m.l}</div>
                       </div>
                     ))}
                   </div>
-
                   {backtestLog.map(entry=>(
-                    <div key={entry.id} style={{...s.section, marginBottom:'8px'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
+                    <div key={entry.id} style={{background:'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'12px',marginBottom:'8px'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}}>
                         <div>
-                          <div style={{fontSize:'13px',fontWeight:600}}>{entry.stock}</div>
-                          <div style={{fontSize:'10px',opacity:0.45}}>{entry.date} · Score {entry.score} · {entry.verdict}</div>
+                          <span style={{fontSize:'13px',fontWeight:600}}>{entry.stock}</span>
+                          <span style={{fontSize:'10px',opacity:0.4,marginLeft:'8px'}}>{entry.date}</span>
                         </div>
-                        {entry.outcome && (
-                          <span style={{
-                            fontSize:'10px',fontWeight:600,padding:'3px 9px',borderRadius:'10px',
-                            background: entry.outcome==='correct'?'rgba(100,180,80,0.15)':entry.outcome==='incorrect'?'rgba(224,92,92,0.15)':'rgba(201,168,76,0.15)',
-                            color: entry.outcome==='correct'?'#7DC66A':entry.outcome==='incorrect'?'#E05C5C':'#c9a84c',
-                          }}>{entry.outcome}</span>
-                        )}
+                        <span style={{...s.badge(entry.score),fontSize:'11px'}}>{entry.score}/100</span>
                       </div>
-                      {!entry.outcome && (
+                      <p style={{fontSize:'11px',opacity:0.55,margin:'0 0 8px'}}>{entry.verdict}</p>
+                      {!entry.outcome?(
                         <div style={{display:'flex',gap:'6px'}}>
-                          <button onClick={()=>updateBacktestOutcome(entry.id,'correct')} style={{flex:1,padding:'6px',borderRadius:'8px',fontSize:'11px',background:'rgba(100,180,80,0.1)',border:'0.5px solid rgba(100,180,80,0.3)',color:'#7DC66A',cursor:'pointer'}}>✓ Correct</button>
-                          <button onClick={()=>updateBacktestOutcome(entry.id,'partial')} style={{flex:1,padding:'6px',borderRadius:'8px',fontSize:'11px',background:'rgba(201,168,76,0.1)',border:'0.5px solid rgba(201,168,76,0.3)',color:'#c9a84c',cursor:'pointer'}}>~ Partial</button>
-                          <button onClick={()=>updateBacktestOutcome(entry.id,'incorrect')} style={{flex:1,padding:'6px',borderRadius:'8px',fontSize:'11px',background:'rgba(224,92,92,0.1)',border:'0.5px solid rgba(224,92,92,0.3)',color:'#E05C5C',cursor:'pointer'}}>✗ Incorrect</button>
+                          {['correct','incorrect','partial'].map(o=>(
+                            <button key={o} onClick={()=>updateBacktestOutcome(entry.id,o)}
+                              style={{flex:1,padding:'6px',borderRadius:'8px',fontSize:'10px',cursor:'pointer',
+                                fontFamily:"'DM Sans',sans-serif",
+                                background:'rgba(255,255,255,0.05)',border:'0.5px solid rgba(255,255,255,0.15)',color:T.text+'88'}}>
+                              {o}
+                            </button>
+                          ))}
                         </div>
+                      ):(
+                        <span style={{fontSize:'11px',color:entry.outcome==='correct'?'#7DC66A':entry.outcome==='incorrect'?'#E05C5C':'#c9a84c'}}>
+                          {entry.outcome==='correct'?'✓ Correct':entry.outcome==='incorrect'?'✗ Incorrect':'~ Partial'}
+                        </span>
                       )}
                     </div>
                   ))}
@@ -1398,6 +1334,7 @@ Return ONLY the JSON. No markdown, no preamble.`,
       </div>
     );
   }
+
 
   // ── RESULT VIEW ───────────────────────────────────────────────────────────
   const R = result;
@@ -1591,60 +1528,118 @@ Return ONLY the JSON. No markdown, no preamble.`,
     };
   }
 
-  const LAYER_NAMES = {vedic:'Vedic analysis',western:'Western astrology',lunar:'Lunar science',macro:'Economic macro',tech:'Technical',dasha:'Dasha cycle'};
+  const LAYER_NAMES = {vedic:'Vedic',western:'Western',lunar:'Lunar',macro:'Macro',tech:'Technical',dasha:'Dasha'};
   const LAYER_W     = {vedic:32,western:16,lunar:10,macro:22,tech:12,dasha:8};
+  const scoreCol    = (v) => v>=65?'#7DC66A':v<50?'#E05C5C':'#c9a84c';
+  const scoreLbl    = (v) => v>=75?'Strong buy':v>=65?'Good window':v>=50?'Neutral — wait':v>=40?'Caution':'Avoid';
+
+  // ── Simple 3-tab result: Summary / Details / Deep Dive ────────────────────
+  const RTABS = ['Summary','Details','Deep Dive'];
+  if (stockInput.trim()) RTABS.splice(1,0,'Stock');
 
   return (
     <div style={s.page}>
-      {/* Header */}
+      <style>{`input[type="date"],input[type="time"]{color-scheme:dark;}input:focus{border-color:rgba(201,168,76,0.6)!important;outline:none;}`}</style>
+
+      {/* ── HEADER ── */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={()=>setView('home')}>←</button>
         <div style={{flex:1}}>
-          <p style={s.headerTitle}>📈 {hi ? 'वैदिक शेयर बाज़ार' : 'Vedic Stock Oracle'}</p>
-          <p style={s.headerSub}>{R.date} · {R.time} IST · {city}</p>
+          <p style={s.headerTitle}>
+            {stockInput.trim()?`📈 ${stockInput.toUpperCase()}`:'📈 Market Oracle'}
+          </p>
+          <p style={s.headerSub}>{R.date} · {city}</p>
         </div>
-        <button style={{...s.backBtn,fontSize:'13px',opacity:0.5}} onClick={()=>setView('home')}>
-          {hi?'बदलें':'Edit'}
-        </button>
+        <button style={{...s.backBtn,fontSize:'12px',opacity:0.5}} onClick={()=>setView('home')}>Edit ✎</button>
       </div>
 
-      {/* Tab bar */}
-      <div style={s.tabRow}>
-        {TABS.map(t=>(
+      {/* ── SCORE HERO ── */}
+      {(()=>{
+        const sc = stockData ? stockData.finalScore : R.composite;
+        const col = scoreCol(sc);
+        const lbl = scoreLbl(sc);
+        const rikta = [4,8,13].includes(R.tithiNum);
+        const verdict = sc>=65?'✓ Conditions favour entry':sc>=50?'⏳ Wait for better window':'✗ Avoid new positions';
+        return (
+          <div style={{width:'100%',maxWidth:'420px',padding:'20px 20px 16px',boxSizing:'border-box',textAlign:'center'}}>
+            {/* Big score circle */}
+            <div style={{position:'relative',display:'inline-flex',alignItems:'center',justifyContent:'center',marginBottom:'12px'}}>
+              <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
+                <circle cx="60" cy="60" r="52" fill="none" stroke={col} strokeWidth="8"
+                  strokeDasharray={`${sc*3.267} ${326.7}`} strokeLinecap="round"
+                  transform="rotate(-90 60 60)" opacity="0.85"/>
+              </svg>
+              <div style={{position:'absolute',textAlign:'center'}}>
+                <div style={{fontSize:'32px',fontWeight:700,color:col,lineHeight:1}}>{sc}</div>
+                <div style={{fontSize:'10px',opacity:0.4,letterSpacing:'1px'}}>/100</div>
+              </div>
+            </div>
+            {/* Verdict */}
+            <div style={{fontSize:'18px',fontWeight:600,color:col,marginBottom:'6px',letterSpacing:'0.5px'}}>{lbl}</div>
+            <div style={{fontSize:'13px',opacity:0.6,marginBottom:'8px'}}>{verdict}</div>
+            {/* Key flags row */}
+            <div style={{display:'flex',gap:'6px',justifyContent:'center',flexWrap:'wrap'}}>
+              {R.bullLayers>=4 && <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:'rgba(100,180,80,0.15)',color:'#7DC66A'}}>{R.bullLayers}/6 layers bullish</span>}
+              {R.bullLayers<4 && <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:'rgba(201,168,76,0.12)',color:'#c9a84c'}}>{R.bullLayers}/6 layers bullish</span>}
+              {rikta && <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:'rgba(224,92,92,0.12)',color:'#E05C5C'}}>⚠ Rikta tithi</span>}
+              {R.retro.Mercury && <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:'rgba(224,92,92,0.12)',color:'#E05C5C'}}>☿ Merc retrograde</span>}
+              {R.paksha==='Shukla' && <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:'rgba(100,180,80,0.1)',color:'#7DC66A'}}>🌕 Shukla Paksha</span>}
+              {R.exalted.length>0 && <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:'rgba(100,180,80,0.1)',color:'#7DC66A'}}>⬆ {R.exalted[0]} exalted</span>}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── TAB BAR ── */}
+      <div style={{...s.tabRow,justifyContent:'center',padding:'0 20px 14px'}}>
+        {RTABS.map(t=>(
           <button key={t} style={s.tabBtn(activeTab===t)} onClick={()=>setActiveTab(t)}>
-            {t==='stock'&&stockInput?stockInput.toUpperCase().slice(0,8):t.charAt(0).toUpperCase()+t.slice(1)}
+            {t}
           </button>
         ))}
       </div>
 
       <div style={s.body}>
 
-        {/* ── OVERVIEW ── */}
-        {activeTab==='overview' && (
+        {/* ══════════════ SUMMARY TAB ══════════════ */}
+        {activeTab==='Summary' && (
           <>
-            <div style={s.scoreWrap}>
-              <ScoreArc score={R.composite}/>
-              <div>
-                <div style={{fontSize:'16px',fontWeight:500,color:scoreColor(R.composite),marginBottom:'4px'}}>
-                  {scoreLabel(R.composite)}
+            {/* Layer bars — clean, labelled simply */}
+            <div style={s.section}>
+              <p style={s.sectionTitle}>What the model checked</p>
+              {Object.entries(R.layers).map(([k,v])=>(
+                <div key={k} style={{marginBottom:'10px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                    <span style={{fontSize:'12px',opacity:0.7}}>{LAYER_NAMES[k]} <span style={{opacity:0.4,fontSize:'10px'}}>({LAYER_W[k]}% weight)</span></span>
+                    <span style={{fontSize:'12px',fontWeight:600,color:scoreCol(v)}}>{v}/100</span>
+                  </div>
+                  <div style={{height:'4px',background:'rgba(255,255,255,0.07)',borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:`${v}%`,background:scoreCol(v),borderRadius:'2px',opacity:0.8}}/>
+                  </div>
                 </div>
-                <div style={{fontSize:'12px',opacity:0.55,marginBottom:'4px'}}>
-                  {R.bullLayers}/6 layers bullish · {NAK_NAMES[R.moonNak]} nakshatra
-                </div>
-                <div style={{fontSize:'12px',opacity:0.55}}>
-                  {TITHI_N[R.tithiNum]} · {VAAR_N[R.dow]} · {R.paksha} Paksha
-                </div>
-              </div>
+              ))}
+              <p style={{fontSize:'10px',opacity:0.35,marginTop:'10px',lineHeight:1.6,textAlign:'center'}}>
+                🟢 65+ = bullish &nbsp;·&nbsp; 🟡 50–64 = neutral &nbsp;·&nbsp; 🔴 below 50 = bearish
+              </p>
             </div>
 
-            {/* Layer bars */}
+            {/* Today's snapshot */}
             <div style={s.section}>
-              <p style={s.sectionTitle}>Signal layers</p>
-              {Object.entries(R.layers).map(([k,v])=>(
-                <div key={k} style={s.pbarRow}>
-                  <span style={s.pbarLabel}>{LAYER_NAMES[k]} <span style={{opacity:0.4}}>{LAYER_W[k]}%</span></span>
-                  <div style={s.pbarTrack}><div style={s.pbarFill(v)}/></div>
-                  <span style={{...s.pbarVal,color:scoreColor(v)}}>{v}</span>
+              <p style={s.sectionTitle}>Today at a glance</p>
+              {[
+                {l:'Nakshatra', v:`${NAK_NAMES[R.moonNak]}`, s:NAK_Q[R.moonNak]},
+                {l:'Tithi', v:`${TITHI_N[R.tithiNum]} (${[4,8,13].includes(R.tithiNum)?'⚠ Rikta':R.tithiNum===15?'✓ Purnima':R.tithiNum===11?'✓ Ekadashi':'standard'})`, s:TITHI_Q[R.tithiNum]||55},
+                {l:'Weekday', v:VAAR_N[R.dow], s:VAAR_Q[R.dow]},
+                {l:'Moon phase', v:`${R.phase.name} ${R.phase.emoji} · ${R.paksha} Paksha`, s:R.lunarScore},
+                {l:'Dasha', v:`${R.dasha.maha} / ${R.dasha.antar}`, s:R.dashaScore},
+                {l:'Mercury', v:R.retro.Mercury?'Retrograde ⚠ — avoid IT/banking':'Direct ✓', s:R.retro.Mercury?28:72},
+              ].map((row,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                  padding:'8px 0',borderBottom:i===5?'none':`0.5px solid rgba(255,255,255,0.06)`}}>
+                  <span style={{fontSize:'11px',opacity:0.5,width:'90px',flexShrink:0}}>{row.l}</span>
+                  <span style={{fontSize:'12px',flex:1,textAlign:'left',paddingLeft:'8px'}}>{row.v}</span>
+                  <span style={{fontSize:'11px',fontWeight:600,color:scoreCol(row.s)}}>{row.s}</span>
                 </div>
               ))}
             </div>
@@ -1657,822 +1652,340 @@ Return ONLY the JSON. No markdown, no preamble.`,
               <div key={i} style={s.alert('warn')}><strong>{y.name}</strong> — {y.note}</div>
             ))}
 
-            {/* Metrics */}
-            <div style={s.metricGrid}>
-              <div style={s.metric}><div style={s.metricLabel}>Composite</div><div style={s.metricVal(R.composite)}>{R.composite}</div><div style={s.metricSub}>out of 100</div></div>
-              <div style={s.metric}><div style={s.metricLabel}>Muhurta</div><div style={s.metricVal(R.mScore)}>{R.mScore}</div><div style={s.metricSub}>auspiciousness</div></div>
-              <div style={s.metric}><div style={s.metricLabel}>Dasha</div><div style={s.metricVal(R.dashaScore)}>{R.dashaScore}</div><div style={s.metricSub}>{R.dasha.maha} / {R.dasha.antar}</div></div>
-              <div style={s.metric}><div style={s.metricLabel}>Vedic deep</div><div style={s.metricVal(R.vedicScore)}>{R.vedicScore}</div><div style={s.metricSub}>all Vedic layers</div></div>
-            </div>
-
-            {/* Quick signals */}
-            <div style={s.section}>
-              <p style={s.sectionTitle}>Key signals</p>
-              {[
-                {label:`Exalted planets`,sub:R.exalted.length?R.exalted.join(', '):'None currently',score:R.exalted.length?75:55},
-                {label:`Debilitated planets`,sub:R.debil.length?R.debil.join(', '):'None — positive',score:R.debil.length?30:72},
-                {label:`Mercury ${R.retro.Mercury?'retrograde ⚠':'direct ✓'}`,sub:R.retro.Mercury?'Avoid IT/banking/telecom entries':'Good for IT, banking, logistics',score:R.retro.Mercury?28:72},
-                {label:`Jupiter-Saturn: ${R.jsAspect.name}`,sub:R.jsAspect.note,score:R.jsAspect.q},
-                {label:`Lunar: ${R.phase.name} ${R.phase.emoji}`,sub:`Dichev model score · ${R.paksha} Paksha`,score:R.lunarScore},
-              ].map((sig,i)=>(
-                <div key={i} style={{...s.sigRow,borderBottom:i===4?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={s.sigDot(sig.score)}/>
-                  <div style={{flex:1}}>
-                    <div style={s.sigName}>{sig.label}</div>
-                    <div style={s.sigSub}>{sig.sub}</div>
-                  </div>
-                  <span style={s.badge(sig.score)}>{sig.score}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* ── PLAIN-ENGLISH REPORT BUTTON ── */}
-            <button
-              onClick={()=>setShowReport(r=>!r)}
-              style={{width:'100%',padding:'14px',marginBottom:'10px',borderRadius:'12px',
-                fontSize:'13px',fontWeight:600,cursor:'pointer',letterSpacing:'1px',
+            {/* Explain button */}
+            <button onClick={()=>setShowReport(r=>!r)}
+              style={{width:'100%',padding:'14px',marginTop:'4px',borderRadius:'12px',fontSize:'13px',
+                fontWeight:600,cursor:'pointer',letterSpacing:'0.5px',
                 background:showReport?'rgba(201,168,76,0.14)':'rgba(255,255,255,0.04)',
                 border:`1px solid ${showReport?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'}`,
                 color:showReport?'#c9a84c':T.text,fontFamily:"'DM Sans',sans-serif"}}>
-              {showReport ? '▲ Hide explanation' : '📖 Explain this analysis — plain English'}
+              {showReport?'▲ Hide explanation':'📖 Explain this in plain English'}
             </button>
 
-            {/* ── PLAIN-ENGLISH REPORT PANEL ── */}
+            {/* Plain-English Report */}
             {showReport && (()=>{
-              const score = R.composite;
-              const scoreVerdict = score>=65?'GREEN — conditions favour entry':score>=50?'YELLOW — neutral, wait for better window':'RED — avoid new positions';
-              const scoreColor2 = score>=65?'#7DC66A':score<50?'#E05C5C':'#c9a84c';
-              const rikta = [4,8,13].includes(R.tithiNum);
-              const amavasya = R.tithiNum===16;
-              const retroMerc = R.retro.Mercury;
-              const rStyle = {fontSize:'12px',lineHeight:1.75,opacity:0.75,margin:'0 0 4px'};
-              const headStyle = {fontSize:'11px',fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',
-                color:'#c9a84c',opacity:0.9,margin:'16px 0 6px'};
-              const blockStyle = {background:'rgba(255,255,255,0.03)',borderRadius:'12px',
-                border:'0.5px solid rgba(255,255,255,0.08)',padding:'14px 16px',marginBottom:'10px'};
-
+              const score=R.composite; const rikta=[4,8,13].includes(R.tithiNum);
+              const retroMerc=R.retro.Mercury;
+              const sc2=score>=65?'#7DC66A':score<50?'#E05C5C':'#c9a84c';
+              const r={fontSize:'12px',lineHeight:1.75,opacity:0.75,margin:'0 0 6px'};
+              const h={fontSize:'11px',fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:'#c9a84c',margin:'16px 0 6px'};
+              const b={background:'rgba(255,255,255,0.03)',borderRadius:'12px',border:'0.5px solid rgba(255,255,255,0.08)',padding:'14px 16px',marginBottom:'10px'};
               return (
-                <div style={{marginBottom:'16px'}}>
-
-                  {/* 1. Master score */}
-                  <div style={{...blockStyle,borderColor:scoreColor2+'40'}}>
-                    <p style={{...headStyle,color:scoreColor2}}>① Master score — {score}/100</p>
-                    <p style={rStyle}>
-                      This is the only number you need for a quick decision.
-                      Think of it as a traffic light:
-                    </p>
-                    <p style={{...rStyle,paddingLeft:'12px'}}>
-                      🟢 <strong>65–100</strong> = Enter. Conditions favour buying.<br/>
-                      🟡 <strong>50–64</strong> = Wait. Mixed signals.<br/>
-                      🔴 <strong>Below 50</strong> = Avoid. Multiple bearish signals.
-                    </p>
-                    <p style={{...rStyle,fontWeight:600,color:scoreColor2}}>
-                      Your score of {score} = {scoreVerdict}.
-                    </p>
+                <div style={{marginTop:'10px'}}>
+                  <div style={{...b,borderColor:sc2+'40'}}>
+                    <p style={{...h,color:sc2}}>① Score {score}/100 — what it means</p>
+                    <p style={r}>🟢 65+ = Enter · 🟡 50–64 = Wait · 🔴 Below 50 = Avoid</p>
+                    <p style={{...r,color:sc2,fontWeight:600}}>{score>=65?`${score}/100 — conditions favour entry. Enter in 2–3 tranches.`:score>=50?`${score}/100 — mixed signals. Wait for score ≥65 and 4+ layers bullish.`:`${score}/100 — multiple bearish signals. Do not enter new positions.`}</p>
                   </div>
-
-                  {/* 2. Layers */}
-                  <div style={blockStyle}>
-                    <p style={headStyle}>② What the {R.bullLayers}/6 layers mean</p>
-                    <p style={rStyle}>The score is built from 6 independent models. You ideally want <strong>4 or more layers bullish</strong> before entering.</p>
+                  <div style={b}>
+                    <p style={h}>② The 6 layers</p>
+                    <p style={r}>Score is built from 6 independent models. Need 4+ bullish to act.</p>
                     {[
-                      {name:'Vedic (32%)', score:R.vedicScore, explain:`Nakshatra quality, tithi, hora, dasha, and ashtakvarga. The heaviest layer. Your score: ${R.vedicScore}/100.`},
-                      {name:'Macro (22%)', score:R.layers.macro, explain:`Your 5 market context inputs (Nifty trend, DMA, FII flow, RBI stance, VIX)${R.newsSentiment?` + AI news sentiment (${R.newsSentiment.label}, adj ${R.newsSentiment.score>=0?'+':''}${Math.round((R.newsSentiment.score||0)*1.2)} pts)`:' — add news below for AI sentiment boost'}. Score: ${R.layers.macro}/100.`},
-                      {name:'Western (16%)', score:R.westernScore, explain:`Jupiter sign quality (${R.jupSignQ}/100) × 40% + Saturn sign quality (${R.satSignQ}/100) × 30% + Jupiter-Saturn aspect (${R.jsAspect.name}) × 30%. Score: ${R.westernScore}/100.`},
-                      {name:'Technical (12%)', score:R.layers.tech, explain:`Price vs 200-DMA, RSI, 52-week range position. Score: ${R.layers.tech}/100. ${R.priceTech?'Live price data used.':'No price data entered — neutral 55 assumed.'}`},
-                      {name:'Lunar (10%)', score:R.lunarScore, explain:`Dichev-Janes academic model: returns are statistically higher in the waxing (Shukla) phase. Current: ${R.phase.name} ${R.phase.emoji}, ${R.paksha} Paksha. Score: ${R.lunarScore}/100.`},
-                      {name:'Dasha (8%)', score:R.dashaScore, explain:`Vimshottari dasha: ${R.dasha.maha} Maha + ${R.dasha.antar} Antar + ${R.dasha.pratyantar} Pratyantar. Score: ${R.dashaScore}/100.`},
+                      {n:'Vedic (32%)',s:R.vedicScore,e:`Nakshatra (${NAK_NAMES[R.moonNak]}), tithi, hora, dasha, ashtakvarga.`},
+                      {n:'Macro (22%)',s:R.layers.macro,e:`Your market context inputs + AI news sentiment.`},
+                      {n:'Western (16%)',s:R.westernScore,e:`Jupiter in ${RASHI[R.planets.Jupiter.sign]}, Saturn in ${RASHI[R.planets.Saturn.sign]}, J-S aspect.`},
+                      {n:'Technical (12%)',s:R.layers.tech,e:R.priceTech?.source==='live'?`RSI ${R.priceTech.rsi}, MACD, Bollinger, 200-DMA, 5-year range.`:'No live price data — neutral assumed.'},
+                      {n:'Lunar (10%)',s:R.lunarScore,e:`${R.phase.name}, ${R.paksha} Paksha. Dichev-Janes academic model.`},
+                      {n:'Dasha (8%)',s:R.dashaScore,e:`${R.dasha.maha} Maha / ${R.dasha.antar} Antar / ${R.dasha.pratyantar} Pratyantar.`},
                     ].map((l,i)=>(
-                      <div key={i} style={{display:'flex',alignItems:'flex-start',gap:'10px',marginBottom:'10px'}}>
-                        <div style={{width:'8px',height:'8px',borderRadius:'50%',flexShrink:0,marginTop:'5px',
-                          background:l.score>=65?'#7DC66A':l.score<50?'#E05C5C':'#c9a84c'}}/>
-                        <div>
-                          <div style={{fontSize:'12px',fontWeight:600,marginBottom:'2px'}}>{l.name} — <span style={{color:l.score>=65?'#7DC66A':l.score<50?'#E05C5C':'#c9a84c'}}>{l.score}/100</span></div>
-                          <div style={{fontSize:'11px',opacity:0.55,lineHeight:1.6}}>{l.explain}</div>
-                        </div>
+                      <div key={i} style={{display:'flex',gap:'10px',marginBottom:'8px'}}>
+                        <div style={{width:'7px',height:'7px',borderRadius:'50%',flexShrink:0,marginTop:'5px',background:scoreCol(l.s)}}/>
+                        <div><span style={{fontSize:'12px',fontWeight:600,color:scoreCol(l.s)}}>{l.n} — {l.s}/100</span><br/><span style={{fontSize:'11px',opacity:0.5}}>{l.e}</span></div>
                       </div>
                     ))}
                   </div>
-
-                  {/* 3. Tithi */}
-                  <div style={{...blockStyle,borderColor:rikta||amavasya?'rgba(224,92,92,0.3)':'rgba(255,255,255,0.08)'}}>
-                    <p style={{...headStyle,color:rikta||amavasya?'#E05C5C':'#c9a84c'}}>③ Tithi — {TITHI_N[R.tithiNum]} ({R.tithiNum})</p>
-                    <p style={rStyle}>
-                      {rikta
-                        ? `⚠ Rikta tithi. Tithis 4, 8, and 13 are called "Rikta" (empty) in classical Muhurta texts — Muhurta Chintamani strictly forbids new financial commitments on these days. This is a strong reason to wait.`
-                        : amavasya
-                        ? `⚠ Amavasya (new moon). Complete prohibition on new financial beginnings in all classical Vedic texts.`
-                        : R.tithiNum===15
-                        ? `✓ Purnima (full moon) — maximum energy. One of the most auspicious tithis for bold entries.`
-                        : R.tithiNum===11
-                        ? `✓ Ekadashi — considered the most auspicious tithi for wealth-related decisions across all classical texts.`
-                        : `${TITHI_N[R.tithiNum]} is a standard tithi — no special prohibition, no special blessing. Score: ${TITHI_Q[R.tithiNum]}/100.`}
-                    </p>
-                    <p style={rStyle}><strong>Best tithis to watch for:</strong> Ekadashi (11), Dwadashi (12), Dashami (10), Purnima (15).</p>
+                  <div style={{...b,borderColor:rikta?'rgba(224,92,92,0.3)':'rgba(255,255,255,0.08)'}}>
+                    <p style={{...h,color:rikta?'#E05C5C':'#c9a84c'}}>③ Tithi — {TITHI_N[R.tithiNum]}</p>
+                    <p style={r}>{rikta?`⚠ Rikta tithi (4,8,13) — classical texts forbid new financial commitments. Strong reason to wait.`:R.tithiNum===15?`✓ Purnima — most auspicious. Enter boldly when other conditions agree.`:R.tithiNum===11?`✓ Ekadashi — most auspicious for wealth decisions.`:`Standard tithi — no special blessing or prohibition. Score: ${TITHI_Q[R.tithiNum]}/100.`}</p>
+                    <p style={r}>Watch for: Ekadashi (11), Dwadashi (12), Dashami (10), Purnima (15).</p>
                   </div>
-
-                  {/* 4. Dasha */}
-                  <div style={blockStyle}>
-                    <p style={headStyle}>④ Dasha — {R.dasha.maha} / {R.dasha.antar} / {R.dasha.pratyantar}</p>
-                    <p style={rStyle}>
-                      You are in <strong>{R.dasha.maha} Mahadasha</strong> (the 7–20 year backdrop), <strong>{R.dasha.antar} Antardasha</strong> (months-long sub-period), and <strong>{R.dasha.pratyantar} Pratyantar</strong> (week-level). These are calculated from NSE's natal chart (founded 4 Nov 1992).
-                    </p>
-                    <p style={rStyle}>
-                      {R.dasha.maha==='Jupiter'||R.dasha.maha==='Venus'||R.dasha.maha==='Mercury'||R.dasha.maha==='Moon'
-                        ? `✓ ${R.dasha.maha} is a natural benefic — its Mahadasha generally supports market growth, especially in ${(PLANET_SEC[R.dasha.maha]||[]).slice(0,3).join(', ')}.`
-                        : `${R.dasha.maha} Mahadasha is neutral-to-bearish for broad markets. Favour defensive sectors and smaller position sizes.`}
-                    </p>
-                    <p style={rStyle}>Dasha score: <strong style={{color:scoreColor(R.dashaScore)}}>{R.dashaScore}/100</strong></p>
+                  <div style={b}>
+                    <p style={h}>④ Mercury {retroMerc?'retrograde ⚠':'direct ✓'}</p>
+                    <p style={r}>{retroMerc?'Mercury retrograde: avoid IT, banking, logistics entries. Signals reverse more often during retrograde.':'Mercury direct: good for IT, banking, logistics, communication stocks.'}</p>
                   </div>
-
-                  {/* 5. Planets */}
-                  <div style={blockStyle}>
-                    <p style={headStyle}>⑤ Exalted & debilitated planets</p>
-                    {R.exalted.length>0 && <p style={rStyle}>✓ <strong>Exalted: {R.exalted.join(', ')}</strong> — these planets are at maximum strength. {R.exalted.includes('Jupiter')?'Jupiter exalted strongly blesses banking, education, and finance sectors. ':''}{R.exalted.includes('Venus')?'Venus exalted favours luxury, auto, and FMCG. ':''}{R.exalted.includes('Mercury')?'Mercury exalted is excellent for IT and telecom. ':''}</p>}
-                    {R.debil.length>0 && <p style={rStyle}>✗ <strong>Debilitated: {R.debil.join(', ')}</strong> — these planets are weakened. {R.debil.includes('Venus')?'Venus debilitated puts pressure on luxury, auto, pharma sectors. ':''}{R.debil.includes('Jupiter')?'Jupiter debilitated weakens banking and finance sentiment. ':''}{R.debil.includes('Mercury')?'Mercury debilitated — avoid IT/telecom entries. ':''}</p>}
-                    {R.exalted.length===0&&R.debil.length===0 && <p style={rStyle}>No planets are exalted or debilitated right now — neutral planetary strength across sectors.</p>}
-                    <p style={rStyle}><strong>Mercury {retroMerc?'retrograde ⚠':'direct ✓'}</strong> — {retroMerc?'Avoid IT, banking, logistics, and communication sector entries. Contracts signed during Mercury retrograde often face reversals.':'Mercury direct is good for IT, banking, logistics, and communication stocks.'}</p>
+                  <div style={b}>
+                    <p style={h}>⑤ Dasha — {R.dasha.maha}/{R.dasha.antar}</p>
+                    <p style={r}>{['Jupiter','Venus','Mercury','Moon'].includes(R.dasha.maha)?`✓ ${R.dasha.maha} Mahadasha supports market growth — favours ${(PLANET_SEC[R.dasha.maha]||[]).slice(0,3).join(', ')}.`:`${R.dasha.maha} Mahadasha is neutral-to-bearish. Favour defensive sectors.`}</p>
                   </div>
-
-                  {/* 6. Jupiter-Saturn */}
-                  <div style={blockStyle}>
-                    <p style={headStyle}>⑥ Jupiter–Saturn aspect — {R.jsAspect.name}</p>
-                    <p style={rStyle}>These two planets form a 20-year economic cycle tracked by both Western and Vedic astrologers. Their mutual angle right now is <strong>{R.jsAspect.name}</strong> ({R.jsAspect.note}).</p>
-                    <p style={rStyle}>
-                      {R.jsAspect.name.includes('Trine')?'✓ Trine is the most bullish aspect — sustained bull market energy. Enter with confidence when other layers agree.'
-                      :R.jsAspect.name.includes('Sextile')?'✓ Sextile is a mild opportunity aspect — good for selective entries.'
-                      :R.jsAspect.name.includes('Square')||R.jsAspect.name.includes('Opposition')?'⚠ Stress aspect — markets may face corrections or volatility. Reduce position sizes.'
-                      :'No major aspect currently — transitional phase. Neither strongly bullish nor bearish.'}
-                    </p>
-                    <p style={rStyle}>Aspect score: <strong style={{color:scoreColor(R.jsAspect.q)}}>{R.jsAspect.q}/100</strong></p>
+                  <div style={{...b,borderColor:score>=65?'rgba(100,180,80,0.3)':score<50?'rgba(224,92,92,0.3)':'rgba(201,168,76,0.3)'}}>
+                    <p style={{...h,color:sc2}}>⑥ Bottom line{stockInput?` — ${stockInput.toUpperCase()}`:''}</p>
+                    <p style={{...r,fontWeight:500}}>{score>=65?`Enter in 2–3 tranches. Keep stop-loss strict.${rikta?' Wait one day — Rikta tithi.':''}`:score>=50?`Wait. Score needs to reach 65+ with 4+ layers bullish.${rikta?' Rikta tithi is an additional prohibition.':''}`:` Do not enter.${rikta?' Rikta tithi.':''}${retroMerc?' Mercury retrograde.':''}${R.debil.length?` Debilitated ${R.debil.join(', ')}.':''}`}</p>
+                    <p style={r}>Best entry windows: Ekadashi or Purnima · Thursday or Wednesday · Score ≥65 · 4+ layers bullish.</p>
                   </div>
-
-                  {/* 7. Lunar */}
-                  <div style={blockStyle}>
-                    <p style={headStyle}>⑦ Lunar phase — {R.phase.name} {R.phase.emoji}</p>
-                    <p style={rStyle}>The <strong>Dichev-Janes model</strong> (published in the American Economic Review) found that stock returns are measurably higher in the 15 days after a new moon (waxing / Shukla phase) than the 15 days before it (waning / Krishna phase). This is not astrology folklore — it is a peer-reviewed academic finding.</p>
-                    <p style={rStyle}>
-                      {R.paksha==='Shukla'
-                        ? '✓ You are in Shukla Paksha (waxing, bright fortnight) — the statistically favourable half of the lunar month.'
-                        : '⚠ You are in Krishna Paksha (waning, dark fortnight) — the statistically weaker half. Lunar science slightly cautions against entry.'}
-                    </p>
-                    <p style={rStyle}>Lunar score: <strong style={{color:scoreColor(R.lunarScore)}}>{R.lunarScore}/100</strong></p>
-                  </div>
-
-                  {/* 7b. News sentiment */}
-                  {R.newsSentiment && (() => {
-                    const ns = R.newsSentiment;
-                    const s2 = ns.score || 0;
-                    const col = s2>=3?'#7DC66A':s2<=-3?'#E05C5C':'#c9a84c';
-                    return (
-                      <div style={{...blockStyle,borderColor:col+'40'}}>
-                        <p style={{...headStyle,color:col}}>⑦b News & geopolitical sentiment — {ns.label}</p>
-                        <p style={rStyle}><strong>AI sentiment score: {s2>=0?'+':''}{s2}/10</strong> → macro layer adjusted by {s2>=0?'+':''}{Math.round(s2*1.2)} points.</p>
-                        <p style={rStyle}>{ns.summary}</p>
-                        <p style={rStyle}>{ns.detail}</p>
-                        {(ns.sectors_up?.length>0||ns.sectors_down?.length>0) && (
-                          <p style={rStyle}>
-                            {ns.sectors_up?.length>0 && <span>Sectors benefiting: <strong style={{color:'#7DC66A'}}>{ns.sectors_up.join(', ')}</strong>. </span>}
-                            {ns.sectors_down?.length>0 && <span>Sectors under pressure: <strong style={{color:'#E05C5C'}}>{ns.sectors_down.join(', ')}</strong>.</span>}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* 8. Bottom line */}
-                  <div style={{...blockStyle,borderColor:score>=65?'rgba(100,180,80,0.3)':score<50?'rgba(224,92,92,0.3)':'rgba(201,168,76,0.3)'}}>
-                    <p style={{...headStyle,color:scoreColor2}}>⑧ Bottom line{stockInput?` — ${stockInput.toUpperCase()}`:''}</p>
-                    <p style={rStyle}>
-                      {score>=65
-                        ? `Score ${score}/100 with ${R.bullLayers}/6 layers bullish — conditions are favourable. Enter in 2–3 tranches rather than lump sum. ${rikta?'Note: today is a Rikta tithi — wait one day if possible.':''}`
-                        : score>=50
-                        ? `Score ${score}/100 with only ${R.bullLayers}/6 layers bullish — too mixed to act confidently. ${rikta?'Rikta tithi today is a classical prohibition. ':''}Wait for score ≥65 and at least 4 layers aligning.`
-                        : `Score ${score}/100 — multiple bearish signals active. ${rikta?'Rikta tithi. ':''}${retroMerc?'Mercury retrograde. ':''}${R.debil.length?`Debilitated ${R.debil.join(', ')}. `:''}Do not enter new positions.`}
-                    </p>
-                    <p style={rStyle}><strong>Best windows to watch:</strong> Ekadashi or Purnima tithi · Thursday (Jupiter) or Wednesday (Mercury) · Score ≥65 · Mercury direct · 4+ layers bullish.</p>
-                  </div>
-
+                  {R.newsSentiment && (()=>{const ns=R.newsSentiment;const s2=ns.score||0;const col=s2>=3?'#7DC66A':s2<=-3?'#E05C5C':'#c9a84c';return(<div style={{...b,borderColor:col+'40'}}><p style={{...h,color:col}}>⑦ News — {ns.label}</p><p style={r}>{ns.summary}</p><p style={r}>{ns.detail}</p></div>);})()}
                 </div>
               );
             })()}
           </>
         )}
 
-        {/* ── PANCHANG ── */}
-        {activeTab==='panchang' && (
+        {/* ══════════════ STOCK TAB ══════════════ */}
+        {activeTab==='Stock' && stockData && (()=>{
+          const sd = stockData;
+          const sc = sd.finalScore;
+          const col = scoreCol(sc);
+          const EvidenceRow = ({label,value,score,explain}) => {
+            const [open,setOpen] = useState(false);
+            return (
+              <div style={{borderBottom:`0.5px solid rgba(255,255,255,0.06)`,paddingBottom:'10px',marginBottom:'10px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}} onClick={()=>setOpen(o=>!o)}>
+                  <div style={{width:'7px',height:'7px',borderRadius:'50%',flexShrink:0,background:scoreCol(score)}}/>
+                  <span style={{fontSize:'12px',flex:1,opacity:0.8}}>{label}</span>
+                  <span style={{fontSize:'11px',fontWeight:600,color:scoreCol(score),marginRight:'4px'}}>{score}</span>
+                  <span style={{fontSize:'10px',opacity:0.3}}>{open?'▲':'▼'}</span>
+                </div>
+                <div style={{fontSize:'11px',opacity:0.5,marginTop:'3px',paddingLeft:'15px'}}>{value}</div>
+                {open&&explain&&<div style={{fontSize:'11px',opacity:0.6,lineHeight:1.6,marginTop:'8px',padding:'10px',borderRadius:'8px',background:'rgba(255,255,255,0.03)'}}>{explain}</div>}
+              </div>
+            );
+          };
+          return (
+            <>
+              {/* Stock verdict card */}
+              <div style={{...s.section,borderColor:col+'40',marginBottom:'14px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'12px'}}>
+                  <div>
+                    <div style={{fontSize:'16px',fontWeight:700,color:col,marginBottom:'3px'}}>{sd.advisability}</div>
+                    <div style={{fontSize:'11px',opacity:0.5}}>{sd.sector} · {sd.horizon} horizon</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:'26px',fontWeight:700,color:col}}>{sc}</div>
+                    <div style={{fontSize:'10px',opacity:0.4}}>/100</div>
+                  </div>
+                </div>
+                {/* Stats row */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
+                  {[
+                    {l:'Target',v:`+${sd.targetPct}%`,c:'#7DC66A'},
+                    {l:'Stop-loss',v:`-${sd.slPct}%`,c:'#E05C5C'},
+                    {l:'R:R',v:`${sd.rrRatio}:1`,c:parseFloat(sd.rrRatio)>=2?'#7DC66A':parseFloat(sd.rrRatio)>=1.5?'#c9a84c':'#E05C5C'},
+                    {l:'Prob up',v:`${sd.probUp}%`,c:sd.probUp>=60?'#7DC66A':'#c9a84c'},
+                  ].map((m,i)=>(
+                    <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'8px 4px',textAlign:'center'}}>
+                      <div style={{fontSize:'13px',fontWeight:700,color:m.c}}>{m.v}</div>
+                      <div style={{fontSize:'9px',opacity:0.4,marginTop:'2px',letterSpacing:'0.5px'}}>{m.l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Best entry date */}
+              <div style={{...s.alert('info'),marginBottom:'12px',background:'rgba(201,168,76,0.06)',border:'0.5px solid rgba(201,168,76,0.25)',color:T.text}}>
+                <span style={{opacity:0.5,fontSize:'11px'}}>Best entry date this month: </span>
+                <strong style={{color:'#c9a84c'}}>{sd.bestDate}</strong>
+                <span style={{opacity:0.5,fontSize:'11px'}}> · Thursday/Wednesday preferred · 9:15 AM IST</span>
+              </div>
+
+              {/* Technical analysis */}
+              {sd.hasRealPriceData && sd.priceTech && (
+                <div style={s.section}>
+                  <p style={s.sectionTitle}>
+                    Technical analysis
+                    {sd.priceTech.source==='live'&&<span style={{color:'#7DC66A',marginLeft:'6px',fontWeight:400}}>✓ {sd.priceTech.dataPoints} days of data</span>}
+                  </p>
+                  {/* Price grid */}
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'12px'}}>
+                    {[
+                      {l:'Price',v:`₹${sd.priceTech.currentPrice?.toFixed?.(2)??'—'}`,c:'#c9a84c'},
+                      {l:'200-DMA',v:sd.priceTech.dma200?`₹${parseFloat(sd.priceTech.dma200).toFixed(2)}`:'—',c:T.text},
+                      {l:'RSI',v:sd.priceTech.rsi??'—',c:scoreCol(sd.priceTech.rsiScore)},
+                      {l:'52w High',v:`₹${sd.priceTech.high52w?.toFixed?.(2)??'—'}`,c:'#7DC66A'},
+                      {l:'52w Low',v:`₹${sd.priceTech.low52w?.toFixed?.(2)??'—'}`,c:'#E05C5C'},
+                      {l:'5y range',v:sd.priceTech.rangePos5y?`${sd.priceTech.rangePos5y}%`:'—',c:scoreCol(sd.priceTech.range5yScore||55)},
+                    ].map((m,i)=>(
+                      <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'8px 6px',textAlign:'center'}}>
+                        <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:'3px'}}>{m.l}</div>
+                        <div style={{fontSize:'12px',fontWeight:600,color:m.c}}>{m.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <EvidenceRow label="200-DMA position" value={sd.priceTech.dmaSignal} score={sd.priceTech.dmaScore} explain="Price above 200-DMA = bull market. Below = bear territory. Most-watched institutional level globally."/>
+                  {sd.priceTech.slopeSignal&&<EvidenceRow label="200-DMA slope" value={sd.priceTech.slopeSignal} score={sd.priceTech.slopeScore} explain="Rising 200-DMA = long-term uptrend intact. Falling = trend weakening."/>}
+                  <EvidenceRow label="RSI (momentum)" value={sd.priceTech.rsiSignal} score={sd.priceTech.rsiScore} explain="RSI above 70 = overbought (risk of pullback). Below 30 = oversold (bounce likely). 40-60 = neutral."/>
+                  {sd.priceTech.macd&&<EvidenceRow label="MACD" value={sd.priceTech.macdSignal} score={sd.priceTech.macdScore} explain="MACD histogram above zero = momentum building. Crossover from negative to positive = classic buy signal."/>}
+                  {sd.priceTech.boll&&<EvidenceRow label="Bollinger Bands" value={sd.priceTech.bollSignal} score={sd.priceTech.bollScore} explain={`Price near lower band = value zone. Near upper band = stretched. Range: ₹${sd.priceTech.boll.lower} – ₹${sd.priceTech.boll.upper}`}/>}
+                  {sd.priceTech.rangePos5y&&<EvidenceRow label="5-year range" value={sd.priceTech.range5ySignal} score={sd.priceTech.range5yScore} explain={`Bottom 20% of 5-year range = accumulation zone. Top 20% = momentum only. Range: ₹${sd.priceTech.low5y?.toFixed(2)} – ₹${sd.priceTech.high5y?.toFixed(2)}`}/>}
+                  {sd.priceTech.volSignal&&<EvidenceRow label="Volume" value={sd.priceTech.volSignal} score={sd.priceTech.volScore} explain="High volume confirms institutional conviction. Low volume = weak signal."/>}
+                </div>
+              )}
+              {!sd.hasRealPriceData&&<div style={{...s.alert('warn'),marginBottom:'12px'}}>⚠ Price data not loaded — go back, type stock name and tap Analyse to load 5 years of data automatically.</div>}
+
+              {/* Vedic signals for this stock */}
+              <div style={s.section}>
+                <p style={s.sectionTitle}>Vedic signals</p>
+                {sd.report.filter(r=>['06','07','08'].includes(r.num)).map((pt,i)=>(
+                  <div key={i} style={{borderBottom:i===2?'none':`0.5px solid rgba(255,255,255,0.06)`,paddingBottom:'10px',marginBottom:'10px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px'}}>
+                      <span style={{fontSize:'13px'}}>{pt.icon}</span>
+                      <span style={{fontSize:'12px',fontWeight:600,flex:1}}>{pt.title}</span>
+                      <span style={{fontSize:'11px',color:scoreCol(pt.score),fontWeight:600}}>{pt.score}</span>
+                    </div>
+                    <div style={{fontSize:'11px',color:scoreCol(pt.score),marginBottom:'3px',paddingLeft:'21px'}}>{pt.value}</div>
+                    <div style={{fontSize:'11px',opacity:0.45,lineHeight:1.6,paddingLeft:'21px',whiteSpace:'pre-line'}}>{pt.detail}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Log prediction */}
+              <button onClick={()=>saveToBacktestLog(sd.symbol,sc,sd.verdict)}
+                style={{width:'100%',padding:'12px',marginBottom:'8px',borderRadius:'10px',fontSize:'12px',
+                  fontWeight:600,cursor:'pointer',background:'rgba(201,168,76,0.08)',
+                  border:'1px solid rgba(201,168,76,0.3)',color:'#c9a84c',fontFamily:"'DM Sans',sans-serif"}}>
+                📌 Log this prediction
+              </button>
+            </>
+          );
+        })()}
+
+        {/* ══════════════ DETAILS TAB ══════════════ */}
+        {activeTab==='Details' && (
           <>
+            {/* Panchang */}
             <div style={s.section}>
               <p style={s.sectionTitle}>Panchang — {R.date} · {R.time} IST</p>
               {[
                 {l:'Tithi',v:`${TITHI_N[R.tithiNum]} (${R.tithiNum})`,s:TITHI_Q[R.tithiNum]||55},
-                {l:'Nakshatra',v:`${NAK_NAMES[R.moonNak]} (Pada ${R.planets.Moon.pada})`,s:NAK_Q[R.moonNak]},
-                {l:'Nakshatra nature',v:NAK_NATURE[R.moonNak],s:null},
-                {l:'Nakshatra ruler',v:NAK_RULER[R.moonNak],s:null},
-                {l:'Vaar (weekday)',v:VAAR_N[R.dow],s:VAAR_Q[R.dow]},
+                {l:'Nakshatra',v:`${NAK_NAMES[R.moonNak]} · Pada ${R.planets.Moon.pada}`,s:NAK_Q[R.moonNak]},
+                {l:'Nature',v:NAK_NATURE[R.moonNak],s:null},
+                {l:'Ruler',v:NAK_RULER[R.moonNak],s:null},
+                {l:'Weekday',v:VAAR_N[R.dow],s:VAAR_Q[R.dow]},
                 {l:'Paksha',v:R.paksha,s:R.paksha==='Shukla'?72:42},
-                {l:'Lunar phase',v:`${R.phase.name} ${R.phase.emoji}`,s:R.phase.dichev},
-                {l:'Hora at entry',v:`${R.horaData.planet} hora`,s:R.horaData.quality},
-                {l:'Lagna (ascendant)',v:`${RASHI[R.lagnaSign]} ${(R.lagnaLng%30).toFixed(1)}°`,s:null},
-                {l:'Sun nakshatra',v:NAK_NAMES[R.sunNak],s:null},
+                {l:'Hora now',v:R.hora.planet,s:R.hora.q},
+                {l:'Yoga',v:R.yoga||'—',s:null},
+                {l:'Karana',v:R.karana||'—',s:null},
               ].map((row,i)=>(
-                <div key={i} style={{...s.sigRow,borderBottom:i===9?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={s.sigDot(row.s||55)}/>
-                  <div style={{flex:1}}>
-                    <div style={s.sigName}>{row.l}</div>
-                  </div>
-                  <div style={{textAlign:'right'}}>
-                    <span style={{fontSize:'12px'}}>{row.v}</span>
-                    {row.s && <span style={{...s.badge(row.s),marginLeft:'6px'}}>{row.s}</span>}
-                  </div>
+                <div key={i} style={{display:'flex',alignItems:'center',padding:'7px 0',
+                  borderBottom:i===8?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                  <span style={{fontSize:'11px',opacity:0.45,width:'90px',flexShrink:0}}>{row.l}</span>
+                  <span style={{fontSize:'12px',flex:1}}>{row.v}</span>
+                  {row.s!=null&&<span style={{fontSize:'11px',fontWeight:600,color:scoreCol(row.s)}}>{row.s}</span>}
                 </div>
               ))}
             </div>
-            <div style={s.section}>
-              <p style={s.sectionTitle}>Activated sectors (nakshatra + vaar)</p>
-              <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
-                {[...NAK_SEC[R.moonNak],...(PLANET_SEC[VAAR_L[R.dow]]||[])].filter((v,i,a)=>a.indexOf(v)===i).map((sec,i)=>(
-                  <span key={i} style={s.chip}>{sec}</span>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
 
-        {/* ── PLANETS ── */}
-        {activeTab==='planets' && (
-          <>
+            {/* Planets */}
             <div style={s.section}>
-              <p style={s.sectionTitle}>Planetary positions — sidereal (Lahiri)</p>
-              {['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn','Rahu','Ketu'].map((p,i)=>{
-                const pos=R.planets[p];
-                const isEx=EXALT[p]===pos.sign,isDeb=DEBIL[p]===pos.sign;
-                const status=isEx?'Exalted ★':isDeb?'Debilitated ⚠':'—';
-                const score=isEx?82:isDeb?28:55;
-                return(
-                  <div key={p} style={{...s.sigRow,borderBottom:i===8?'none':`0.5px solid ${T.accent}15`}}>
-                    <div style={{fontSize:'16px',width:'22px',textAlign:'center',flexShrink:0}}>
-                      {{'Sun':'☉','Moon':'☽','Mars':'♂','Mercury':'☿','Jupiter':'♃','Venus':'♀','Saturn':'♄','Rahu':'☊','Ketu':'☋'}[p]}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={s.sigName}>{p} <span style={s.badge(score)}>{status}</span>{R.retro[p]&&<span style={{...s.badge(30),marginLeft:'4px'}}>R</span>}</div>
-                      <div style={s.sigSub}>{RASHI[pos.sign]} {pos.deg.toFixed(1)}° · {NAK_NAMES[pos.nakIdx]} · D9: {RASHI[R.d9[p]]} · D10: {RASHI[R.d10[p]]}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={s.section}>
-              <p style={s.sectionTitle}>Ashtakvarga (Sun · Moon · Jupiter)</p>
-              {Object.entries(R.ashtak).map(([p,sc])=>(
-                <div key={p} style={s.pbarRow}>
-                  <span style={s.pbarLabel}>{p}</span>
-                  <div style={s.pbarTrack}><div style={{...s.pbarFill(sc*12.5)}}/></div>
-                  <span style={{...s.pbarVal,color:scoreColor(sc*12.5)}}>{sc}/8</span>
+              <p style={s.sectionTitle}>Planets right now</p>
+              {Object.entries(R.planets).map(([name,p],i)=>(
+                <div key={name} style={{display:'flex',alignItems:'center',padding:'6px 0',
+                  borderBottom:i===Object.keys(R.planets).length-1?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                  <span style={{fontSize:'11px',opacity:0.5,width:'72px',flexShrink:0}}>{name}</span>
+                  <span style={{fontSize:'11px',flex:1}}>{RASHI[p.sign]} {p.deg?.toFixed(1)}°{R.retro[name]?' ℞':''}</span>
+                  <span style={{fontSize:'10px',opacity:0.4}}>{p.nakshatra?NAK_NAMES[p.nakshatra]:''}</span>
                 </div>
               ))}
             </div>
-          </>
-        )}
 
-        {/* ── DASHA ── */}
-        {activeTab==='dasha' && (
-          <>
-            <div style={s.metricGrid}>
-              <div style={s.metric}><div style={s.metricLabel}>Mahadasha</div><div style={{fontSize:'20px',fontWeight:500,color:'#c9a84c'}}>{R.dasha.maha}</div><div style={s.metricSub}>major period</div></div>
-              <div style={s.metric}><div style={s.metricLabel}>Antardasha</div><div style={{fontSize:'20px',fontWeight:500,color:'#c9a84c'}}>{R.dasha.antar}</div><div style={s.metricSub}>sub-period</div></div>
-              <div style={s.metric}><div style={s.metricLabel}>Pratyantar</div><div style={{fontSize:'20px',fontWeight:500,color:'#c9a84c'}}>{R.dasha.pratyantar}</div><div style={s.metricSub}>sub-sub (weekly)</div></div>
-              <div style={s.metric}><div style={s.metricLabel}>Dasha score</div><div style={{fontSize:'20px',fontWeight:500,color:scoreColor(R.dashaScore)}}>{R.dashaScore}</div><div style={s.metricSub}>all 3 levels</div></div>
-            </div>
+            {/* Dasha */}
             <div style={s.section}>
-              <p style={s.sectionTitle}>Dasha-activated sectors</p>
-              {[R.dasha.maha,R.dasha.antar].map((p,i)=>(
-                <div key={i} style={{...s.sigRow,borderBottom:i===1?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={s.sigDot(65)}/>
-                  <div style={{flex:1}}>
-                    <div style={s.sigName}>{p} {i===0?'Mahadasha':'Antardasha'}</div>
-                    <div style={s.sigSub}>{(PLANET_SEC[p]||[]).join(' · ')}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={s.section}>
-              <p style={s.sectionTitle}>Transit influence</p>
+              <p style={s.sectionTitle}>Dasha cycle</p>
               {[
-                {l:`Jupiter in ${RASHI[R.planets.Jupiter.sign]}`,sub:`12-yr cycle · score ${R.jupSignQ} (classical) · sectors: ${(PLANET_SEC.Jupiter||[]).slice(0,3).join(', ')}`,s:R.jupSignQ},
-                {l:`Saturn in ${RASHI[R.planets.Saturn.sign]}${R.retro.Saturn?' (R)':''}`,sub:`29-yr cycle · score ${R.satSignQ} (classical) · sectors: ${(PLANET_SEC.Saturn||[]).slice(0,3).join(', ')}`,s:R.satSignQ},
-                {l:`Jupiter-Saturn: ${R.jsAspect.name}`,sub:R.jsAspect.note,s:R.jsAspect.q},
-                {l:`Rahu in ${RASHI[R.planets.Rahu.sign]}`,sub:`18-yr nodal cycle · sectors: ${(PLANET_SEC.Rahu||[]).join(', ')}`,s:55},
+                {l:'Mahadasha',v:R.dasha.maha,s:R.dashaScore},
+                {l:'Antardasha',v:R.dasha.antar,s:null},
+                {l:'Pratyantar',v:R.dasha.pratyantar,s:null},
               ].map((row,i)=>(
-                <div key={i} style={{...s.sigRow,borderBottom:i===3?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={s.sigDot(row.s)}/>
-                  <div style={{flex:1}}><div style={s.sigName}>{row.l}</div><div style={s.sigSub}>{row.sub}</div></div>
-                  <span style={s.badge(row.s)}>{row.s}</span>
+                <div key={i} style={{display:'flex',alignItems:'center',padding:'8px 0',
+                  borderBottom:i===2?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                  <span style={{fontSize:'11px',opacity:0.45,width:'90px',flexShrink:0}}>{row.l}</span>
+                  <span style={{fontSize:'13px',flex:1,fontWeight:i===0?600:400}}>{row.v}</span>
+                  {row.s!=null&&<span style={{fontSize:'11px',fontWeight:600,color:scoreCol(row.s)}}>{row.s}/100</span>}
                 </div>
               ))}
-            </div>
-          </>
-        )}
-
-        {/* ── HOUSES (Build 2: NSE natal house transits) ── */}
-        {activeTab==='houses' && (
-          <>
-            <div style={{...s.alert('gold'),marginBottom:'10px'}}>
-              <strong>NSE natal lagna:</strong> {RASHI[R.NSE_LAGNA_SIGN]} ({RASHI_EN[R.NSE_LAGNA_SIGN]}) — from exchange founding 4 Nov 1992, 09:15 IST, Mumbai
-            </div>
-            <div style={s.section}>
-              <p style={s.sectionTitle}>What this means</p>
-              <p style={{fontSize:'11px',opacity:0.55,lineHeight:1.6,marginBottom:'8px'}}>
-                Every planet transiting right now falls in a specific house counted from NSE's own birth chart. This is the core technique of financial Jyotish — the 2nd (wealth), 5th (speculation), 8th (sudden gain/loss) and 11th (profits) houses matter most for market direction.
+              <p style={{fontSize:'11px',opacity:0.45,marginTop:'8px',lineHeight:1.6}}>
+                Sectors favoured by {R.dasha.maha}: {(PLANET_SEC[R.dasha.maha]||[]).join(', ')||'broad market'}
               </p>
             </div>
-            <div style={s.metricGrid}>
-              <div style={s.metric}>
-                <div style={s.metricLabel}>House transit score</div>
-                <div style={s.metricVal(R.houseTransits.avgImpact)}>{R.houseTransits.avgImpact}</div>
-                <div style={s.metricSub}>across 9 planets</div>
-              </div>
-              <div style={s.metric}>
-                <div style={s.metricLabel}>Wealth quadrant</div>
-                <div style={{fontSize:'20px',fontWeight:500,color:'#c9a84c'}}>{R.houseTransits.wealthHouseOccupants.length}</div>
-                <div style={s.metricSub}>planets in 2/5/8/11</div>
-              </div>
-            </div>
 
-            {R.houseTransits.eleventhHouseOccupants.length>0 && (
-              <div style={s.alert('good')}>
-                <strong>★ 11th house occupied:</strong> {R.houseTransits.eleventhHouseOccupants.map(t=>t.planet).join(', ')} — the most auspicious house for market gains and profits. This is a genuinely bullish structural signal.
-              </div>
-            )}
-            {R.houseTransits.eighthHouseOccupants.length>0 && (
-              <div style={s.alert('warn')}>
-                <strong>⚠ 8th house occupied:</strong> {R.houseTransits.eighthHouseOccupants.map(t=>t.planet).join(', ')} — house of sudden gain/loss and high volatility. Expect sharper-than-usual moves; size positions accordingly.
-              </div>
-            )}
-
+            {/* Calendar */}
             <div style={s.section}>
-              <p style={s.sectionTitle}>All 9 planets — house position from NSE lagna</p>
-              {R.houseTransits.transits.map((t,i)=>(
-                <div key={t.planet} style={{...s.sigRow,borderBottom:i===8?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={{fontSize:'16px',width:'22px',textAlign:'center',flexShrink:0}}>
-                    {{'Sun':'☉','Moon':'☽','Mars':'♂','Mercury':'☿','Jupiter':'♃','Venus':'♀','Saturn':'♄','Rahu':'☊','Ketu':'☋'}[t.planet]}
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={s.sigName}>{t.planet} → {t.house}{['st','nd','rd'][t.house-1]||'th'} house · {t.houseInfo.name}</div>
-                    <div style={s.sigSub}>{t.houseInfo.note}</div>
-                  </div>
-                  <span style={s.badge(t.impact)}>{t.impact}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={s.section}>
-              <p style={s.sectionTitle}>House meanings reference</p>
-              {[2,5,8,11].map(h=>(
-                <div key={h} style={{...s.sigRow,borderBottom:h===11?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={{...s.sigDot(70),marginTop:'6px'}}/>
-                  <div style={{flex:1}}>
-                    <div style={s.sigName}>{h}{['st','nd','rd'][h-1]||'th'} house — {HOUSE_MARKET_MEANING[h].name}</div>
-                    <div style={s.sigSub}>{HOUSE_MARKET_MEANING[h].note}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* ── SECTORS ── */}
-        {activeTab==='sectors' && (
-          <>
-            <div style={{...s.alert('gold'),marginBottom:'10px'}}>
-              <strong>Top pick:</strong> {R.sectorScores[0]?.name} · Score {R.sectorScores[0]?.score}
-            </div>
-            <div style={s.section}>
-              <p style={s.sectionTitle}>All NSE sectors — ranked</p>
-              {R.sectorScores.map((sec,i)=>(
-                <div key={sec.id} style={{...s.sigRow,borderBottom:i===R.sectorScores.length-1?'none':`0.5px solid ${T.accent}15`}}>
-                  <span style={{fontSize:'18px',width:'26px',textAlign:'center',flexShrink:0}}>{sec.icon}</span>
-                  <div style={{flex:1}}>
-                    <div style={s.sigName}>{sec.name}</div>
-                    <div style={s.sigSub}>{sec.score>=70?'Entry window now':sec.score>=58?'Monitor closely':sec.score>=46?'Hold existing':'Book profits / exit'}</div>
-                  </div>
-                  <span style={s.badge(sec.score)}>{sec.score>=72?'★ Buy':sec.score>=60?'Watch':sec.score>=46?'Hold':'Avoid'} · {sec.score}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* ── CALENDAR ── */}
-        {activeTab==='calendar' && (
-          <>
-            <div style={s.section}>
-              <p style={s.sectionTitle}>Monthly signal heatmap</p>
-              <div style={s.heatGrid}>
-                {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>(
-                  <div key={d} style={{textAlign:'center',fontSize:'9px',opacity:0.4,padding:'2px 0'}}>{d}</div>
+              <p style={s.sectionTitle}>Best days this month</p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px',marginBottom:'6px'}}>
+                {['S','M','T','W','T','F','S'].map((d,i)=>(
+                  <div key={i} style={{textAlign:'center',fontSize:'9px',opacity:0.3,padding:'2px 0'}}>{d}</div>
                 ))}
-                {Array(R.startDow).fill(null).map((_,i)=><div key={`b${i}`}/>)}
-                {R.calDays.map(d=>(
-                  <div key={d.d} style={s.heatDay(d.score,d.isMarket)}>{d.d}</div>
-                ))}
+                {R.calDays.map((d,i)=>{
+                  const col=!d.isMonth?'transparent':d.score>=65?'rgba(100,180,80,0.2)':d.score>=50?'rgba(201,168,76,0.12)':'rgba(224,92,92,0.08)';
+                  const tc=!d.isMonth?T.text+'20':d.score>=65?'#7DC66A':d.score>=50?'#c9a84c':'#E05C5C55';
+                  return(
+                    <div key={i} style={{borderRadius:'4px',padding:'4px 0',textAlign:'center',background:col,color:tc,fontSize:'10px',fontWeight:d.isMarket?600:400}}>
+                      {d.isMonth?d.d:''}
+                    </div>
+                  );
+                })}
               </div>
-              <div style={{display:'flex',gap:'12px',marginTop:'10px',fontSize:'10px',opacity:0.5,flexWrap:'wrap'}}>
-                <span>🟢 Bullish ≥65</span><span>🟡 Moderate 50–64</span><span>🔴 Caution &lt;50</span>
-              </div>
+              <p style={{fontSize:'10px',opacity:0.3,lineHeight:1.5}}>🟢 Good · 🟡 Neutral · 🔴 Avoid · Bold = market day</p>
             </div>
+
+            {/* Sectors */}
             <div style={s.section}>
-              <p style={s.sectionTitle}>Best entry windows this month</p>
-              {R.calDays.filter(d=>d.isMarket).sort((a,b)=>b.score-a.score).slice(0,8).map((d,i)=>(
-                <div key={i} style={{...s.sigRow,borderBottom:i===7?'none':`0.5px solid ${T.accent}15`}}>
-                  <div style={s.sigDot(d.score)}/>
-                  <div style={{flex:1}}>
-                    <div style={{...s.sigName,display:'flex',alignItems:'center',gap:'6px'}}>
-                      {R.date.slice(0,7)}-{String(d.d).padStart(2,'0')} ({VAAR_N[d.dow]})
-                      {d.isPushya&&<span style={{fontSize:'9px',background:'rgba(201,168,76,0.2)',color:'#c9a84c',padding:'1px 5px',borderRadius:'6px'}}>Pushya</span>}
-                      {d.isSpecialTithi&&<span style={{fontSize:'9px',background:'rgba(100,180,80,0.15)',color:'#7DC66A',padding:'1px 5px',borderRadius:'6px'}}>{TITHI_N[d.estTithi]}</span>}
-                    </div>
-                    <div style={s.sigSub}>
-                      {d.horaAtOpen} hora at open · {['-','Consumer/FMCG','Metals/Defence','IT/Banking','Banking/Finance','Auto/Pharma','-'][d.dow]}
-                    </div>
-                  </div>
-                  <span style={s.badge(d.score)}>{d.score}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* ── STOCK REPORT ── */}
-        {activeTab==='stock' && stockData && (()=>{
-          // ── reusable sub-components scoped here ──────────────────────────
-          const EvidenceRow = ({label, value, score, explain}) => (
-            <div style={{display:'flex',alignItems:'flex-start',gap:'8px',padding:'7px 0',borderBottom:`0.5px solid rgba(255,255,255,0.04)`}}>
-              <div style={{width:'6px',height:'6px',borderRadius:'50%',flexShrink:0,marginTop:'5px',
-                background:score>=65?'#7DC66A':score<42?'#E05C5C':'#c9a84c'}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:'11px',opacity:0.45,letterSpacing:'0.5px',marginBottom:'2px'}}>{label}</div>
-                <div style={{fontSize:'12px',fontWeight:500,color:score>=65?'#7DC66A':score<42?'#E05C5C':'#c9a84c',marginBottom:explain?'3px':'0'}}>{value}</div>
-                {explain&&<div style={{fontSize:'11px',opacity:0.5,lineHeight:1.5}}>{explain}</div>}
-              </div>
-              <div style={{fontSize:'10px',fontWeight:600,padding:'2px 7px',borderRadius:'8px',flexShrink:0,
-                background:score>=65?'rgba(100,180,80,0.10)':score<42?'rgba(224,92,92,0.10)':'rgba(201,168,76,0.10)',
-                color:score>=65?'#7DC66A':score<42?'#E05C5C':'#c9a84c',
-                border:`0.5px solid ${score>=65?'rgba(100,180,80,0.25)':score<42?'rgba(224,92,92,0.25)':'rgba(201,168,76,0.25)'}`}}>
-                {score}
-              </div>
-            </div>
-          );
-
-          const SectionHead = ({title,sub}) => (
-            <div style={{padding:'12px 0 8px',borderBottom:`0.5px solid rgba(255,255,255,0.06)`,marginBottom:'4px'}}>
-              <div style={{fontSize:'10px',letterSpacing:'2px',textTransform:'uppercase',color:'#c9a84c',opacity:0.7}}>{title}</div>
-              {sub&&<div style={{fontSize:'11px',opacity:0.4,marginTop:'2px'}}>{sub}</div>}
-            </div>
-          );
-
-          const PointCard = ({num,icon,title,verdict,verdictScore,children}) => (
-            <div style={{background:'rgba(255,255,255,0.025)',border:`0.5px solid rgba(255,255,255,0.06)`,borderRadius:'12px',padding:'14px',marginBottom:'10px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
-                <div style={{width:'28px',height:'28px',borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:700,
-                  background:verdictScore>=65?'rgba(100,180,80,0.12)':verdictScore<42?'rgba(224,92,92,0.10)':'rgba(201,168,76,0.10)',
-                  border:`0.5px solid ${verdictScore>=65?'rgba(100,180,80,0.3)':verdictScore<42?'rgba(224,92,92,0.25)':'rgba(201,168,76,0.25)'}`,
-                  color:verdictScore>=65?'#7DC66A':verdictScore<42?'#E05C5C':'#c9a84c'}}>
-                  {num}
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:'10px',opacity:0.4,letterSpacing:'1.5px',textTransform:'uppercase'}}>{icon} {title}</div>
-                  <div style={{fontSize:'14px',fontWeight:600,color:verdictScore>=65?'#7DC66A':verdictScore<42?'#E05C5C':'#c9a84c',marginTop:'2px'}}>{verdict}</div>
-                </div>
-              </div>
-              {children}
-            </div>
-          );
-
-          return (
-          <>
-            {/* ── HERO HEADER ── */}
-            <div style={{background:`linear-gradient(135deg,rgba(201,168,76,0.10) 0%,rgba(201,168,76,0.03) 100%)`,border:`1px solid rgba(201,168,76,0.28)`,borderRadius:'14px',padding:'16px',marginBottom:'14px',display:'flex',alignItems:'center',gap:'14px'}}>
-              <ScoreArc score={stockData.finalScore}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:'10px',letterSpacing:'2px',textTransform:'uppercase',opacity:0.4,marginBottom:'3px'}}>{stockData.sector}</div>
-                <div style={{fontSize:'20px',fontWeight:700,letterSpacing:'1px',color:'#c9a84c',marginBottom:'4px'}}>{stockData.symbol}</div>
-                <div style={{fontSize:'13px',fontWeight:500,color:stockData.finalScore>=65?'#7DC66A':stockData.finalScore<45?'#E05C5C':'#c9a84c'}}>
-                  {stockData.directionEmoji} {stockData.verdict}
-                </div>
-                <div style={{fontSize:'10px',opacity:0.4,marginTop:'4px'}}>
-                  Composite score: {stockData.finalScore}/100 · {stockData.probUp}% upward probability
-                </div>
-              </div>
-            </div>
-
-            {/* ── QUICK NUMBERS BAR ── */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px',marginBottom:'14px'}}>
-              {[
-                {l:'Target',v:`+${stockData.targetPct}%`,c:'#7DC66A'},
-                {l:'Max up',v:`+${stockData.highPct}%`,c:'#7DC66A'},
-                {l:'Stop-loss',v:`-${stockData.slPct}%`,c:'#E05C5C'},
-                {l:'R:R ratio',v:`${stockData.rrRatio}:1`,c:parseFloat(stockData.rrRatio)>=2?'#7DC66A':'#c9a84c'},
-              ].map((m,i)=>(
-                <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'9px 6px',textAlign:'center',border:`0.5px solid rgba(255,255,255,0.06)`}}>
-                  <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:'4px'}}>{m.l}</div>
-                  <div style={{fontSize:'16px',fontWeight:700,color:m.c}}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'18px'}}>
-              {[
-                {l:'Probability ↑',v:`${stockData.probUp}%`,c:'#c9a84c'},
-                {l:'Downside risk',v:`-${stockData.lowPct}%`,c:'#E05C5C'},
-                {l:'Horizon',v:stockData.horizon,c:'#c9a84c'},
-              ].map((m,i)=>(
-                <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'9px 6px',textAlign:'center',border:`0.5px solid rgba(255,255,255,0.06)`}}>
-                  <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:'4px'}}>{m.l}</div>
-                  <div style={{fontSize:'13px',fontWeight:600,color:m.c}}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* ══ POINT 00 — PRICE TECHNICALS (5-year Yahoo Finance data) ══ */}
-            {stockData.hasRealPriceData && stockData.priceTech && (
-              <PointCard num="00" icon="💹"
-                title={stockData.priceTech.source==='live' ? `Technical analysis — ${stockData.priceTech.dataPoints} days of data` : 'Price technicals — manual data'}
-                verdict={`Tech score: ${stockData.priceTech.priceScore}/100 · ₹${stockData.priceTech.currentPrice?.toFixed?.(2)??stockData.priceTech.currentPrice}`}
-                verdictScore={stockData.priceTech.priceScore}>
-
-                {stockData.priceTech.source==='live' && (
-                  <div style={{fontSize:'10px',color:'#7DC66A',opacity:0.8,marginBottom:'10px',letterSpacing:'0.5px'}}>
-                    ✓ All indicators auto-computed from {stockData.priceTech.dataPoints} trading days (~5 years) of Yahoo Finance data
-                  </div>
-                )}
-
-                {/* Price snapshot */}
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'12px'}}>
-                  {[
-                    {l:'Current', v:`₹${stockData.priceTech.currentPrice?.toFixed?.(2)??'—'}`, c:'#c9a84c'},
-                    {l:'200-DMA', v:stockData.priceTech.dma200?`₹${stockData.priceTech.dma200?.toFixed?.(2)??stockData.priceTech.dma200}`:'—', c:'#fff'},
-                    {l:'50-DMA',  v:stockData.priceTech.dma50?`₹${stockData.priceTech.dma50?.toFixed?.(2)??'—'}`:'—', c:'#fff'},
-                    {l:'52w High',v:`₹${stockData.priceTech.high52w?.toFixed?.(2)??'—'}`, c:'#7DC66A'},
-                    {l:'52w Low', v:`₹${stockData.priceTech.low52w?.toFixed?.(2)??'—'}`,  c:'#E05C5C'},
-                    {l:'5y High', v:stockData.priceTech.high5y?`₹${stockData.priceTech.high5y?.toFixed?.(2)??'—'}`:'—', c:'#7DC66A'},
-                  ].map((m,i)=>(
-                    <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'8px 6px',textAlign:'center'}}>
-                      <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:'3px'}}>{m.l}</div>
-                      <div style={{fontSize:'12px',fontWeight:600,color:m.c}}>{m.v}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <EvidenceRow label="200-DMA position" value={stockData.priceTech.dmaSignal} score={stockData.priceTech.dmaScore}
-                  explain={`The 200-DMA is the most-watched institutional level. Price above it = bull market. Price below = bear territory. Your score: ${stockData.priceTech.dmaScore}/100.`}/>
-
-                {stockData.priceTech.source==='live' && stockData.priceTech.slopeSignal && (
-                  <EvidenceRow label="200-DMA slope (trend direction)" value={stockData.priceTech.slopeSignal} score={stockData.priceTech.slopeScore}
-                    explain={`A rising 200-DMA confirms a long-term uptrend. A flat or falling DMA means the long-term trend is weakening. This is calculated from actual price history, not estimated.`}/>
-                )}
-
-                <EvidenceRow label="RSI (14-day)" value={stockData.priceTech.rsiSignal} score={stockData.priceTech.rsiScore}
-                  explain={`RSI: above 70 = overbought, below 30 = oversold. ${stockData.priceTech.source==='live'?'Auto-computed from actual daily closes.':'Manually entered.'}`}/>
-
-                {stockData.priceTech.source==='live' && stockData.priceTech.macd && (
-                  <EvidenceRow label="MACD" value={stockData.priceTech.macdSignal} score={stockData.priceTech.macdScore}
-                    explain={`MACD (Moving Average Convergence Divergence): histogram above zero = bullish momentum building. Below zero = bearish. A crossover from negative to positive is a classic buy signal.`}/>
-                )}
-
-                {stockData.priceTech.source==='live' && stockData.priceTech.boll && (
-                  <EvidenceRow label="Bollinger Bands" value={stockData.priceTech.bollSignal} score={stockData.priceTech.bollScore}
-                    explain={`Bollinger Bands mark 2 standard deviations above/below the 20-day average. Price near lower band = oversold / value zone. Near upper band = stretched. Band: ₹${stockData.priceTech.boll.lower} – ₹${stockData.priceTech.boll.upper}`}/>
-                )}
-
-                {stockData.priceTech.source==='live' && stockData.priceTech.rangePos5y && (
-                  <EvidenceRow label="5-year range percentile" value={stockData.priceTech.range5ySignal} score={stockData.priceTech.range5yScore}
-                    explain={`Where the current price sits within its 5-year trading range. Bottom 20% of 5-year range = multi-year accumulation opportunity. Top 20% = momentum play, elevated valuation risk. 5y range: ₹${stockData.priceTech.low5y?.toFixed(2)} – ₹${stockData.priceTech.high5y?.toFixed(2)}`}/>
-                )}
-
-                {stockData.priceTech.source==='live' && stockData.priceTech.volSignal && (
-                  <EvidenceRow label="Volume signal" value={stockData.priceTech.volSignal} score={stockData.priceTech.volScore}
-                    explain="High volume on a move = institutional conviction. Low volume = weak signal, likely to reverse. Volume is compared to the 20-day average."/>
-                )}
-
-                {stockData.priceTech.source!=='live' && (
-                  <EvidenceRow label="52-week range position" value={`${stockData.priceTech.rangePosition}% · ${stockData.priceTech.pctFromHigh}% below 52w high`} score={stockData.priceTech.rangeScore}
-                    explain={`52-week range: ₹${stockData.priceTech.low52w} – ₹${stockData.priceTech.high52w}. Lower position with improving momentum = best risk/reward entries.`}/>
-                )}
-
-                <div style={{fontSize:'10px',opacity:0.4,marginTop:'8px',lineHeight:1.5,fontStyle:'italic'}}>
-                  {stockData.priceTech.source==='live'
-                    ? `7 indicators computed from ${stockData.priceTech.dataPoints} trading days. Technical layer (12%) blended with astrology for final score.`
-                    : 'Manual price data used. Hit Analyse again after typing stock name for auto 5-year data.'}
-                </div>
-              </PointCard>
-            )}
-            {!stockData.hasRealPriceData && (
-              <div style={{...s.alert('warn'),marginBottom:'12px'}}>
-                <strong>⚠ No price data fetched</strong> — type the stock name and hit Analyse to auto-load 5 years of Yahoo Finance data and compute all technical indicators automatically.
-              </div>
-            )}
-
-            {/* ══ POINT 01 — OVERALL VERDICT ════════════════════════════════ */}
-            <PointCard num="01" icon="⚖️" title="Overall verdict" verdict={stockData.finalScore>=75?'STRONG BUY':stockData.finalScore>=62?'BUY — tranches only':stockData.finalScore>=50?'HOLD / NEUTRAL':stockData.finalScore>=40?'REDUCE exposure':'EXIT / AVOID'} verdictScore={stockData.finalScore}>
-              <EvidenceRow label="Composite model score" value={`${stockData.finalScore}/100`} score={stockData.finalScore} explain={`Weighted average of 6 independent signal layers: Vedic (32%) + Dasha (8%) + Western astrology (16%) + Lunar science (10%) + Economic macro (22%) + Technical (12%).`}/>
-              <EvidenceRow label="Bullish layers" value={`${R.bullLayers} of 6 layers scoring ≥62`} score={R.bullLayers>=4?80:R.bullLayers>=3?62:38} explain={`Each layer is scored 0–100. A layer scoring ≥62 is counted bullish. ${R.bullLayers}/6 bullish = ${R.bullLayers>=5?'strong':'R.bullLayers>=3?moderate:weak'} confluence.`}/>
-              <EvidenceRow label="Investment advisability" value={stockData.advisability} score={stockData.isAdvisable?78:38} explain={`Requires: composite ≥62, Mercury direct, ≥2 Vedic signals bullish, R:R ≥1.5. Current: ${stockData.finalScore>=62?'✓':'✗'} score, ${!stockData.retroWarn?'✓':'✗'} Mercury, ${stockData.vedicBull}/${4} Vedic, ${stockData.rrRatio}:1 R:R.`}/>
-            </PointCard>
-
-            {/* ══ POINT 02 — DIRECTION ══════════════════════════════════════ */}
-            <PointCard num="02" icon="📈" title="Will it go up?" verdict={stockData.directionCall} verdictScore={stockData.probUp}>
-              <EvidenceRow label="Statistical upward probability" value={`${stockData.probUp}%`} score={stockData.probUp} explain={`Formula: Base 40% + (${R.bullLayers} bullish layers × 8%) = ${stockData.probUp}%. Each independent bullish signal multiplicatively increases directional confidence. Based on confluence model, not price prediction.`}/>
-              <EvidenceRow label="Downward probability" value={`${stockData.probDown}%`} score={100-stockData.probDown} explain="If all signals are independent, the probability signals fail simultaneously is lower. However, markets are not fully efficient — use this as a framework, not a guarantee."/>
-              <EvidenceRow label="Sector direction" value={`${stockData.sector}: score ${stockData.sectorScore}/100`} score={stockData.sectorScore} explain={`Sector score combines planetary activation, dasha ruling planet, nakshatra sectors, rate cycle fit, and market phase. Score ≥70 = tailwind for stocks in this sector.`}/>
-              <EvidenceRow label="Market phase bias" value={`Vedic ${R.paksha} Paksha`} score={R.paksha==='Shukla'?72:42} explain={`Shukla Paksha (waxing moon): classical accumulation phase, historically bullish. Krishna Paksha (waning): classical exit phase. Current: ${R.paksha} Paksha — ${R.paksha==='Shukla'?'supports upward bias':'suggests caution on fresh buys'}.`}/>
-            </PointCard>
-
-            {/* ══ POINT 03 — UPSIDE ════════════════════════════════════════ */}
-            <PointCard num="03" icon="🚀" title="How high can it go?" verdict={`Realistic: +${stockData.targetPct}% · Max: +${stockData.highPct}%`} verdictScore={stockData.finalScore}>
-              <EvidenceRow label="Realistic target" value={`+${stockData.targetPct}% in ${stockData.horizon}`} score={stockData.finalScore} explain={`Calculated as 72% of maximum upside. The 72% factor accounts for mean reversion, partial signal accuracy, and typical overshoot trimming in Indian mid-term equity trades.`}/>
-              <EvidenceRow label="Maximum upside scenario" value={`+${stockData.highPct}%`} score={stockData.finalScore} explain={`Score band → upside model: 80+→28%, 70–79→20%, 60–69→13%, 50–59→7%, below 50→3%. Calibrated to NSE Nifty50/sectoral index historical returns in similar astrological-technical confluence windows.`}/>
-              <EvidenceRow label="Dasha planet upside boost" value={`${R.dasha.maha} Mahadasha → ${(PLANET_SEC[R.dasha.maha]||[]).slice(0,2).join(', ')}`} score={stockData.dashaFav?80:48} explain={`${R.dasha.maha} is ${['Jupiter','Venus','Mercury'].includes(R.dasha.maha)?'a benefic planet — historically correlated with expansion in its ruled sectors.':'a neutral/malefic planet — upside may be more muted or volatile.'}`}/>
-              <EvidenceRow label="Nakshatra sector alignment" value={`${NAK_NAMES[R.moonNak]} → ${NAK_SEC[R.moonNak].join(', ')}`} score={NAK_Q[R.moonNak]} explain={`Moon in ${NAK_NAMES[R.moonNak]} (${NAK_NATURE[R.moonNak]} nature, score ${NAK_Q[R.moonNak]}/100). This nakshatra activates ${NAK_SEC[R.moonNak].join(' and ')} sectors. ${stockData.sectorId&&NAK_SEC[R.moonNak].some(ns=>stockData.sector.toLowerCase().includes(ns.toLowerCase()))?'✓ Direct alignment with your stock\'s sector.':'Indirect alignment — sector boost partial.'}`}/>
-            </PointCard>
-
-            {/* ══ POINT 04 — STOP LOSS ═════════════════════════════════════ */}
-            <PointCard num="04" icon="🛑" title="Stop-loss level" verdict={`-${stockData.slPct}% below your entry price`} verdictScore={parseFloat(stockData.rrRatio)>=2?80:parseFloat(stockData.rrRatio)>=1.5?65:40}>
-              <EvidenceRow label="Stop-loss percentage" value={`-${stockData.slPct}%`} score={70} explain={`Stop-loss formula: composite ≥70→6%, 58–69→8%, 48–57→10%, below 48→13%. Higher-confidence signals = tighter stop because downside should be limited. Lower-confidence = wider stop to avoid premature exits.`}/>
-              <EvidenceRow label="Risk / Reward ratio" value={`${stockData.rrRatio} : 1`} score={parseFloat(stockData.rrRatio)>=2?80:parseFloat(stockData.rrRatio)>=1.5?65:38} explain={`R:R = Realistic target (${stockData.targetPct}%) ÷ Stop-loss (${stockData.slPct}%) = ${stockData.rrRatio}. ${parseFloat(stockData.rrRatio)>=2?'Excellent — worth the trade.':parseFloat(stockData.rrRatio)>=1.5?'Acceptable — proceed with normal sizing.':parseFloat(stockData.rrRatio)>=1?'Marginal — trade only with reduced size.':'Poor R:R — avoid until better window.'}`}/>
-              <EvidenceRow label="Position sizing rule" value="Max 1–2% portfolio risk per trade" score={65} explain={`If stop-loss is ${stockData.slPct}% and your max acceptable loss is 2% of portfolio: max position size = 2% ÷ ${stockData.slPct}% = ${(2/stockData.slPct*100).toFixed(0)}% of portfolio. Never exceed this regardless of conviction.`}/>
-              <EvidenceRow label="Volatility flag" value={R.debil.length?`Debilitated: ${R.debil.join(', ')} → wider moves`:R.retro.Mercury?'Mercury retrograde → erratic price action':'No major volatility flags'} score={R.debil.length||R.retro.Mercury?38:72} explain={`Debilitated planets and Mercury retrograde historically increase intraday volatility and false breakouts. ${R.debil.length||R.retro.Mercury?'Reduce position size by 30% and widen stop slightly.':'Volatility conditions are normal.'}`}/>
-            </PointCard>
-
-            {/* ══ POINT 05 — DOWNSIDE RISK ════════════════════════════════ */}
-            <PointCard num="05" icon="📉" title="Downside risk if signals fail" verdict={`Max drawdown risk: -${stockData.lowPct}% · Protected by -${stockData.slPct}% stop`} verdictScore={stockData.lowPct<=8?75:stockData.lowPct<=12?55:35}>
-              <EvidenceRow label="Unprotected downside" value={`-${stockData.lowPct}% in adverse scenario`} score={stockData.lowPct<=8?75:stockData.lowPct<=12?55:32} explain={`If all confluence signals fail: composite ≥70→-6%, 55–69→-9%, 45–54→-12%, below 45→-18%. These are modelled on worst-case corrections in NSE stocks during similar astrological windows where signals were wrong.`}/>
-              <EvidenceRow label="Your actual protected loss" value={`-${stockData.slPct}% (with stop-loss active)`} score={72} explain="Your stop-loss caps the actual loss at this percentage. The difference between stop-loss and max downside is the gap that would occur during a gap-down opening — which is why stop-losses aren't always perfect."/>
-              <EvidenceRow label="Bearish layer count" value={`${R.bearLayers} of 6 layers bearish`} score={R.bearLayers<=1?75:R.bearLayers<=2?55:32} explain={`${R.bearLayers} signal layer(s) are scoring below 42 (bearish zone). ${R.bearLayers>=4?'High bearish confluence — serious downside risk.':R.bearLayers>=2?'Moderate bearish signals present — reduce size.':'Low bearish count — signals mostly favourable.'}`}/>
-              {R.retro.Mercury&&<EvidenceRow label="⚠ Mercury retrograde risk" value="IT/Banking/Telecom stocks at elevated risk" score={28} explain="Mercury retrograde correlates with communication breakdowns, contract delays, and mispricings in Mercury-ruled sectors (IT, telecom, banking, media). Historical false-breakout rate increases ~15–20% during these windows."/>}
-              {R.debil.length>0&&<EvidenceRow label={`⚠ Debilitated: ${R.debil.join(', ')}`} value="Weakened planetary energy in ruled sectors" score={30} explain={`Debilitated planets cannot fully support their ruled sectors. ${R.debil.map(p=>`${p} rules ${(PLANET_SEC[p]||[]).slice(0,2).join('/')}`).join('; ')}. These sectors may underperform or show higher volatility.`}/>}
-            </PointCard>
-
-            {/* ══ POINT 06 — VEDIC ASTROLOGY EVIDENCE ════════════════════ */}
-            <PointCard num="06" icon="🪐" title="Vedic astrology — full evidence" verdict={`${stockData.vedicBull}/4 Vedic signals bullish · Score ${R.vedicScore}/100`} verdictScore={R.vedicScore}>
-              <SectionHead title="Vimshottari Dasha" sub="Planetary periods ruling your life and market energy"/>
-              <EvidenceRow label="Mahadasha (major period)" value={`${R.dasha.maha} — ${['Jupiter','Venus','Mercury'].includes(R.dasha.maha)?'Bullish planet ✓':'Neutral/bearish ✗'}`} score={['Jupiter','Venus','Mercury'].includes(R.dasha.maha)?82:['Moon','Sun'].includes(R.dasha.maha)?60:42} explain={`${R.dasha.maha} Mahadasha activates sectors: ${(PLANET_SEC[R.dasha.maha]||[]).join(', ')}. Seeded from NSE natal chart (4 Nov 1992, 09:15 IST, Mumbai) — the actual Vimshottari Dasha of the Indian market.`}/>
-              <EvidenceRow label="Antardasha (sub-period)" value={`${R.dasha.antar} — boosts ${(PLANET_SEC[R.dasha.antar]||[]).slice(0,2).join(', ')}`} score={['Jupiter','Venus','Mercury'].includes(R.dasha.antar)?75:52} explain={`Antardasha planet ${R.dasha.antar} runs within the Mahadasha and colours daily market behaviour. Its sectors receive additional energy: ${(PLANET_SEC[R.dasha.antar]||[]).join(', ')}.`}/>
-              <EvidenceRow label="Pratyantar Dasha (sub-sub period)" value={`${R.dasha.pratyantar} — week-to-week signal`} score={['Jupiter','Venus','Mercury'].includes(R.dasha.pratyantar)?72:48} explain={`Pratyantar Dasha runs for days to weeks and provides week-to-week precision. ${R.dasha.pratyantar} as Pratyantar activates: ${(PLANET_SEC[R.dasha.pratyantar]||[]).slice(0,2).join(', ')}. When Maha + Antar + Pratyantar are all benefic planets, it is a rare triple-bullish Dasha window.`}/>
-
-              <SectionHead title="Panchang — today's muhurta quality" sub="The 5 limbs of the Vedic almanac"/>
-              <EvidenceRow label={`Nakshatra: ${NAK_NAMES[R.moonNak]}`} value={`${NAK_NATURE[R.moonNak]} nature · Score ${NAK_Q[R.moonNak]}/100`} score={NAK_Q[R.moonNak]} explain={`Moon in ${NAK_NAMES[R.moonNak]}, ruled by ${NAK_RULER[R.moonNak]}. ${NAK_NATURE[R.moonNak]} nakshatras are ${NAK_NATURE[R.moonNak]==='Laghu'?'light and swift — good for quick entries':NAK_NATURE[R.moonNak]==='Sthira'?'stable and fixed — good for long-term positions':NAK_NATURE[R.moonNak]==='Mridu'?'soft and gentle — favourable for all auspicious work':NAK_NATURE[R.moonNak]==='Tikshna'?'sharp and fierce — better for exits than entries':NAK_NATURE[R.moonNak]==='Chara'?'movable — good for short-term trades':'of mixed nature'}. Sectors activated: ${NAK_SEC[R.moonNak].join(', ')}.`}/>
-              <EvidenceRow label={`Tithi: ${TITHI_N[R.tithiNum]} (${R.tithiNum})`} value={TITHI_Q[R.tithiNum]>=68?'Auspicious ✓':[4,8,13].includes(R.tithiNum)?'Rikta — avoid ✗':R.tithiNum===16?'Amavasya — avoid ✗':'Moderate'} score={TITHI_Q[R.tithiNum]} explain={`Tithi score: ${TITHI_Q[R.tithiNum]}/100. ${[4,8,13].includes(R.tithiNum)?'Rikta (empty) tithis 4, 8, 13 — classical prohibition on new financial commitments. Muhurta Chintamani strictly forbids investments on these.':R.tithiNum===15?'Purnima (Full moon) — maximum energy, auspicious for bold entries.':R.tithiNum===11?'Ekadashi — considered most auspicious tithi for wealth-related decisions in all classical texts.':R.tithiNum===16?'Amavasya — new moon, considered inauspicious for new beginnings in Vedic tradition.':'Standard tithi — no special prohibitions or blessings.'}`}/>
-              <EvidenceRow label={`Vaar: ${VAAR_N[R.dow]} (${VAAR_L[R.dow]})`} value={`Score ${VAAR_Q[R.dow]}/100`} score={VAAR_Q[R.dow]} explain={`${VAAR_N[R.dow]} is ruled by ${VAAR_L[R.dow]}. ${R.dow===4?'Thursday (Jupiter) is the most auspicious day for all financial decisions — Dalal Street historically shows stronger institutional buying on Thursdays.':R.dow===3?'Wednesday (Mercury) — excellent for IT, banking, trading, and communication stocks.':R.dow===5?'Friday (Venus) — good for consumer, auto, pharma, and luxury stocks.':R.dow===1?'Monday (Moon) — consumer sentiment high, FMCG and retail stocks benefit.':R.dow===0?'Sunday — market closed. Analysis for Monday open.':R.dow===2?'Tuesday (Mars) — volatile energy. Metals and defence can see sharp moves.':'Saturday — market closed. Saturn\'s day — infrastructure and oil stocks benefit when open.'}`}/>
-              <EvidenceRow label={`Hora at ${R.time}: ${R.horaData.planet}`} value={`Score ${R.horaData.quality}/100`} score={R.horaData.quality} explain={`The planetary hora (60-min ruling period) at your analysis time is ${R.horaData.planet}. ${R.horaData.planet==='Jupiter'?'Jupiter hora — supreme for all investments. Best 60 minutes of the week for entering positions.':R.horaData.planet==='Venus'?'Venus hora — good for consumer, pharma, luxury entries.':R.horaData.planet==='Mercury'?'Mercury hora — IT, banking, logistics perform well.':r.horaData.planet==='Moon'?'Moon hora — consumer sentiment plays, FMCG.':r.horaData.planet==='Mars'?'Mars hora — volatile. Metals and defence can spike.':r.horaData.planet==='Saturn'?'Saturn hora — slow, defensive. Infrastructure, oil.':'Sun hora — PSU, gold, government stocks.'}`}/>
-              <EvidenceRow label="Paksha (lunar fortnight)" value={`${R.paksha} Paksha · Score ${R.paksha==='Shukla'?72:42}/100`} score={R.paksha==='Shukla'?72:42} explain={`${R.paksha==='Shukla'?'Shukla Paksha (waxing moon, day 1–15): Classical accumulation phase. Energy increases with moon. Vedic tradition recommends new investments, business starts, and purchases during this half.':'Krishna Paksha (waning moon, day 16–30): Classical exit/reduction phase. Energy decreases. Better for booking profits, reducing positions, paying debts. Avoid major new entries.'}`}/>
-
-              <SectionHead title="Planetary strength" sub="Exaltation, debilitation, retrograde"/>
-              {R.exalted.length>0&&<EvidenceRow label={`Exalted: ${R.exalted.join(', ')}`} value="✓ Strengthened planetary energy" score={80} explain={`Exalted planets are at maximum strength — like an emperor in their own palace. ${R.exalted.map(p=>`${p} exalted in ${RASHI[R.planets[p].sign]} (${RASHI_EN[R.planets[p].sign]}) at ${R.planets[p].deg.toFixed(1)}° — powerfully activates ${(PLANET_SEC[p]||[]).slice(0,2).join(', ')}`).join('. ')}.`}/>}
-              {R.debil.length>0&&<EvidenceRow label={`Debilitated: ${R.debil.join(', ')}`} value="✗ Weakened — sectors under stress" score={28} explain={`Debilitated planets are in their weakest sign — like a king in exile. ${R.debil.map(p=>`${p} debilitated in ${RASHI[R.planets[p].sign]} — ${(PLANET_SEC[p]||[]).slice(0,2).join('/')} under pressure`).join('. ')}.`}/>}
-              {R.retro.Mercury&&<EvidenceRow label="Mercury retrograde ⚠" value="IT / Banking / Telecom caution" score={28} explain="Mercury moves backward (apparent retrograde). Classical and modern traders both note increased false signals, communication failures, contract reversals, and technology glitches during Mercury retrograde. IT and banking stocks historically show higher volatility and mean-reversion."/>}
-              {R.retro.Saturn&&<EvidenceRow label="Saturn retrograde" value="Value over growth — delay capex plays" score={52} explain="Saturn retrograde internalises Saturn's energy. Infrastructure and capex-heavy stocks may face delays. Long-term value investing can work but avoid momentum plays in Saturn-ruled sectors (oil, mining, steel)."/>}
-              {R.retro.Jupiter&&<EvidenceRow label="Jupiter retrograde" value="Expansion slows — defensive positioning" score={48} explain="Jupiter retrograde pulls back its expansionary energy. Banking and finance may consolidate rather than rally. Review rather than expand. Good for re-evaluating existing positions, not starting fresh."/>}
-
-              <SectionHead title="Special yogas" sub="Classical auspicious/inauspicious combinations"/>
-              {R.yogas.length===0&&<div style={{fontSize:'11px',opacity:0.4,padding:'6px 0'}}>No special yogas active today</div>}
-              {R.yogas.map((y,i)=><EvidenceRow key={i} label={y.name} value={y.note} score={y.type==='good'?80:28} explain={`Yoga boost to composite score: ${y.boost>0?'+':''}${y.boost} points. ${y.type==='good'?'This yoga strengthens the auspiciousness of the muhurta for financial decisions.':'This inauspicious combination weakens the muhurta. Proceed only if other signals are strongly positive.'}`}/>)}
-
-              <SectionHead title="Ashtakvarga" sub="Classical point-scoring system for planetary strength in each sign"/>
-              {Object.entries(R.ashtak).map(([p,sc],i)=>(
-                <EvidenceRow key={i} label={`${p} — BAV score`} value={`${sc}/8 points`} score={sc>=5?80:sc>=3?55:32} explain={`${sc>=5?`${p} is strong in current position — ${sc}/8 auspicious points from contributing planets. Sectors: ${(PLANET_SEC[p]||[]).slice(0,2).join(', ')} well-supported.`:sc>=3?`${p} is moderately placed — ${sc}/8 points. Average support for its ruled sectors.`:`${p} is weak — only ${sc}/8 points. Sectors: ${(PLANET_SEC[p]||[]).slice(0,2).join(', ')} may underperform.`}`}/>
-              ))}
-            </PointCard>
-
-            {/* ══ POINT 07 — WESTERN ASTROLOGY EVIDENCE ═══════════════════ */}
-            <PointCard num="07" icon="⭐" title="Western astrology — full evidence" verdict={`Jupiter in ${RASHI[R.planets.Jupiter.sign]} · Saturn in ${RASHI[R.planets.Saturn.sign]} · ${R.jsAspect.name}`} verdictScore={R.westernScore}>
-              <SectionHead title="Jupiter transit (12-year cycle)" sub="The great benefic — expansion, growth, optimism"/>
-              <EvidenceRow label={`Jupiter in ${RASHI[R.planets.Jupiter.sign]} (${RASHI_EN[R.planets.Jupiter.sign]})`} value={`Sign score: ${R.jupSignQ}/100 (classical derivation)`} score={R.jupSignQ} explain={`Jupiter transits each sign for ~1 year. Score derived from classical rules: exalt=90, own sign=78, friendly=68, neutral=55, debil=22. In ${RASHI_EN[R.planets.Jupiter.sign]}: ${R.jupSignQ>=80?'Exalted/own sign — maximum benefic energy. Banking and finance rally strongly.':R.jupSignQ>=68?'Favourable sign — expansion supported. Growth sectors outperform.':R.jupSignQ>=55?'Neutral sign — selective growth. Stock picking matters more.':'Challenging sign — Jupiter\'s growth energy is constrained.'}`}/>
-              <EvidenceRow label="Jupiter's degree position" value={`${R.planets.Jupiter.deg.toFixed(2)}° in ${RASHI[R.planets.Jupiter.sign]}`} score={60} explain={`Jupiter is at ${R.planets.Jupiter.deg.toFixed(1)}° of ${RASHI[R.planets.Jupiter.sign]}. ${R.planets.Jupiter.deg<5?'Early degrees — Jupiter\'s energy is building, sector rotation beginning.':R.planets.Jupiter.deg>25?'Late degrees — Jupiter about to change sign, transition period, temporary uncertainty.':'Mid-sign — stable transit, full Jupiter energy active.'} Ruling nakshatra: ${NAK_NAMES[R.planets.Jupiter.nakIdx]}.`}/>
-              {R.retro.Jupiter&&<EvidenceRow label="Jupiter retrograde" value="Expansion pauses — review not expand" score={45} explain="Jupiter appears to move backward from Earth's perspective. Historically markets consolidate rather than make new highs during Jupiter retrograde. Re-evaluation period. Banking and education stocks may lag."/>}
-
-              <SectionHead title="Saturn transit (29-year cycle)" sub="The taskmaster — discipline, structure, long-term value"/>
-              <EvidenceRow label={`Saturn in ${RASHI[R.planets.Saturn.sign]} (${RASHI_EN[R.planets.Saturn.sign]})`} value={`Sign score: ${R.satSignQ}/100 (classical derivation)`} score={R.satSignQ} explain={`Saturn transits each sign for ~2.5 years. Score derived from classical rules. In ${RASHI_EN[R.planets.Saturn.sign]}: ${R.satSignQ>=80?'Exalted or own sign — Saturn at maximum strength. Infrastructure, oil, and long-term value stocks excel.':R.satSignQ>=65?'Favourable — Saturn\'s discipline creates stable market structure.':r.satSignQ>=45?'Neutral — mixed signals from Saturn\'s influence.':'Challenging — Saturn weak or in enemy sign. Delays, contraction, volatility in Saturn-ruled sectors.'}`}/>
-              {R.retro.Saturn&&<EvidenceRow label="Saturn retrograde" value="Karma revisited — value beats growth" score={52} explain="Saturn retrograde is less negative than feared. Markets often revisit structural support levels. Long-term value investors find good entry points. Avoid momentum plays. Oil and infra stocks often stabilise."/>}
-
-              <SectionHead title="Jupiter-Saturn aspect (20-year macro cycle)" sub="The most studied outer-planet cycle in financial astrology"/>
-              <EvidenceRow label={`Current aspect: ${R.jsAspect.name}`} value={R.jsAspect.note} score={R.jsAspect.q} explain={`Jupiter at ${R.planets.Jupiter.deg.toFixed(1)}° ${RASHI[R.planets.Jupiter.sign]} vs Saturn at ${R.planets.Saturn.deg.toFixed(1)}° ${RASHI[R.planets.Saturn.sign]}. Angular separation: ${Math.abs(mod360(R.planets.Jupiter.lng-R.planets.Saturn.lng)).toFixed(1)}°. The 20-year Jupiter-Saturn conjunction cycle has been studied since Babylonian astronomy. Mundane astrologers track: conjunction (0°)=structural shift, trine (120°)=sustained growth, square (90°)=stress, opposition (180°)=peak tension.`}/>
-
-              <SectionHead title="Eclipse proximity" sub="Solar/lunar eclipse windows create volatility"/>
-              {(()=>{
-                const sunToRahu=Math.abs(mod360(R.planets.Sun.lng-R.planets.Rahu.lng));
-                const moonToRahu=Math.abs(mod360(R.planets.Moon.lng-R.planets.Rahu.lng));
-                const nearSolar=sunToRahu<18||sunToRahu>342;
-                const nearLunar=moonToRahu<12||moonToRahu>348;
-                return nearSolar||nearLunar?(
-                  <EvidenceRow label={nearSolar?'⚠ Solar eclipse window':'⚠ Lunar eclipse window'} value="High volatility — avoid new entries" score={25} explain={`${nearSolar?`Sun is within 18° of Rahu (${sunToRahu.toFixed(1)}°). Solar eclipse window active. ±2 weeks around eclipses historically show elevated volatility, gap moves, and false breakouts. Vedic tradition: inauspicious for new financial commitments.`:`Moon is within 12° of Rahu (${moonToRahu.toFixed(1)}°). Lunar eclipse proximity. Emotional market swings, overnight gap risk elevated.`}`}/>
-                ):(
-                  <EvidenceRow label="No eclipse proximity" value="✓ Clear of eclipse influence" score={72} explain={`Sun is ${Math.abs(mod360(R.planets.Sun.lng-R.planets.Rahu.lng)).toFixed(0)}° from Rahu — well outside the eclipse shadow zone (18°). Moon is ${Math.abs(mod360(R.planets.Moon.lng-R.planets.Rahu.lng)).toFixed(0)}° from Rahu. No eclipse-related volatility risk currently.`}/>
-                );
-              })()}
-            </PointCard>
-
-            {/* ══ POINT 08 — LUNAR SCIENCE EVIDENCE ══════════════════════ */}
-            <PointCard num="08" icon="🌕" title="Lunar science — evidence-based" verdict={`${R.phase.name} ${R.phase.emoji} · Dichev score ${R.phase.dichev}/100`} verdictScore={R.lunarScore}>
-              <EvidenceRow label="Moon phase (Dichev-Janes model)" value={`${R.phase.name} · Score ${R.phase.dichev}/100`} score={R.phase.dichev} explain={`Dichev & Janes (2003) — "Lunar cycle effects in stock returns" — Journal of Finance. Study of 48 countries over 40 years found statistically significant higher returns in 15 days around full moon vs new moon. Effect size: ~3–5% annualised difference. Current phase: ${R.phase.name}. ${R.phase.dichev>=70?'Historically bullish window.':R.phase.dichev<=40?'Historically lower-return window.':'Neutral lunar window.'}`}/>
-              <EvidenceRow label="Paksha bias (Vedic + scientific)" value={`${R.paksha} Paksha · ${R.paksha==='Shukla'?'Accumulation phase':'Exit phase'}`} score={R.paksha==='Shukla'?72:42} explain={`Vedic Shukla Paksha = modern waxing moon phase. Both traditions agree: waxing moon supports positive sentiment, risk-on behaviour. Waning moon: risk-off, profit-booking behaviour. The Dichev model and Vedic tradition converge here.`}/>
-              <EvidenceRow label="Tithi lunar energy" value={`${TITHI_N[R.tithiNum]} — ${TITHI_Q[R.tithiNum]>=68?'high energy':'low/inauspicious energy'}`} score={TITHI_Q[R.tithiNum]} explain={`Tithi ${R.tithiNum}: ${R.tithiNum===11?'Ekadashi — most auspicious. Maximum pitta (fire) energy in classical Ayurveda — decision-making clarity at peak.':R.tithiNum===15?'Purnima — full moon, maximum liquid energy, heightened emotions and market sentiment swings.':R.tithiNum===16?'Amavasya — new moon, minimum light, classical rest period. Markets often drift or reverse.':r.tithiNum===4||r.tithiNum===8||r.tithiNum===13?'Rikta (empty) tithi — energy withdrawn. Poor for new beginnings.':'Standard tithi energy level.'}`}/>
-              <EvidenceRow label="Yuan et al model (emerging markets)" value={`Emerging market lunar pattern: ${R.phase.dichev<=45?'New moon bullish (Yuan)':'Less applicable in current phase'}`} score={55} explain="Yuan, Zheng & Zhu (2006) found some emerging markets show opposite lunar pattern to Dichev — new moon bullish, full moon bearish. For NSE, evidence supports Dichev model more strongly. Yuan model noted here for completeness."/>
-            </PointCard>
-
-            {/* ══ POINT 09 — ENTRY TIMING ═════════════════════════════════ */}
-            <PointCard num="09" icon="📅" title="Best entry timing this month" verdict={stockData.bestDate} verdictScore={stockData.bestDay?.score||55}>
-              <EvidenceRow label="Best calendar day" value={stockData.bestDate} score={stockData.bestDay?.score||55} explain={`Highest-scoring market day this month based on: vaar quality (40%) + estimated tithi (33%) + western cycle (15%) + lunar score (12%). Score: ${stockData.bestDay?.score||'N/A'}/100.`}/>
-              <EvidenceRow label="Best time of day to enter" value="9:15–10:00 AM IST (market open)" score={72} explain="The opening hora of the trading session carries the energy of the day's ruling planet. Enter during Jupiter hora (Thursday) or Mercury hora (Wednesday) at open. Avoid entry in the last 30 minutes when institutional rebalancing creates false moves."/>
-              <EvidenceRow label="Ideal nakshatra window" value="Pushya · Hasta · Rohini · Revati · Punarvasu" score={82} explain={`These are the 5 highest-quality nakshatras for financial entry (scores 85–96/100). Current nakshatra: ${NAK_NAMES[R.moonNak]} (${NAK_Q[R.moonNak]}/100). ${[7,12,3,26,6].includes(R.moonNak)?'✓ You are currently in a top-tier nakshatra window.':'When Moon transits Pushya (every ~27 days), Hasta, or Rohini — that is your optimal entry window.'}`}/>
-              <EvidenceRow label="Ideal tithi window" value="Ekadashi (11) · Dwadashi (12) · Dashami (10) · Purnima (15)" score={78} explain={`Poorna (full) tithis 10, 15 and benefic tithis 11, 12 are highest quality for new investments. Current tithi: ${TITHI_N[R.tithiNum]} (${TITHI_Q[R.tithiNum]}/100). ${[10,11,12,15].includes(R.tithiNum)?'✓ Currently in an ideal tithi window.':'Next ideal window: wait for Ekadashi or Purnima.'}`}/>
-              <EvidenceRow label="Ideal vaar (weekday)" value="Thursday (Jupiter) · Wednesday (Mercury)" score={80} explain={`Thursday is ruled by Jupiter — highest quality vaar (score 88/100). Wednesday by Mercury (70/100). Current: ${VAAR_N[R.dow]} (${VAAR_Q[R.dow]}/100). ${R.dow===4?'✓ Today is Thursday — ideal entry day.':R.dow===3?'✓ Today is Wednesday — excellent for IT/banking.':'Wait for Thursday or Wednesday for best results.'}`}/>
-              <EvidenceRow label="Avoid these windows" value={`Rikta tithis (4,8,13) · Amavasya · ${R.retro.Mercury?'Mercury retrograde (active now) · ':''} Tikshna/Ugra nakshatras`} score={28} explain="Classical Muhurta Chintamani forbids new financial commitments on Rikta tithis (4, 8, 13) and Amavasya. Tikshna (sharp) nakshatras like Ardra, Bharani, Ashlesha, Jyeshtha, Mula — also avoid for entries. Save these windows for exits and profit-booking."/>
-            </PointCard>
-
-            {/* ══ POINT 10 — STATISTICAL SCORING METHODOLOGY ══════════════ */}
-            <PointCard num="10" icon="📊" title="How this score was calculated" verdict={`${stockData.finalScore}/100 across 6 weighted layers`} verdictScore={stockData.finalScore}>
-              <SectionHead title="Layer weights and your scores"/>
-              {[
-                {l:'Vedic deep analysis',w:32,s:R.vedicScore,e:`Muhurta (40%) + Dasha all 3 levels (40%) + Ashtakvarga all 7 planets (20%). Muhurta: ${R.mScore}, Dasha: ${R.dashaScore}.`},
-                {l:'Economic macro',w:22,s:R.layers.macro,e:`Trend: ${R.macroInputs.trend||'sideways'} + DMA: ${R.macroInputs.dma||'neutral'} + FII: ${R.macroInputs.fii||'neutral'} + RBI: ${R.macroInputs.rbi||'neutral'}. Live inputs — not hardcoded.`},
-                {l:'Western astrology',w:16,s:R.westernScore,e:`Jupiter ${RASHI[R.planets.Jupiter.sign]} (${R.jupSignQ}, classical derivation) × 40% + Saturn ${RASHI[R.planets.Saturn.sign]} (${R.satSignQ}) × 30% + Aspect ${R.jsAspect.q} × 30%.`},
-                {l:'Technical indicators',w:12,s:R.layers.tech,e:`VIX input: ${R.macroInputs.vix||'normal'} → score ${R.layers.tech}. Live user input — not hardcoded.`},
-                {l:'Lunar science',w:10,s:R.lunarScore,e:`Dichev-Janes phase score (${R.phase.dichev}) + Paksha bias + Tithi energy.`},
-                {l:'Dasha cycle',w:8,s:R.dashaScore,e:`${R.dasha.maha} Maha (50%) + ${R.dasha.antar} Antar (32%) + ${R.dasha.pratyantar} Pratyantar (18%). NSE natal chart seed.`},
-              ].map((row,i)=>(
+              <p style={s.sectionTitle}>Sector confluence scores</p>
+              {R.sectorScores.slice(0,8).map((sec,i)=>(
                 <div key={i} style={{marginBottom:'8px'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px'}}>
-                    <div style={{fontSize:'11px',fontWeight:500,flex:1}}>{row.l} <span style={{opacity:0.4,fontWeight:400}}>({row.w}%)</span></div>
-                    <div style={{fontSize:'11px',fontWeight:600,color:row.s>=65?'#7DC66A':row.s<42?'#E05C5C':'#c9a84c'}}>{row.s}</div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'3px'}}>
+                    <span style={{fontSize:'12px',opacity:0.7}}>{sec.name}</span>
+                    <span style={{fontSize:'11px',fontWeight:600,color:scoreCol(sec.score)}}>{sec.score}/100</span>
                   </div>
-                  <div style={{height:'3px',background:'rgba(255,255,255,0.06)',borderRadius:'2px',overflow:'hidden',marginBottom:'3px'}}>
-                    <div style={{height:'100%',width:`${row.s}%`,borderRadius:'2px',background:row.s>=65?'#7DC66A':row.s<42?'#E05C5C':'#c9a84c'}}/>
+                  <div style={{height:'3px',background:'rgba(255,255,255,0.07)',borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:`${sec.score}%`,background:scoreCol(sec.score),opacity:0.7,borderRadius:'2px'}}/>
                   </div>
-                  <div style={{fontSize:'10px',opacity:0.4,lineHeight:1.5}}>{row.e}</div>
                 </div>
               ))}
-              <div style={{marginTop:'12px',padding:'10px',background:'rgba(201,168,76,0.06)',borderRadius:'8px',border:'0.5px solid rgba(201,168,76,0.15)'}}>
-                <div style={{fontSize:'10px',opacity:0.5,marginBottom:'4px',letterSpacing:'1px',textTransform:'uppercase'}}>Composite formula</div>
-                <div style={{fontSize:'11px',opacity:0.6,lineHeight:1.7}}>
-                  Final = (Vedic×0.32) + (Macro×0.22) + (Western×0.16) + (Tech×0.12) + (Lunar×0.10) + (Dasha×0.08)<br/>
-                  = ({R.vedicScore}×0.32) + ({R.layers.macro}×0.22) + ({R.westernScore}×0.16) + ({R.layers.tech}×0.12) + ({R.lunarScore}×0.10) + ({R.dashaScore}×0.08)<br/>
-                  = <strong style={{color:'#c9a84c'}}>{stockData.finalScore}/100</strong>
-                </div>
-              </div>
-            </PointCard>
-
-            {/* ── FINAL VERDICT BANNER ── */}
-            <div style={{borderRadius:'14px',padding:'20px',textAlign:'center',marginTop:'4px',marginBottom:'8px',background:stockData.isAdvisable?'rgba(100,180,80,0.07)':'rgba(224,92,92,0.07)',border:`1px solid ${stockData.isAdvisable?'rgba(100,180,80,0.28)':'rgba(224,92,92,0.28)'}`}}>
-              <div style={{fontSize:'10px',letterSpacing:'2.5px',textTransform:'uppercase',opacity:0.45,marginBottom:'8px'}}>
-                Final Verdict — {stockData.symbol}
-              </div>
-              <div style={{fontSize:'22px',fontWeight:700,color:stockData.isAdvisable?'#7DC66A':'#E05C5C',marginBottom:'8px',letterSpacing:'0.5px'}}>
-                {stockData.isAdvisable?'✓ INVEST — Conditions Favourable':'✗ WAIT — Conditions Not Optimal'}
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginTop:'12px'}}>
-                {[
-                  {l:'Score',v:`${stockData.finalScore}/100`},
-                  {l:'Prob ↑',v:`${stockData.probUp}%`},
-                  {l:'R:R',v:`${stockData.rrRatio}:1`},
-                  {l:'Stop',v:`-${stockData.slPct}%`},
-                ].map((m,i)=>(
-                  <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'8px 4px'}}>
-                    <div style={{fontSize:'9px',opacity:0.4,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'3px'}}>{m.l}</div>
-                    <div style={{fontSize:'14px',fontWeight:600,color:stockData.isAdvisable?'#7DC66A':'#c9a84c'}}>{m.v}</div>
-                  </div>
-                ))}
-              </div>
-              {stockData.isAdvisable&&(
-                <div style={{fontSize:'11px',opacity:0.5,marginTop:'12px',lineHeight:1.6}}>
-                  Enter in 2–3 tranches · Keep stop strict at -{stockData.slPct}% · Target +{stockData.targetPct}% in {stockData.horizon}
-                </div>
-              )}
-              {!stockData.isAdvisable&&(
-                <div style={{fontSize:'11px',opacity:0.5,marginTop:'12px',lineHeight:1.6}}>
-                  Wait for composite ≥65 · Mercury direct · At least 4/6 layers bullish · Better muhurta window
-                </div>
-              )}
             </div>
-
-            {/* BUILD 3 — Log this prediction for personal backtesting */}
-            <button
-              onClick={()=>{ saveToBacktestLog(stockData.symbol, stockData.finalScore, stockData.verdict); }}
-              style={{width:'100%',padding:'12px',marginBottom:'8px',borderRadius:'10px',fontSize:'12px',fontWeight:600,cursor:'pointer',
-                background:'rgba(201,168,76,0.08)',border:'1px solid rgba(201,168,76,0.3)',color:'#c9a84c',fontFamily:"'DM Sans',sans-serif"}}>
-              📌 Log this prediction — check accuracy later
-            </button>
-            <p style={{fontSize:'10px',opacity:0.35,textAlign:'center',marginBottom:'14px',lineHeight:1.5}}>
-              Come back in a few weeks, open Track Record, and mark whether {stockData.symbol} actually moved the way predicted. This builds your real accuracy history.
-            </p>
           </>
-          );
-        })()}
+        )}
 
-        <p style={s.disclaimer}>
-          {hi
-            ? 'यह एक शोध और शिक्षा उपकरण है। SEBI-पंजीकृत निवेश सलाह नहीं। कोई भी निवेश निर्णय लेने से पहले वित्तीय सलाहकार से परामर्श करें।'
-            : 'Research and education tool only. It is Not SEBI-registered investment advice. Consult a registered financial advisor before making any investment decision. Past astrological correlations do not guarantee future returns.'}
+        {/* ══════════════ DEEP DIVE TAB ══════════════ */}
+        {activeTab==='Deep Dive' && (
+          <>
+            <div style={{...s.alert('info'),background:'rgba(201,168,76,0.05)',border:'0.5px solid rgba(201,168,76,0.2)',color:T.text,marginBottom:'14px'}}>
+              <span style={{fontSize:'12px',opacity:0.6}}>These are the underlying calculation details for researchers and advanced users.</span>
+            </div>
+            {/* Houses */}
+            <div style={s.section}>
+              <p style={s.sectionTitle}>NSE natal houses — planet transits</p>
+              {R.houseScores?.map((h,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',padding:'6px 0',borderBottom:i===R.houseScores.length-1?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                  <span style={{fontSize:'11px',opacity:0.4,width:'60px',flexShrink:0}}>House {h.house}</span>
+                  <span style={{fontSize:'11px',flex:1,opacity:0.7}}>{h.planets?.join(', ')||'Empty'}</span>
+                  <span style={{fontSize:'11px',color:scoreCol(h.score||55)}}>{h.score||55}</span>
+                </div>
+              ))}
+            </div>
+            {/* Ashtakvarga */}
+            <div style={s.section}>
+              <p style={s.sectionTitle}>Ashtakvarga bindus</p>
+              {R.avp && Object.entries(R.avp).map(([planet,score],i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',padding:'6px 0',borderBottom:i===Object.keys(R.avp).length-1?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                  <span style={{fontSize:'11px',opacity:0.5,flex:1}}>{planet}</span>
+                  <div style={{width:'80px',height:'3px',background:'rgba(255,255,255,0.08)',borderRadius:'2px',overflow:'hidden',marginRight:'8px'}}>
+                    <div style={{height:'100%',width:`${Math.min(100,(score/8)*100)}%`,background:score>=5?'#7DC66A':score>=4?'#c9a84c':'#E05C5C',borderRadius:'2px'}}/>
+                  </div>
+                  <span style={{fontSize:'11px',color:score>=5?'#7DC66A':score>=4?'#c9a84c':'#E05C5C',fontWeight:600}}>{score}/8</span>
+                </div>
+              ))}
+            </div>
+            {/* Yogas */}
+            <div style={s.section}>
+              <p style={s.sectionTitle}>Active yogas</p>
+              {R.yogas.length===0&&<p style={{fontSize:'12px',opacity:0.4}}>No special yogas active today.</p>}
+              {R.yogas.map((y,i)=>(
+                <div key={i} style={{display:'flex',gap:'8px',alignItems:'flex-start',padding:'8px 0',borderBottom:i===R.yogas.length-1?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                  <span style={{fontSize:'12px'}}>{y.type==='good'?'✓':'⚠'}</span>
+                  <div>
+                    <div style={{fontSize:'12px',fontWeight:600,color:y.type==='good'?'#7DC66A':'#E05C5C'}}>{y.name}</div>
+                    <div style={{fontSize:'11px',opacity:0.5,lineHeight:1.5}}>{y.note}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Disclaimer */}
+        <p style={{...s.disclaimer,marginTop:'20px'}}>
+          {hi?'यह शोध और शिक्षा उपकरण है। SEBI-पंजीकृत निवेश सलाह नहीं।':'Research & education tool only. Not SEBI-registered investment advice.'}
         </p>
+
       </div>
     </div>
   );
