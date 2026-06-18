@@ -407,10 +407,11 @@ function calcPriceTechnicals(priceData, series=null) {
       else                    { range5yScore=30; range5ySignal=`Near 5-year highs — momentum play only, high valuation risk`; }
     }
 
-    // 7. Volume signal
+    // 7. Volume signal (volPct = numeric ratio, volSignal = display string)
+    const volPct = calcVolumeSignal(volumes);
     let volScore=55, volSignal='Volume data unavailable';
-    if (volSignal!==null) {
-      const v=volSignal;
+    if (volPct!==null) {
+      const v=volPct;
       if (v>150)      { volScore=75; volSignal=`Volume ${v}% of 20-day avg — strong conviction move`; }
       else if (v>110) { volScore=65; volSignal=`Volume ${v}% of avg — above normal activity`; }
       else if (v>80)  { volScore=55; volSignal=`Volume ${v}% of avg — normal`; }
