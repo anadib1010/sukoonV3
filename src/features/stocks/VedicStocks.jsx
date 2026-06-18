@@ -407,14 +407,14 @@ function calcPriceTechnicals(priceData, series=null) {
       else                    { range5yScore=30; range5ySignal=`Near 5-year highs — momentum play only, high valuation risk`; }
     }
 
-    // 7. Volume signal
-    const volPct = calcVolumeSignal(volumes);
-    const volScore = volPct===null ? 55 : volPct>150 ? 75 : volPct>110 ? 65 : volPct>80 ? 55 : 42;
-    const volSignal = volPct===null ? 'Volume data unavailable'
-      : volPct>150 ? `Volume ${volPct}% of 20-day avg — strong conviction move`
-      : volPct>110 ? `Volume ${volPct}% of avg — above normal activity`
-      : volPct>80  ? `Volume ${volPct}% of avg — normal`
-      : `Volume ${volPct}% of avg — low conviction, weak signal`;
+    // 7. Volume signal (volSignal is the numeric % from calcVolumeSignal above)
+    const volNum = volSignal; // numeric % already computed at line 343
+    const volScore = volNum===null ? 55 : volNum>150 ? 75 : volNum>110 ? 65 : volNum>80 ? 55 : 42;
+    const volDisplay = volNum===null ? 'Volume data unavailable'
+      : volNum>150 ? `Volume ${volNum}% of 20-day avg — strong conviction move`
+      : volNum>110 ? `Volume ${volNum}% of avg — above normal activity`
+      : volNum>80  ? `Volume ${volNum}% of avg — normal`
+      : `Volume ${volNum}% of avg — low conviction, weak signal`;
 
     // Composite technical score (weighted)
     const priceScore = Math.round(
@@ -432,7 +432,7 @@ function calcPriceTechnicals(priceData, series=null) {
       dmaScore, dmaSignal, slopeScore, slopeSignal,
       rsiScore, rsiSignal, macdScore, macdSignal,
       bollScore, bollSignal, range5yScore, range5ySignal,
-      volScore, volSignal: typeof volSignal==='string'?volSignal:`Volume ${volSignal}% of 20-day avg`,
+      volScore, volSignal: volDisplay,
       priceScore, dataPoints: closes.length,
     };
   }
