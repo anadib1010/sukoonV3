@@ -692,6 +692,25 @@ export function VedicStocks({ setTab, T, lang }) {
   const [newsSentiment, setNewsSentiment] = useState(null); // {score, label, summary, detail}
   const [newsLoading, setNewsLoading] = useState(false);
 
+  // ── SELL MODE ─────────────────────────────────────────────────────────────
+  const [mode, setMode] = useState('analyse'); // 'analyse' | 'sell'
+  const [sellInputs, setSellInputs] = useState({ buyPrice:'', buyDate:'', qty:'' });
+  const [sellVerdict, setSellVerdict] = useState(null);
+
+  // ── PORTFOLIO ──────────────────────────────────────────────────────────────
+  const [portfolio, setPortfolio] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vedicPortfolio')||'[]'); }
+    catch { return []; }
+  });
+  const [showPortfolio, setShowPortfolio] = useState(false);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+
+  // ── FUNDAMENTALS (from Yahoo) ──────────────────────────────────────────────
+  const [fundamentals, setFundamentals] = useState(null); // {pe, marketCap, earningsDate, longName}
+
+  // ── AUTO NEWS ──────────────────────────────────────────────────────────────
+  const [autoNewsLoading, setAutoNewsLoading] = useState(false);
+
   // Auto-detect GPS on mount — checks permissions first to avoid policy violation
   useEffect(() => {
     if (!navigator.geolocation) { setGpsStatus('denied'); return; }
@@ -792,9 +811,23 @@ export function VedicStocks({ setTab, T, lang }) {
               high52w:      h52.toFixed(2),
               low52w:       l52.toFixed(2),
               dma200:       dma200.toFixed(2),
-              rsi:          '',  // computed inside calcPriceTechnicals from series
+              rsi:          '',
             };
             setPriceData(resolvedPrice);
+
+            // ── Extract fundamentals from Yahoo meta ─────────────────────
+            const earningsTs = data.earningsTimestamp || data.earningsTimestampStart || null;
+            const earningsDate = earningsTs ? new Date(earningsTs*1000).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : null;
+            const daysToEarnings = earningsTs ? Math.round((earningsTs*1000 - Date.now())/(86400000)) : null;
+            setFundamentals({
+              longName:      data.longName || stockInput.toUpperCase(),
+              pe:            data.trailingPE ? parseFloat(data.trailingPE).toFixed(1) : null,
+              marketCap:     data.marketCap ? (data.marketCap>=1e12 ? `₹${(data.marketCap/1e12).toFixed(2)}T` : data.marketCap>=1e9 ? `₹${(data.marketCap/1e9).toFixed(1)}B` : `₹${(data.marketCap/1e6).toFixed(0)}M`) : null,
+              previousClose: data.previousClose ? `₹${data.previousClose.toFixed(2)}` : null,
+              earningsDate,
+              daysToEarnings,
+              earningsWarning: daysToEarnings !== null && daysToEarnings >= 0 && daysToEarnings <= 7,
+            });
             setFetchStatus('ok');
           } else {
             setFetchStatus('error');
@@ -808,13 +841,178 @@ export function VedicStocks({ setTab, T, lang }) {
     setTimeout(() => {
       const r = runEngine(date, time, lat, lon, macroInputs, resolvedPrice, newsSentiment, priceSeries);
       setResult(r);
-      setActiveTab('Summary');
+      // Compute sell verdict if in sell mode
+      if (mode === 'sell' && sellInputs.buyPrice && resolvedPrice.currentPrice) {
+        const pt = calcPriceTechnicals(resolvedPrice, priceSeries);
+        const sv = calcSellVerdict(sellInputs.buyPrice, sellInputs.buyDate, sellInputs.qty, resolvedPrice.currentPrice, pt, r);
+        setSellVerdict(sv);
+      }
+      setActiveTab(mode==='sell'?'Sell':'Summary');
       setView('result');
       setLoading(false);
     }, 400);
   }, [date, time, lat, lon, macroInputs, priceData, stockInput, priceSeries, newsSentiment]);
 
-  // ── Score today's news via Claude API ────────────────────────────────────
+  // ── SELL VERDICT ENGINE ──────────────────────────────────────────────────
+  const calcSellVerdict = (buyPrice, buyDate, qty, currentPrice, priceTech, result) => {
+    const bp = parseFloat(buyPrice), cp = parseFloat(currentPrice), q = parseFloat(qty)||1;
+    if (!bp || !cp) return null;
+    const pnlPct  = ((cp - bp) / bp * 100);
+    const pnlRs   = (cp - bp) * q;
+    const heldMs  = buyDate ? Date.now() - new Date(buyDate).getTime() : 0;
+    const heldDays= Math.round(heldMs / 86400000);
+    const heldStr = heldDays > 365 ? `${(heldDays/365).toFixed(1)}y` : heldDays > 30 ? `${Math.round(heldDays/30)}m` : `${heldDays}d`;
+
+    // Technical signals
+    const rsi     = priceTech?.rsi || null;
+    const macdBear= priceTech?.macd?.hist < 0;
+    const overBot  = priceTech?.boll?.pct > 90;
+    const near5yH  = priceTech?.rangePos5y > 80;
+    const belowDMA = priceTech?.dma200 && cp < priceTech.dma200;
+    const dmaFall  = priceTech?.dmaSlope < -0.3;
+
+    // Vedic signals
+    const rikta   = result ? [4,8,13].includes(result.tithiNum) : false;
+    const retroM  = result?.retro?.Mercury || false;
+    const score   = result?.composite || 55;
+
+    // Scoring: positive = EXIT pressure, negative = HOLD pressure
+    let exitPoints = 0, holdPoints = 0;
+    const reasons = [], holdReasons = [];
+
+    // Loss territory
+    if (pnlPct < -15) { exitPoints += 3; reasons.push(`Down ${Math.abs(pnlPct).toFixed(1)}% — deep loss, stop-loss discipline needed`); }
+    else if (pnlPct < -8) { exitPoints += 2; reasons.push(`Down ${Math.abs(pnlPct).toFixed(1)}% — approaching critical loss territory`); }
+    else if (pnlPct < -3) { exitPoints += 1; reasons.push(`Down ${Math.abs(pnlPct).toFixed(1)}% — mild loss`); }
+    // Profit territory
+    if (pnlPct > 25) { exitPoints += 2; reasons.push(`Up ${pnlPct.toFixed(1)}% — excellent gain, consider booking partial profits`); }
+    else if (pnlPct > 15) { exitPoints += 1; reasons.push(`Up ${pnlPct.toFixed(1)}% — good gain, trail stop-loss`); }
+    else if (pnlPct > 0) { holdPoints += 1; holdReasons.push(`Up ${pnlPct.toFixed(1)}% — mild profit, let it run`); }
+
+    // Technical exit signals
+    if (rsi > 72) { exitPoints += 2; reasons.push(`RSI ${rsi} — overbought, pullback likely soon`); }
+    if (macdBear) { exitPoints += 1; reasons.push('MACD histogram negative — momentum fading'); }
+    if (overBot)  { exitPoints += 1; reasons.push('Price at upper Bollinger band — stretched'); }
+    if (near5yH)  { exitPoints += 1; reasons.push('Near 5-year high — valuation risk elevated'); }
+    if (belowDMA) { exitPoints += 2; reasons.push('Price below 200-DMA — long-term trend broken'); }
+    if (dmaFall)  { exitPoints += 1; reasons.push('200-DMA declining — downtrend confirmed'); }
+
+    // Vedic exit signals
+    if (rikta)   { exitPoints += 1; reasons.push('Rikta tithi today — inauspicious to hold new risk'); }
+    if (retroM)  { exitPoints += 1; reasons.push('Mercury retrograde — IT/banking/logistics under pressure'); }
+    if (score < 45) { exitPoints += 2; reasons.push(`Vedic oracle score ${score}/100 — strong bearish alignment`); }
+
+    // Hold signals
+    if (rsi < 35) { holdPoints += 2; holdReasons.push(`RSI ${rsi} — oversold, bounce likely`); }
+    if (!belowDMA && priceTech?.dmaSlope > 0.3) { holdPoints += 2; holdReasons.push('Above rising 200-DMA — uptrend intact'); }
+    if (score >= 65) { holdPoints += 2; holdReasons.push(`Vedic oracle ${score}/100 — bullish alignment`); }
+    if (pnlPct > 5 && !belowDMA) { holdPoints += 1; holdReasons.push('In profit above 200-DMA — classic hold zone'); }
+
+    // Earnings proximity — always flag
+    const earningsWarn = fundamentals?.earningsWarning;
+    const daysToE = fundamentals?.daysToEarnings;
+
+    const totalExit = exitPoints;
+    const totalHold = holdPoints;
+    let verdict, color, action;
+    if (pnlPct < -15 || (exitPoints >= 5 && exitPoints > holdPoints*1.5)) {
+      verdict = 'EXIT NOW'; color = '#E05C5C'; action = 'exit';
+    } else if (exitPoints > holdPoints && (pnlPct < -8 || score < 48)) {
+      verdict = 'CONSIDER EXITING'; color = '#E05C5C'; action = 'exit';
+    } else if (pnlPct > 20 && exitPoints > holdPoints) {
+      verdict = 'BOOK PARTIAL PROFITS'; color = '#c9a84c'; action = 'partial';
+    } else if (holdPoints > exitPoints && score >= 55) {
+      verdict = pnlPct > 8 ? 'HOLD & TRAIL STOP' : 'HOLD'; color = '#7DC66A'; action = 'hold';
+    } else if (pnlPct < -5 && score >= 62 && rsi < 40) {
+      verdict = 'ADD MORE (DIP)'; color = '#7DC66A'; action = 'add';
+    } else {
+      verdict = 'HOLD — WATCH'; color = '#c9a84c'; action = 'watch';
+    }
+
+    // Stop loss suggestion
+    const stopLoss = action === 'hold' || action === 'add'
+      ? (cp * 0.92).toFixed(2)  // 8% trailing stop
+      : null;
+    const target = action === 'hold' || action === 'add'
+      ? priceTech?.dma200 ? (Math.max(cp * 1.15, parseFloat(priceTech.dma200) * 1.05)).toFixed(2) : (cp * 1.15).toFixed(2)
+      : null;
+
+    return {
+      verdict, color, action, pnlPct: pnlPct.toFixed(2), pnlRs: pnlRs.toFixed(0),
+      heldStr, heldDays, reasons, holdReasons, stopLoss, target,
+      earningsWarn, daysToE, earningsDate: fundamentals?.earningsDate,
+      exitPoints, holdPoints,
+    };
+  };
+
+  // ── PORTFOLIO HELPERS ─────────────────────────────────────────────────────
+  const addToPortfolio = (symbol, buyPrice, qty, currentPrice) => {
+    const entry = {
+      id: Date.now(), symbol: symbol.toUpperCase(),
+      buyPrice: parseFloat(buyPrice), qty: parseFloat(qty)||1,
+      buyDate: new Date().toISOString().split('T')[0],
+      currentPrice: parseFloat(currentPrice)||null,
+      lastUpdated: null,
+    };
+    const updated = [...portfolio, entry];
+    setPortfolio(updated);
+    try { localStorage.setItem('vedicPortfolio', JSON.stringify(updated)); } catch {}
+  };
+
+  const removeFromPortfolio = (id) => {
+    const updated = portfolio.filter(h=>h.id!==id);
+    setPortfolio(updated);
+    try { localStorage.setItem('vedicPortfolio', JSON.stringify(updated)); } catch {}
+  };
+
+  const refreshPortfolioPrices = async () => {
+    if (!portfolio.length) return;
+    setPortfolioLoading(true);
+    const updated = [...portfolio];
+    for (let i=0; i<updated.length; i++) {
+      try {
+        const sym = toYahooSymbol(updated[i].symbol);
+        const res = await fetch(`/api/stock?symbol=${sym}&range=5d&interval=1d`);
+        const data = await res.json();
+        if (data?.currentPrice) {
+          updated[i] = { ...updated[i], currentPrice: data.currentPrice, lastUpdated: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) };
+        }
+      } catch {}
+    }
+    setPortfolio(updated);
+    try { localStorage.setItem('vedicPortfolio', JSON.stringify(updated)); } catch {}
+    setPortfolioLoading(false);
+  };
+
+  // ── AUTO-FETCH NEWS via Claude API ────────────────────────────────────────
+  const autoFetchNews = async (symbol) => {
+    if (!symbol.trim()) return;
+    setAutoNewsLoading(true);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 600,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+system: "You are a financial news analyst for Indian markets. Search for latest news about the given stock/index and return ONLY a JSON object with keys: headlines (array of 3 strings), score (integer -10 to +10), label (one of Strongly Bullish/Mildly Bullish/Neutral/Mildly Bearish/Strongly Bearish), summary (one sentence max 20 words), detail (2-3 sentences max 60 words), sectors_up (array), sectors_down (array). Return ONLY the JSON, no markdown.",
+          messages: [{ role: 'user', content: `Latest news for ${symbol} Indian stock market today` }],
+        }),
+      });
+      const data = await res.json();
+      const text = (data.content||[]).map(b=>b.text||'').join('');
+      const clean = text.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(clean);
+      setNewsText((parsed.headlines||[]).join('\n'));
+      setNewsSentiment({ score: parsed.score, label: parsed.label, summary: parsed.summary, detail: parsed.detail, sectors_up: parsed.sectors_up||[], sectors_down: parsed.sectors_down||[] });
+    } catch {
+      // silently fail — user can still type manually
+    }
+    setAutoNewsLoading(false);
+  };
+
+  // ── Score today's news via Claude API ────────────────────────────────────────
   const scoreNews = async () => {
     if (!newsText.trim()) return;
     setNewsLoading(true);
@@ -826,16 +1024,7 @@ export function VedicStocks({ setTab, T, lang }) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
           max_tokens: 400,
-          system: `You are a financial market sentiment analyser specialising in Indian markets (NSE/BSE). 
-Given news headlines or a brief description of current events, return ONLY a JSON object with these exact keys:
-- score: integer from -10 to +10 (negative = bearish, 0 = neutral, positive = bullish for Indian equities)
-- label: one of "Strongly Bullish", "Mildly Bullish", "Neutral", "Mildly Bearish", "Strongly Bearish"
-- summary: one sentence plain-English verdict (max 20 words)
-- detail: 2-3 sentences explaining which sectors are most affected and why (max 60 words)
-- sectors_up: array of up to 3 sector names that benefit (e.g. ["banking","it","auto"])
-- sectors_down: array of up to 3 sector names that are hurt
-
-Return ONLY the JSON. No markdown, no preamble.`,
+          system: "You are a financial market sentiment analyser for Indian markets (NSE/BSE). Given news headlines, return ONLY a JSON object with keys: score (integer -10 to +10), label (Strongly Bullish/Mildly Bullish/Neutral/Mildly Bearish/Strongly Bearish), summary (one sentence max 20 words), detail (2-3 sentences max 60 words on sector impact), sectors_up (array of up to 3 sector names), sectors_down (array of up to 3 sector names). Return ONLY the JSON, no markdown, no preamble.",
           messages: [{ role: 'user', content: newsText.trim() }],
         }),
       });
@@ -1071,10 +1260,30 @@ Return ONLY the JSON. No markdown, no preamble.`,
         {/* HEADER */}
         <div style={s.header}>
           <button style={s.backBtn} onClick={() => setTab('home')}>←</button>
-          <div>
+          <div style={{flex:1}}>
             <p style={s.headerTitle}>📈 {hi ? 'वैदिक शेयर बाज़ार' : 'Vedic Stock Oracle'}</p>
             <p style={s.headerSub}>{hi ? 'ज्योतिष · अर्थशास्त्र · सांख्यिकी' : 'Astrology · Economics · Statistics'}</p>
           </div>
+          <button onClick={()=>setShowPortfolio(true)}
+            style={{background:'rgba(201,168,76,0.1)',border:'0.5px solid rgba(201,168,76,0.3)',
+              borderRadius:'8px',color:'#c9a84c',fontFamily:"'DM Sans',sans-serif",
+              fontSize:'11px',fontWeight:600,padding:'6px 10px',cursor:'pointer',letterSpacing:'0.5px'}}>
+            💼 {portfolio.length>0?portfolio.length:''}
+          </button>
+        </div>
+
+        {/* MODE TOGGLE — Analyse vs Sell */}
+        <div style={{display:'flex',gap:'6px',padding:'0 20px 16px',width:'100%',boxSizing:'border-box'}}>
+          {[['analyse','🔍 Analyse'],['sell','💸 Should I sell?']].map(([m,lbl])=>(
+            <button key={m} onClick={()=>setMode(m)}
+              style={{flex:1,padding:'10px',borderRadius:'10px',cursor:'pointer',
+                fontFamily:"'DM Sans',sans-serif",fontSize:'12px',fontWeight:600,letterSpacing:'0.5px',
+                background:mode===m?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.03)',
+                border:`1px solid ${mode===m?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'}`,
+                color:mode===m?'#c9a84c':T.text+'66'}}>
+              {lbl}
+            </button>
+          ))}
         </div>
 
         <div style={s.body}>
@@ -1103,7 +1312,52 @@ Return ONLY the JSON. No markdown, no preamble.`,
                 ⚠ Could not load price data — analysis will still work
               </p>
             )}
+            {/* Auto-fetch news button */}
+            {stockInput.trim() && (
+              <button onClick={()=>autoFetchNews(stockInput)} disabled={autoNewsLoading}
+                style={{width:'100%',marginTop:'10px',padding:'9px',borderRadius:'10px',
+                  cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:'11px',
+                  fontWeight:600,letterSpacing:'0.5px',
+                  background:'rgba(255,255,255,0.03)',border:'0.5px solid rgba(255,255,255,0.1)',
+                  color:T.text+'66'}}>
+                {autoNewsLoading?'🔍 Fetching latest news…':'🔍 Auto-fetch latest news for this stock'}
+              </button>
+            )}
           </div>
+
+          {/* ── SELL MODE FORM ── */}
+          {mode==='sell' && (
+            <div style={{marginBottom:'20px',padding:'16px',borderRadius:'14px',
+              background:'rgba(224,92,92,0.06)',border:'0.5px solid rgba(224,92,92,0.2)'}}>
+              <p style={{fontSize:'13px',fontWeight:600,color:'#E05C5C',marginBottom:'4px',letterSpacing:'0.5px'}}>💸 Should I sell?</p>
+              <p style={{fontSize:'11px',opacity:0.5,marginBottom:'14px',lineHeight:1.5}}>
+                Enter your holding details — get an EXIT / HOLD / ADD MORE verdict based on technicals + Vedic signals.
+              </p>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+                <div>
+                  <span style={s.inputLabel}>Buy price (₹)</span>
+                  <input style={s.input} type="number" placeholder="e.g. 500"
+                    value={sellInputs.buyPrice}
+                    onChange={e=>setSellInputs(v=>({...v,buyPrice:e.target.value}))}/>
+                </div>
+                <div>
+                  <span style={s.inputLabel}>Quantity</span>
+                  <input style={s.input} type="number" placeholder="e.g. 100"
+                    value={sellInputs.qty}
+                    onChange={e=>setSellInputs(v=>({...v,qty:e.target.value}))}/>
+                </div>
+              </div>
+              <div>
+                <span style={s.inputLabel}>Buy date</span>
+                <input style={s.input} type="date"
+                  value={sellInputs.buyDate}
+                  onChange={e=>setSellInputs(v=>({...v,buyDate:e.target.value}))}/>
+              </div>
+              <p style={{fontSize:'10px',opacity:0.4,marginTop:'10px',lineHeight:1.5}}>
+                Type the stock name above first so price data loads automatically.
+              </p>
+            </div>
+          )}
 
           {/* ── STEP 2: DATE/TIME (compact, auto-filled) ── */}
           <div style={{display:'flex',gap:'10px',marginBottom:'16px'}}>
@@ -1247,10 +1501,14 @@ Return ONLY the JSON. No markdown, no preamble.`,
             )}
           </div>
 
-          {/* ── ANALYSE BUTTON ── */}
-          <button style={s.analyzeBtn} onClick={handleAnalyze} disabled={loading}>
+          {/* ── ANALYSE / SELL BUTTON ── */}
+          <button style={{...s.analyzeBtn, background:mode==='sell'?'linear-gradient(135deg,rgba(224,92,92,0.15) 0%,rgba(224,92,92,0.08) 100%)':s.analyzeBtn?.background,
+            borderColor:mode==='sell'?'rgba(224,92,92,0.4)':'rgba(201,168,76,0.4)',
+            color:mode==='sell'?'#E05C5C':'#c9a84c'}} onClick={handleAnalyze} disabled={loading}>
             {loading
-              ? (fetchStatus==='loading'?'📡 Loading 5y price data…':'⏳ Computing…')
+              ? (fetchStatus==='loading'?'📡 Loading 5y data…':'⏳ Computing…')
+              : mode==='sell'
+              ? `💸 Get Sell Verdict ${stockInput.trim()?`— ${stockInput.toUpperCase()}`:''}`
               : `✦ ${hi?'विश्लेषण करें':'Analyse'} ${stockInput.trim()?stockInput.toUpperCase():''} ✦`}
           </button>
 
@@ -1264,6 +1522,55 @@ Return ONLY the JSON. No markdown, no preamble.`,
           </button>
 
         </div>
+
+        {/* Portfolio modal — reuse showPortfolio state */}
+        {showPortfolio && (
+          <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:1000,
+            background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'flex-end'}}
+            onClick={()=>setShowPortfolio(false)}>
+            <div style={{background:T.bg,width:'100%',maxHeight:'88vh',overflowY:'auto',
+              borderRadius:'20px 20px 0 0',padding:'20px',boxSizing:'border-box'}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+                <p style={{fontSize:'15px',fontWeight:700,color:'#c9a84c',margin:0}}>💼 My Portfolio</p>
+                <div style={{display:'flex',gap:'8px'}}>
+                  <button onClick={refreshPortfolioPrices} disabled={portfolioLoading}
+                    style={{background:'rgba(201,168,76,0.1)',border:'0.5px solid rgba(201,168,76,0.3)',borderRadius:'8px',color:'#c9a84c',fontFamily:"'DM Sans',sans-serif",fontSize:'11px',padding:'6px 10px',cursor:'pointer'}}>
+                    {portfolioLoading?'↺ Updating…':'↺ Refresh'}
+                  </button>
+                  <button onClick={()=>setShowPortfolio(false)} style={{background:'none',border:'none',color:T.text,fontSize:'20px',cursor:'pointer',opacity:0.5}}>✕</button>
+                </div>
+              </div>
+              {portfolio.length===0?(
+                <div style={{textAlign:'center',padding:'30px',opacity:0.5}}>
+                  <p style={{fontSize:'28px',marginBottom:'10px'}}>📭</p>
+                  <p style={{fontSize:'13px',lineHeight:1.7}}>No holdings yet. Use "Should I sell?" mode and tap "Add to Portfolio".</p>
+                </div>
+              ):(
+                portfolio.map((h)=>{
+                  const pnl=h.currentPrice?((h.currentPrice-h.buyPrice)/h.buyPrice*100):null;
+                  return(
+                    <div key={h.id} style={{background:'rgba(255,255,255,0.03)',borderRadius:'12px',padding:'14px',marginBottom:'8px'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'8px'}}>
+                        <span style={{fontSize:'14px',fontWeight:700}}>{h.symbol}</span>
+                        <button onClick={()=>removeFromPortfolio(h.id)} style={{background:'none',border:'none',color:T.text,opacity:0.3,cursor:'pointer',fontSize:'16px'}}>✕</button>
+                      </div>
+                      <div style={{display:'flex',gap:'16px'}}>
+                        <div><div style={{fontSize:'12px',fontWeight:600}}>₹{h.buyPrice}</div><div style={{fontSize:'9px',opacity:0.4}}>Buy</div></div>
+                        <div><div style={{fontSize:'12px',fontWeight:600}}>{h.currentPrice?`₹${h.currentPrice.toFixed(2)}`:'—'}</div><div style={{fontSize:'9px',opacity:0.4}}>Now</div></div>
+                        <div><div style={{fontSize:'12px',fontWeight:600,color:pnl>=0?'#7DC66A':'#E05C5C'}}>{pnl!==null?`${pnl>=0?'+':''}${pnl.toFixed(1)}%`:'—'}</div><div style={{fontSize:'9px',opacity:0.4}}>P&L</div></div>
+                      </div>
+                      <button onClick={()=>{setStockInput(h.symbol);setMode('sell');setSellInputs({buyPrice:String(h.buyPrice),buyDate:h.buyDate,qty:String(h.qty||1)});setShowPortfolio(false);}}
+                        style={{width:'100%',marginTop:'8px',padding:'8px',borderRadius:'8px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",background:'rgba(201,168,76,0.08)',border:'0.5px solid rgba(201,168,76,0.2)',color:'#c9a84c'}}>
+                        💸 Should I sell {h.symbol}?
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Backtest modal */}
         {showBacktest && (
@@ -1536,6 +1843,7 @@ Return ONLY the JSON. No markdown, no preamble.`,
   // ── Simple 3-tab result: Summary / Details / Deep Dive ────────────────────
   const RTABS = ['Summary','Details','Deep Dive'];
   if (stockInput.trim()) RTABS.splice(1,0,'Stock');
+  if (mode==='sell' && sellVerdict) RTABS.splice(1,0,'Sell');
 
   return (
     <div style={s.page}>
@@ -1670,6 +1978,11 @@ Return ONLY the JSON. No markdown, no preamble.`,
               const r={fontSize:'12px',lineHeight:1.75,opacity:0.75,margin:'0 0 6px'};
               const h={fontSize:'11px',fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:'#c9a84c',margin:'16px 0 6px'};
               const b={background:'rgba(255,255,255,0.03)',borderRadius:'12px',border:'0.5px solid rgba(255,255,255,0.08)',padding:'14px 16px',marginBottom:'10px'};
+              const bottomLineText = score>=65
+                ? `Enter in 2–3 tranches. Keep stop-loss strict.${rikta?' Wait one day — Rikta tithi.':''}`
+                : score>=50
+                  ? `Wait. Score needs to reach 65+ with 4+ layers bullish.${rikta?' Rikta tithi is an additional prohibition.':''}`
+                  : `Do not enter.${rikta?' Rikta tithi.':''}${retroMerc?' Mercury retrograde.':''}${R.debil.length?' Debilitated '+R.debil.join(', ')+'.':''}`;
               return (
                 <div style={{marginTop:'10px'}}>
                   <div style={{...b,borderColor:sc2+'40'}}>
@@ -1709,14 +2022,7 @@ Return ONLY the JSON. No markdown, no preamble.`,
                   </div>
                   <div style={{...b,borderColor:score>=65?'rgba(100,180,80,0.3)':score<50?'rgba(224,92,92,0.3)':'rgba(201,168,76,0.3)'}}>
                     <p style={{...h,color:sc2}}>⑥ Bottom line{stockInput?` — ${stockInput.toUpperCase()}`:''}</p>
-                    <p style={{...r, fontWeight: 500}}>
-                      {score >= 65 
-                        ? `Enter in 2–3 tranches. Keep stop-loss strict.${rikta ? ' Wait one day — Rikta tithi.' : ''}` 
-                        : score >= 50 
-                          ? `Wait. Score needs to reach 65+ with 4+ layers bullish.${rikta ? ' Rikta tithi is an additional prohibition.' : ''}` 
-                          : ` Do not enter.${rikta ? ' Rikta tithi.' : ''}${retroMerc ? ' Mercury retrograde.' : ''}${R.debil.length ? ` Debilitated ${R.debil.join(', ')}.` : ''}`
-                      }
-                    </p>
+                    <p style={{...r,fontWeight:500}}>{bottomLineText}</p>
                     <p style={r}>Best entry windows: Ekadashi or Purnima · Thursday or Wednesday · Score ≥65 · 4+ layers bullish.</p>
                   </div>
                   {R.newsSentiment && (()=>{const ns=R.newsSentiment;const s2=ns.score||0;const col=s2>=3?'#7DC66A':s2<=-3?'#E05C5C':'#c9a84c';return(<div style={{...b,borderColor:col+'40'}}><p style={{...h,color:col}}>⑦ News — {ns.label}</p><p style={r}>{ns.summary}</p><p style={r}>{ns.detail}</p></div>);})()}
@@ -1775,6 +2081,44 @@ Return ONLY the JSON. No markdown, no preamble.`,
                   ))}
                 </div>
               </div>
+
+              {/* Fundamentals card */}
+              {fundamentals && (
+                <div style={{...s.section,marginBottom:'12px'}}>
+                  <p style={s.sectionTitle}>Fundamentals</p>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
+                    {[
+                      {l:'P/E Ratio', v:fundamentals.pe?`${fundamentals.pe}x`:'—', warn:fundamentals.pe>30, good:fundamentals.pe&&fundamentals.pe<15},
+                      {l:'Market Cap', v:fundamentals.marketCap||'—', warn:false, good:false},
+                      {l:'Prev Close', v:fundamentals.previousClose||'—', warn:false, good:false},
+                    ].map((m,i)=>(
+                      <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'10px 6px',textAlign:'center'}}>
+                        <div style={{fontSize:'14px',fontWeight:700,color:m.warn?'#E05C5C':m.good?'#7DC66A':'#c9a84c'}}>{m.v}</div>
+                        <div style={{fontSize:'9px',opacity:0.4,marginTop:'3px',letterSpacing:'0.5px'}}>{m.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {fundamentals.earningsDate && (
+                    <div style={{marginTop:'10px',padding:'10px 12px',borderRadius:'8px',
+                      background:fundamentals.earningsWarning?'rgba(224,92,92,0.1)':'rgba(255,255,255,0.04)',
+                      border:`0.5px solid ${fundamentals.earningsWarning?'rgba(224,92,92,0.3)':'rgba(255,255,255,0.08)'}`}}>
+                      <span style={{fontSize:'12px',color:fundamentals.earningsWarning?'#E05C5C':'#c9a84c',fontWeight:600}}>
+                        {fundamentals.earningsWarning?'⚠ ':'📅 '}Results: {fundamentals.earningsDate}
+                      </span>
+                      {fundamentals.earningsWarning && (
+                        <p style={{fontSize:'11px',opacity:0.6,margin:'4px 0 0',lineHeight:1.5}}>
+                          Earnings in {fundamentals.daysToEarnings} day{fundamentals.daysToEarnings===1?'':'s'} — high volatility expected. Reduce position size.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {fundamentals.pe && (
+                    <p style={{fontSize:'11px',opacity:0.5,marginTop:'8px',lineHeight:1.5}}>
+                      {fundamentals.pe < 12 ? '✓ P/E below 12 — potentially undervalued relative to market.' : fundamentals.pe > 30 ? '⚠ P/E above 30 — expensive. Strong growth must justify this multiple.' : `P/E of ${fundamentals.pe}x — within normal range for Indian markets (avg ~22x).`}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Best entry date */}
               <div style={{...s.alert('info'),marginBottom:'12px',background:'rgba(201,168,76,0.06)',border:'0.5px solid rgba(201,168,76,0.25)',color:T.text}}>
@@ -1839,6 +2183,95 @@ Return ONLY the JSON. No markdown, no preamble.`,
                   fontWeight:600,cursor:'pointer',background:'rgba(201,168,76,0.08)',
                   border:'1px solid rgba(201,168,76,0.3)',color:'#c9a84c',fontFamily:"'DM Sans',sans-serif"}}>
                 📌 Log this prediction
+              </button>
+            </>
+          );
+        })()}
+
+        {/* ══════════════ SELL TAB ══════════════ */}
+        {activeTab==='Sell' && sellVerdict && (()=>{
+          const sv = sellVerdict;
+          const col = sv.color;
+          const pnlPos = parseFloat(sv.pnlPct) >= 0;
+          return (
+            <>
+              {/* Big verdict card */}
+              <div style={{padding:'20px',borderRadius:'16px',marginBottom:'14px',textAlign:'center',
+                background:`${col}10`,border:`1.5px solid ${col}40`}}>
+                <div style={{fontSize:'28px',fontWeight:800,color:col,marginBottom:'8px',letterSpacing:'1px'}}>{sv.verdict}</div>
+                <div style={{display:'flex',justifyContent:'center',gap:'16px',flexWrap:'wrap'}}>
+                  <div>
+                    <div style={{fontSize:'18px',fontWeight:700,color:pnlPos?'#7DC66A':'#E05C5C'}}>{pnlPos?'+':''}{sv.pnlPct}%</div>
+                    <div style={{fontSize:'10px',opacity:0.4}}>P&L %</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:'18px',fontWeight:700,color:pnlPos?'#7DC66A':'#E05C5C'}}>₹{Math.abs(sv.pnlRs).toLocaleString('en-IN')}</div>
+                    <div style={{fontSize:'10px',opacity:0.4}}>{pnlPos?'Profit':'Loss'}</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:'18px',fontWeight:700,color:T.text}}>{sv.heldStr}</div>
+                    <div style={{fontSize:'10px',opacity:0.4}}>Held</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Earnings warning */}
+              {sv.earningsWarn && (
+                <div style={{padding:'12px 14px',borderRadius:'10px',marginBottom:'12px',
+                  background:'rgba(224,92,92,0.1)',border:'1px solid rgba(224,92,92,0.3)'}}>
+                  <p style={{fontSize:'13px',fontWeight:700,color:'#E05C5C',margin:'0 0 4px'}}>⚠ Earnings in {sv.daysToE} day{sv.daysToE===1?'':'s'}!</p>
+                  <p style={{fontSize:'11px',opacity:0.65,margin:0,lineHeight:1.5}}>Results due {sv.earningsDate}. High volatility expected. Consider reducing position size before earnings.</p>
+                </div>
+              )}
+
+              {/* Action */}
+              {(sv.stopLoss||sv.target) && (
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'14px'}}>
+                  {sv.stopLoss && <div style={{padding:'12px',borderRadius:'10px',textAlign:'center',background:'rgba(224,92,92,0.08)',border:'0.5px solid rgba(224,92,92,0.2)'}}>
+                    <div style={{fontSize:'16px',fontWeight:700,color:'#E05C5C'}}>₹{sv.stopLoss}</div>
+                    <div style={{fontSize:'10px',opacity:0.4,marginTop:'2px'}}>Stop-loss</div>
+                  </div>}
+                  {sv.target && <div style={{padding:'12px',borderRadius:'10px',textAlign:'center',background:'rgba(100,180,80,0.08)',border:'0.5px solid rgba(100,180,80,0.2)'}}>
+                    <div style={{fontSize:'16px',fontWeight:700,color:'#7DC66A'}}>₹{sv.target}</div>
+                    <div style={{fontSize:'10px',opacity:0.4,marginTop:'2px'}}>Target</div>
+                  </div>}
+                </div>
+              )}
+
+              {/* Exit reasons */}
+              {sv.reasons.length>0 && (
+                <div style={{...s.section,marginBottom:'12px'}}>
+                  <p style={{...s.sectionTitle,color:'#E05C5C'}}>⚠ Exit signals ({sv.exitPoints} pts)</p>
+                  {sv.reasons.map((r,i)=>(
+                    <div key={i} style={{display:'flex',gap:'8px',alignItems:'flex-start',padding:'6px 0',
+                      borderBottom:i===sv.reasons.length-1?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                      <span style={{color:'#E05C5C',fontSize:'11px',flexShrink:0}}>✗</span>
+                      <span style={{fontSize:'12px',opacity:0.75,lineHeight:1.5}}>{r}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Hold reasons */}
+              {sv.holdReasons.length>0 && (
+                <div style={{...s.section,marginBottom:'12px'}}>
+                  <p style={{...s.sectionTitle,color:'#7DC66A'}}>✓ Hold signals ({sv.holdPoints} pts)</p>
+                  {sv.holdReasons.map((r,i)=>(
+                    <div key={i} style={{display:'flex',gap:'8px',alignItems:'flex-start',padding:'6px 0',
+                      borderBottom:i===sv.holdReasons.length-1?'none':'0.5px solid rgba(255,255,255,0.05)'}}>
+                      <span style={{color:'#7DC66A',fontSize:'11px',flexShrink:0}}>✓</span>
+                      <span style={{fontSize:'12px',opacity:0.75,lineHeight:1.5}}>{r}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add to portfolio */}
+              <button onClick={()=>addToPortfolio(stockInput, sellInputs.buyPrice, sellInputs.qty, priceData.currentPrice)}
+                style={{width:'100%',padding:'12px',borderRadius:'10px',fontSize:'12px',fontWeight:600,
+                  cursor:'pointer',background:'rgba(201,168,76,0.08)',border:'1px solid rgba(201,168,76,0.25)',
+                  color:'#c9a84c',fontFamily:"'DM Sans',sans-serif",marginBottom:'8px'}}>
+                💼 Add to My Portfolio
               </button>
             </>
           );
@@ -1994,6 +2427,106 @@ Return ONLY the JSON. No markdown, no preamble.`,
         </p>
 
       </div>
+
+      {/* ══ PORTFOLIO MODAL ══ */}
+      {showPortfolio && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:1000,
+          background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'flex-end'}}
+          onClick={()=>setShowPortfolio(false)}>
+          <div style={{background:T.bg,width:'100%',maxHeight:'88vh',overflowY:'auto',
+            borderRadius:'20px 20px 0 0',padding:'20px',boxSizing:'border-box'}}
+            onClick={e=>e.stopPropagation()}>
+
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+              <p style={{fontSize:'15px',fontWeight:700,color:'#c9a84c',margin:0}}>💼 My Portfolio</p>
+              <div style={{display:'flex',gap:'8px'}}>
+                <button onClick={refreshPortfolioPrices} disabled={portfolioLoading}
+                  style={{background:'rgba(201,168,76,0.1)',border:'0.5px solid rgba(201,168,76,0.3)',
+                    borderRadius:'8px',color:'#c9a84c',fontFamily:"'DM Sans',sans-serif",
+                    fontSize:'11px',padding:'6px 10px',cursor:'pointer'}}>
+                  {portfolioLoading?'↺ Updating…':'↺ Refresh prices'}
+                </button>
+                <button onClick={()=>setShowPortfolio(false)}
+                  style={{background:'none',border:'none',color:T.text,fontSize:'20px',cursor:'pointer',opacity:0.5}}>✕</button>
+              </div>
+            </div>
+
+            {portfolio.length===0 ? (
+              <div style={{textAlign:'center',padding:'30px 10px',opacity:0.5}}>
+                <p style={{fontSize:'28px',marginBottom:'10px'}}>📭</p>
+                <p style={{fontSize:'13px',lineHeight:1.7}}>No holdings yet. After analysing a stock in Sell mode, tap "Add to Portfolio" to track it here.</p>
+              </div>
+            ) : (
+              <>
+                {/* Portfolio summary */}
+                {(()=>{
+                  const holdings = portfolio.filter(h=>h.currentPrice&&h.buyPrice);
+                  const totalInvested = portfolio.reduce((a,h)=>(a+(h.buyPrice||0)*(h.qty||1)),0);
+                  const totalCurrent = holdings.reduce((a,h)=>(a+(h.currentPrice||0)*(h.qty||1)),0);
+                  const totalPnl = totalCurrent - portfolio.filter(h=>h.currentPrice).reduce((a,h)=>(a+(h.buyPrice||0)*(h.qty||1)),0);
+                  const totalPnlPct = totalInvested>0?(totalPnl/totalInvested*100):0;
+                  return (
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginBottom:'16px'}}>
+                      {[
+                        {l:'Holdings',v:portfolio.length,c:T.text},
+                        {l:'Invested',v:`₹${totalInvested.toLocaleString('en-IN',{maximumFractionDigits:0})}`,c:T.text},
+                        {l:'P&L',v:`${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%`,c:totalPnlPct>=0?'#7DC66A':'#E05C5C'},
+                      ].map((m,i)=>(
+                        <div key={i} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                          <div style={{fontSize:'16px',fontWeight:700,color:m.c}}>{m.v}</div>
+                          <div style={{fontSize:'9px',opacity:0.4,marginTop:'2px'}}>{m.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Holdings list */}
+                {portfolio.map((h,i)=>{
+                  const pnl = h.currentPrice ? ((h.currentPrice-h.buyPrice)/h.buyPrice*100) : null;
+                  const pnlRs = h.currentPrice ? ((h.currentPrice-h.buyPrice)*(h.qty||1)) : null;
+                  return (
+                    <div key={h.id} style={{background:'rgba(255,255,255,0.03)',borderRadius:'12px',
+                      padding:'14px',marginBottom:'8px',border:'0.5px solid rgba(255,255,255,0.07)'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
+                        <div>
+                          <span style={{fontSize:'14px',fontWeight:700}}>{h.symbol}</span>
+                          <span style={{fontSize:'10px',opacity:0.4,marginLeft:'8px'}}>{h.qty} shares · bought {h.buyDate}</span>
+                        </div>
+                        <button onClick={()=>removeFromPortfolio(h.id)}
+                          style={{background:'none',border:'none',color:T.text,opacity:0.3,cursor:'pointer',fontSize:'16px'}}>✕</button>
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
+                        {[
+                          {l:'Buy',v:`₹${h.buyPrice}`,c:T.text},
+                          {l:'Now',v:h.currentPrice?`₹${h.currentPrice.toFixed(2)}`:'—',c:T.text},
+                          {l:'P&L %',v:pnl!==null?`${pnl>=0?'+':''}${pnl.toFixed(1)}%`:'—',c:pnl>=0?'#7DC66A':'#E05C5C'},
+                          {l:'P&L ₹',v:pnlRs!==null?`${pnlRs>=0?'+':''}${Math.round(pnlRs).toLocaleString('en-IN')}`:'—',c:pnlRs>=0?'#7DC66A':'#E05C5C'},
+                        ].map((m,j)=>(
+                          <div key={j} style={{textAlign:'center'}}>
+                            <div style={{fontSize:'12px',fontWeight:600,color:m.c}}>{m.v}</div>
+                            <div style={{fontSize:'9px',opacity:0.35,marginTop:'1px'}}>{m.l}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {h.lastUpdated && <p style={{fontSize:'9px',opacity:0.3,margin:'6px 0 0',textAlign:'right'}}>Updated {h.lastUpdated}</p>}
+                      {/* Quick analyse button */}
+                      <button
+                        onClick={()=>{setStockInput(h.symbol);setMode('sell');setSellInputs({buyPrice:String(h.buyPrice),buyDate:h.buyDate,qty:String(h.qty||1)});setShowPortfolio(false);}}
+                        style={{width:'100%',marginTop:'8px',padding:'8px',borderRadius:'8px',fontSize:'11px',
+                          fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                          background:'rgba(201,168,76,0.08)',border:'0.5px solid rgba(201,168,76,0.2)',color:'#c9a84c'}}>
+                        💸 Should I sell {h.symbol}?
+                      </button>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

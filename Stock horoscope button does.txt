@@ -1,0 +1,49 @@
+Stock horoscope button does
+
+What it actually does right now
+✅ Yahoo Finance — YES, it works
+When you type a stock name and tap Analyse, it calls your /api/stock endpoint which fetches 5 years of daily OHLCV data from Yahoo Finance for free. It pulls:
+
+Current price
+All daily closes (~1250 data points)
+Daily highs, lows, volumes
+Timestamps
+
+From those 1250 closes it auto-computes:
+
+52-week high and low (last 252 trading days)
+200-DMA (last 200 closes average)
+50-DMA
+5-year high and low
+RSI (14-day) — calculated from actual price changes
+MACD — EMA12 vs EMA26, histogram
+Bollinger Bands — 20-day mean ± 2 standard deviations
+5-year range percentile — where price sits in 5 years of history
+Volume signal — recent 5-day volume vs 20-day average
+
+Zero manual input needed. All 7 indicators computed automatically.
+
+✅ What it shows an investor
+For BUY decisions:
+
+Score ≥65 + 4/6 layers bullish = favourable window
+RSI below 30 = oversold, historically good entry
+Price in bottom 20% of 5-year range = multi-year accumulation zone
+200-DMA slope rising = long-term uptrend intact
+MACD crossover from negative to positive = momentum building
+Shukla Paksha + Ekadashi/Purnima tithi + Mercury direct = auspicious timing
+Realistic upside target (+X%) and time horizon shown
+
+For SELL / EXIT decisions:
+
+Score below 50 = avoid or exit
+RSI above 70 = overbought, pullback risk
+Price near 5-year high = stretched valuation
+MACD histogram turning negative = momentum fading
+Rikta tithi (4, 8, 13) = classical prohibition, don't hold new entries
+Mercury retrograde = IT/banking entries likely to reverse
+Stop-loss % shown — if stock drops that much, exit immediately
+
+
+❌ What it currently does NOT do
+MissingImpactNo sell signal from portfolioYou can't input "I bought at ₹500, now ₹420 — should I exit?"No earnings calendarDoesn't know if results are due in 3 daysNo promoter holding / FII holding %No fundamental dataNo P/E ratioCan't judge if stock is fundamentally cheap or expensiveNo news scrapingYou paste news manually — it doesn't auto-fetch headlinesNo portfolio trackingNo "my holdings" feature
